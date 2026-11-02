@@ -1,0 +1,1 @@
+export default defineEventHandler(event => proxyRequest(event,`${useRuntimeConfig(event).apiBase}${event.path}`,{headers:{'x-forwarded-for':getRequestIP(event,{xForwardedFor:process.env.NUXT_TRUST_PROXY==='true'})||'unknown'}}))

@@ -1,0 +1,30 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    env_file: ../apps/api/.env
+    environment:
+      NODE_ENV: production
+      API_HOST: 0.0.0.0
+      DB_HOST: host.docker.internal
+      TRUST_PROXY: loopback,uniquelocal
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    volumes: ["api-data:/app/apps/api/.data"]
+    restart: unless-stopped
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    working_dir: /app/apps/web
+    command: ["node", ".output/server/index.mjs"]
+    environment:
+      NODE_ENV: production
+      NITRO_HOST: 0.0.0.0
+      NITRO_PORT: 3100
+      NUXT_API_BASE: http://api:3200
+    ports: ["127.0.0.1:3100:3100"]
+    depends_on: [api]
+    restart: unless-stopped
+volumes:
+  api-data:

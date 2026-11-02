@@ -1,0 +1,14 @@
+{
+  "name": "chengzhixiang-forum",
+  "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "dev": "pnpm --filter @chengzhixiang/web dev",
+    "dev:api": "pnpm --filter @chengzhixiang/api dev",
+    "build": "node scripts/sync-award-rules.mjs && pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "db:migrate": "pnpm --filter @chengzhixiang/api migrate",
+    "test:api": "pnpm --filter @chengzhixiang/api test",
+    "test": "node --test tests/awards.test.mjs tests/avatar.test.mjs tests/feed-client.test.mjs tests/post-card.test.mjs tests/auth-feedback.test.mjs && pnpm test:api"
+  }
+}

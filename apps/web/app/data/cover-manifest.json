@@ -1,0 +1,756 @@
+{
+  "1": {
+    "rail": [
+      {
+        "width": 48,
+        "height": 60,
+        "url": "/images/works/responsive/1-rail-48.webp"
+      },
+      {
+        "width": 64,
+        "height": 80,
+        "url": "/images/works/responsive/1-rail-64.webp"
+      },
+      {
+        "width": 96,
+        "height": 120,
+        "url": "/images/works/responsive/1-rail-96.webp"
+      },
+      {
+        "width": 128,
+        "height": 160,
+        "url": "/images/works/responsive/1-rail-128.webp"
+      },
+      {
+        "width": 192,
+        "height": 240,
+        "url": "/images/works/responsive/1-rail-192.webp"
+      }
+    ],
+    "post": [
+      {
+        "width": 96,
+        "height": 72,
+        "url": "/images/works/responsive/1-post-96.webp"
+      },
+      {
+        "width": 144,
+        "height": 108,
+        "url": "/images/works/responsive/1-post-144.webp"
+      },
+      {
+        "width": 192,
+        "height": 144,
+        "url": "/images/works/responsive/1-post-192.webp"
+      },
+      {
+        "width": 288,
+        "height": 216,
+        "url": "/images/works/responsive/1-post-288.webp"
+      },
+      {
+        "width": 384,
+        "height": 288,
+        "url": "/images/works/responsive/1-post-384.webp"
+      },
+      {
+        "width": 576,
+        "height": 432,
+        "url": "/images/works/responsive/1-post-576.webp"
+      }
+    ]
+  },
+  "2": {
+    "rail": [
+      {
+        "width": 48,
+        "height": 60,
+        "url": "/images/works/responsive/2-rail-48.webp"
+      },
+      {
+        "width": 64,
+        "height": 80,
+        "url": "/images/works/responsive/2-rail-64.webp"
+      },
+      {
+        "width": 96,
+        "height": 120,
+        "url": "/images/works/responsive/2-rail-96.webp"
+      },
+      {
+        "width": 128,
+        "height": 160,
+        "url": "/images/works/responsive/2-rail-128.webp"
+      },
+      {
+        "width": 192,
+        "height": 240,
+        "url": "/images/works/responsive/2-rail-192.webp"
+      }
+    ],
+    "post": [
+      {
+        "width": 96,
+        "height": 72,
+        "url": "/images/works/responsive/2-post-96.webp"
+      },
+      {
+        "width": 144,
+        "height": 108,
+        "url": "/images/works/responsive/2-post-144.webp"
+      },
+      {
+        "width": 192,
+        "height": 144,
+        "url": "/images/works/responsive/2-post-192.webp"
+      },
+      {
+        "width": 288,
+        "height": 216,
+        "url": "/images/works/responsive/2-post-288.webp"
+      },
+      {
+        "width": 384,
+        "height": 288,
+        "url": "/images/works/responsive/2-post-384.webp"
+      },
+      {
+        "width": 576,
+        "height": 432,
+        "url": "/images/works/responsive/2-post-576.webp"
+      }
+    ]
+  },
+  "3": {
+    "rail": [
+      {
+        "width": 48,
+        "height": 60,
+        "url": "/images/works/responsive/3-rail-48.webp"
+      },
+      {
+        "width": 64,
+        "height": 80,
+        "url": "/images/works/responsive/3-rail-64.webp"
+      },
+      {
+        "width": 96,
+        "height": 120,
+        "url": "/images/works/responsive/3-rail-96.webp"
+      },
+      {
+        "width": 128,
+        "height": 160,
+        "url": "/images/works/responsive/3-rail-128.webp"
+      },
+      {
+        "width": 192,
+        "height": 240,
+        "url": "/images/works/responsive/3-rail-192.webp"
+      }
+    ],
+    "post": [
+      {
+        "width": 96,
+        "height": 72,
+        "url": "/images/works/responsive/3-post-96.webp"
+      },
+      {
+        "width": 144,
+        "height": 108,
+        "url": "/images/works/responsive/3-post-144.webp"
+      },
+      {
+        "width": 192,
+        "height": 144,
+        "url": "/images/works/responsive/3-post-192.webp"
+      },
+      {
+        "width": 288,
+        "height": 216,
+        "url": "/images/works/responsive/3-post-288.webp"
+      },
+      {
+        "width": 384,
+        "height": 288,
+        "url": "/images/works/responsive/3-post-384.webp"
+      },
+      {
+        "width": 576,
+        "height": 432,
+        "url": "/images/works/responsive/3-post-576.webp"
+      }
+    ]
+  },
+  "4": {
+    "rail": [
+      {
+        "width": 48,
+        "height": 60,
+        "url": "/images/works/responsive/4-rail-48.webp"
+      },
+      {
+        "width": 64,
+        "height": 80,
+        "url": "/images/works/responsive/4-rail-64.webp"
+      },
+      {
+        "width": 96,
+        "height": 120,
+        "url": "/images/works/responsive/4-rail-96.webp"
+      },
+      {
+        "width": 128,
+        "height": 160,
+        "url": "/images/works/responsive/4-rail-128.webp"
+      },
+      {
+        "width": 192,
+        "height": 240,
+        "url": "/images/works/responsive/4-rail-192.webp"
+      }
+    ],
+    "post": [
+      {
+        "width": 96,
+        "height": 72,
+        "url": "/images/works/responsive/4-post-96.webp"
+      },
+      {
+        "width": 144,
+        "height": 108,
+        "url": "/images/works/responsive/4-post-144.webp"
+      },
+      {
+        "width": 192,
+        "height": 144,
+        "url": "/images/works/responsive/4-post-192.webp"
+      },
+      {
+        "width": 288,
+        "height": 216,
+        "url": "/images/works/responsive/4-post-288.webp"
+      },
+      {
+        "width": 384,
+        "height": 288,
+        "url": "/images/works/responsive/4-post-384.webp"
+      },
+      {
+        "width": 576,
+        "height": 432,
+        "url": "/images/works/responsive/4-post-576.webp"
+      }
+    ]
+  },
+  "5": {
+    "rail": [
+      {
+        "width": 48,
+        "height": 60,
+        "url": "/images/works/responsive/5-rail-48.webp"
+      },
+      {
+        "width": 64,
+        "height": 80,
+        "url": "/images/works/responsive/5-rail-64.webp"
+      },
+      {
+        "width": 96,
+        "height": 120,
+        "url": "/images/works/responsive/5-rail-96.webp"
+      },
+      {
+        "width": 128,
+        "height": 160,
+        "url": "/images/works/responsive/5-rail-128.webp"
+      },
+      {
+        "width": 192,
+        "height": 240,
+        "url": "/images/works/responsive/5-rail-192.webp"
+      }
+    ],
+    "post": [
+      {
+        "width": 96,
+        "height": 72,
+        "url": "/images/works/responsive/5-post-96.webp"
+      },
+      {
+        "width": 144,
+        "height": 108,
+        "url": "/images/works/responsive/5-post-144.webp"
+      },
+      {
+        "width": 192,
+        "height": 144,
+        "url": "/images/works/responsive/5-post-192.webp"
+      },
+      {
+        "width": 288,
+        "height": 216,
+        "url": "/images/works/responsive/5-post-288.webp"
+      },
+      {
+        "width": 384,
+        "height": 288,
+        "url": "/images/works/responsive/5-post-384.webp"
+      },
+      {
+        "width": 576,
+        "height": 432,
+        "url": "/images/works/responsive/5-post-576.webp"
+      }
+    ]
+  },
+  "6": {
+    "rail": [
+      {
+        "width": 48,
+        "height": 60,
+        "url": "/images/works/responsive/6-rail-48.webp"
+      },
+      {
+        "width": 64,
+        "height": 80,
+        "url": "/images/works/responsive/6-rail-64.webp"
+      },
+      {
+        "width": 96,
+        "height": 120,
+        "url": "/images/works/responsive/6-rail-96.webp"
+      },
+      {
+        "width": 128,
+        "height": 160,
+        "url": "/images/works/responsive/6-rail-128.webp"
+      },
+      {
+        "width": 192,
+        "height": 240,
+        "url": "/images/works/responsive/6-rail-192.webp"
+      }
+    ],
+    "post": [
+      {
+        "width": 96,
+        "height": 72,
+        "url": "/images/works/responsive/6-post-96.webp"
+      },
+      {
+        "width": 144,
+        "height": 108,
+        "url": "/images/works/responsive/6-post-144.webp"
+      },
+      {
+        "width": 192,
+        "height": 144,
+        "url": "/images/works/responsive/6-post-192.webp"
+      },
+      {
+        "width": 288,
+        "height": 216,
+        "url": "/images/works/responsive/6-post-288.webp"
+      },
+      {
+        "width": 384,
+        "height": 288,
+        "url": "/images/works/responsive/6-post-384.webp"
+      },
+      {
+        "width": 576,
+        "height": 432,
+        "url": "/images/works/responsive/6-post-576.webp"
+      }
+    ]
+  },
+  "7": {
+    "rail": [
+      {
+        "width": 48,
+        "height": 60,
+        "url": "/images/works/responsive/7-rail-48.webp"
+      },
+      {
+        "width": 64,
+        "height": 80,
+        "url": "/images/works/responsive/7-rail-64.webp"
+      },
+      {
+        "width": 96,
+        "height": 120,
+        "url": "/images/works/responsive/7-rail-96.webp"
+      },
+      {
+        "width": 128,
+        "height": 160,
+        "url": "/images/works/responsive/7-rail-128.webp"
+      },
+      {
+        "width": 192,
+        "height": 240,
+        "url": "/images/works/responsive/7-rail-192.webp"
+      }
+    ],
+    "post": [
+      {
+        "width": 96,
+        "height": 72,
+        "url": "/images/works/responsive/7-post-96.webp"
+      },
+      {
+        "width": 144,
+        "height": 108,
+        "url": "/images/works/responsive/7-post-144.webp"
+      },
+      {
+        "width": 192,
+        "height": 144,
+        "url": "/images/works/responsive/7-post-192.webp"
+      },
+      {
+        "width": 288,
+        "height": 216,
+        "url": "/images/works/responsive/7-post-288.webp"
+      },
+      {
+        "width": 384,
+        "height": 288,
+        "url": "/images/works/responsive/7-post-384.webp"
+      },
+      {
+        "width": 576,
+        "height": 432,
+        "url": "/images/works/responsive/7-post-576.webp"
+      }
+    ]
+  },
+  "8": {
+    "rail": [
+      {
+        "width": 48,
+        "height": 60,
+        "url": "/images/works/responsive/8-rail-48.webp"
+      },
+      {
+        "width": 64,
+        "height": 80,
+        "url": "/images/works/responsive/8-rail-64.webp"
+      },
+      {
+        "width": 96,
+        "height": 120,
+        "url": "/images/works/responsive/8-rail-96.webp"
+      },
+      {
+        "width": 128,
+        "height": 160,
+        "url": "/images/works/responsive/8-rail-128.webp"
+      },
+      {
+        "width": 192,
+        "height": 240,
+        "url": "/images/works/responsive/8-rail-192.webp"
+      }
+    ],
+    "post": [
+      {
+        "width": 96,
+        "height": 72,
+        "url": "/images/works/responsive/8-post-96.webp"
+      },
+      {
+        "width": 144,
+        "height": 108,
+        "url": "/images/works/responsive/8-post-144.webp"
+      },
+      {
+        "width": 192,
+        "height": 144,
+        "url": "/images/works/responsive/8-post-192.webp"
+      },
+      {
+        "width": 288,
+        "height": 216,
+        "url": "/images/works/responsive/8-post-288.webp"
+      },
+      {
+        "width": 384,
+        "height": 288,
+        "url": "/images/works/responsive/8-post-384.webp"
+      }
+    ]
+  },
+  "9": {
+    "rail": [
+      {
+        "width": 48,
+        "height": 60,
+        "url": "/images/works/responsive/9-rail-48.webp"
+      },
+      {
+        "width": 64,
+        "height": 80,
+        "url": "/images/works/responsive/9-rail-64.webp"
+      },
+      {
+        "width": 96,
+        "height": 120,
+        "url": "/images/works/responsive/9-rail-96.webp"
+      },
+      {
+        "width": 128,
+        "height": 160,
+        "url": "/images/works/responsive/9-rail-128.webp"
+      },
+      {
+        "width": 192,
+        "height": 240,
+        "url": "/images/works/responsive/9-rail-192.webp"
+      }
+    ],
+    "post": [
+      {
+        "width": 96,
+        "height": 72,
+        "url": "/images/works/responsive/9-post-96.webp"
+      },
+      {
+        "width": 144,
+        "height": 108,
+        "url": "/images/works/responsive/9-post-144.webp"
+      },
+      {
+        "width": 192,
+        "height": 144,
+        "url": "/images/works/responsive/9-post-192.webp"
+      },
+      {
+        "width": 288,
+        "height": 216,
+        "url": "/images/works/responsive/9-post-288.webp"
+      },
+      {
+        "width": 384,
+        "height": 288,
+        "url": "/images/works/responsive/9-post-384.webp"
+      },
+      {
+        "width": 576,
+        "height": 432,
+        "url": "/images/works/responsive/9-post-576.webp"
+      }
+    ],
+    "hero": [
+      {
+        "width": 384,
+        "height": 256,
+        "url": "/images/works/responsive/9-hero-384.webp"
+      },
+      {
+        "width": 576,
+        "height": 384,
+        "url": "/images/works/responsive/9-hero-576.webp"
+      },
+      {
+        "width": 768,
+        "height": 512,
+        "url": "/images/works/responsive/9-hero-768.webp"
+      },
+      {
+        "width": 1152,
+        "height": 768,
+        "url": "/images/works/responsive/9-hero-1152.webp"
+      },
+      {
+        "width": 1536,
+        "height": 1024,
+        "url": "/images/works/responsive/9-hero-1536.webp"
+      }
+    ]
+  },
+  "10": {
+    "rail": [
+      {
+        "width": 48,
+        "height": 60,
+        "url": "/images/works/responsive/10-rail-48.webp"
+      },
+      {
+        "width": 64,
+        "height": 80,
+        "url": "/images/works/responsive/10-rail-64.webp"
+      },
+      {
+        "width": 96,
+        "height": 120,
+        "url": "/images/works/responsive/10-rail-96.webp"
+      },
+      {
+        "width": 128,
+        "height": 160,
+        "url": "/images/works/responsive/10-rail-128.webp"
+      },
+      {
+        "width": 192,
+        "height": 240,
+        "url": "/images/works/responsive/10-rail-192.webp"
+      }
+    ],
+    "post": [
+      {
+        "width": 96,
+        "height": 72,
+        "url": "/images/works/responsive/10-post-96.webp"
+      },
+      {
+        "width": 144,
+        "height": 108,
+        "url": "/images/works/responsive/10-post-144.webp"
+      },
+      {
+        "width": 192,
+        "height": 144,
+        "url": "/images/works/responsive/10-post-192.webp"
+      },
+      {
+        "width": 288,
+        "height": 216,
+        "url": "/images/works/responsive/10-post-288.webp"
+      },
+      {
+        "width": 384,
+        "height": 288,
+        "url": "/images/works/responsive/10-post-384.webp"
+      },
+      {
+        "width": 576,
+        "height": 432,
+        "url": "/images/works/responsive/10-post-576.webp"
+      }
+    ]
+  },
+  "11": {
+    "rail": [
+      {
+        "width": 48,
+        "height": 60,
+        "url": "/images/works/responsive/11-rail-48.webp"
+      },
+      {
+        "width": 64,
+        "height": 80,
+        "url": "/images/works/responsive/11-rail-64.webp"
+      },
+      {
+        "width": 96,
+        "height": 120,
+        "url": "/images/works/responsive/11-rail-96.webp"
+      },
+      {
+        "width": 128,
+        "height": 160,
+        "url": "/images/works/responsive/11-rail-128.webp"
+      },
+      {
+        "width": 192,
+        "height": 240,
+        "url": "/images/works/responsive/11-rail-192.webp"
+      }
+    ],
+    "post": [
+      {
+        "width": 96,
+        "height": 72,
+        "url": "/images/works/responsive/11-post-96.webp"
+      },
+      {
+        "width": 144,
+        "height": 108,
+        "url": "/images/works/responsive/11-post-144.webp"
+      },
+      {
+        "width": 192,
+        "height": 144,
+        "url": "/images/works/responsive/11-post-192.webp"
+      },
+      {
+        "width": 288,
+        "height": 216,
+        "url": "/images/works/responsive/11-post-288.webp"
+      },
+      {
+        "width": 384,
+        "height": 288,
+        "url": "/images/works/responsive/11-post-384.webp"
+      },
+      {
+        "width": 576,
+        "height": 432,
+        "url": "/images/works/responsive/11-post-576.webp"
+      }
+    ]
+  },
+  "12": {
+    "rail": [
+      {
+        "width": 48,
+        "height": 60,
+        "url": "/images/works/responsive/12-rail-48.webp"
+      },
+      {
+        "width": 64,
+        "height": 80,
+        "url": "/images/works/responsive/12-rail-64.webp"
+      },
+      {
+        "width": 96,
+        "height": 120,
+        "url": "/images/works/responsive/12-rail-96.webp"
+      },
+      {
+        "width": 128,
+        "height": 160,
+        "url": "/images/works/responsive/12-rail-128.webp"
+      },
+      {
+        "width": 192,
+        "height": 240,
+        "url": "/images/works/responsive/12-rail-192.webp"
+      }
+    ],
+    "post": [
+      {
+        "width": 96,
+        "height": 72,
+        "url": "/images/works/responsive/12-post-96.webp"
+      },
+      {
+        "width": 144,
+        "height": 108,
+        "url": "/images/works/responsive/12-post-144.webp"
+      },
+      {
+        "width": 192,
+        "height": 144,
+        "url": "/images/works/responsive/12-post-192.webp"
+      },
+      {
+        "width": 288,
+        "height": 216,
+        "url": "/images/works/responsive/12-post-288.webp"
+      },
+      {
+        "width": 384,
+        "height": 288,
+        "url": "/images/works/responsive/12-post-384.webp"
+      },
+      {
+        "width": 576,
+        "height": 432,
+        "url": "/images/works/responsive/12-post-576.webp"
+      }
+    ]
+  }
+}

@@ -1,0 +1,100 @@
+import type { AccountRole, AwardPermission, AwardCampaign, AwardNomination, AwardCandidate, AwardBallot, AwardResult, CampaignPhase } from '../types/awards'
+
+export const roleNames: Record<AccountRole, string> = { member: '普通成员', admin: '管理员', super_admin: '超级管理员' }
+export const phaseNames: Record<CampaignPhase, string> = { draft: '筹备中', nomination: '提名阶段', voting: '投票阶段', results: '结果公布', archived: '已归档' }
+export const permissionLabels: Record<AwardPermission, string> = {
+  'nomination.submit': '提交与撤回本人提名', 'ballot.submit': '提交与修改本人选票', 'campaign.manage': '配置名额、时间与推进阶段',
+  'nomination.review': '审核提名与推荐语', 'campaign.create': '创建新一届活动', 'campaign.archive': '归档活动结果', 'account.manage': '分配管理员权限',
+}
+const memberPermissions: AwardPermission[] = ['nomination.submit', 'ballot.submit']
+const adminPermissions: AwardPermission[] = [...memberPermissions, 'campaign.manage', 'nomination.review']
+export function hasAwardPermission(role: AccountRole, permission: AwardPermission) {
+  return role === 'super_admin' || (role === 'admin' ? adminPermissions : memberPermissions).includes(permission)
+}
+
+export function normalizeWorkTitle(title: string) {
+  return title.normalize('NFKC').toLocaleLowerCase().replace(/[\p{P}\p{Z}\s]/gu, '')
+}
+
+export function validateCampaignSettings(campaign: AwardCampaign) {
+  if (!campaign.title.trim() || campaign.title.length > 80) return '活动名称需为 1–80 个字。'
+  for (const [name, value] of [['每人提名数', campaign.nominationLimit], ['每人票数', campaign.voteLimit], ['入选名额', campaign.winnerCount]] as const) {
+    if (!Number.isInteger(value) || value < 1 || value > 100) return `${name}需为 1–100 的整数。`
+  }
+  const pairs = [[campaign.nominationStart, campaign.nominationEnd, '提名'], [campaign.votingStart, campaign.votingEnd, '投票']] as const
+  for (const [start, end, label] of pairs) {
+    if (Boolean(start) !== Boolean(end)) return `请同时填写${label}开始与结束时间，或同时留空。`
+    if (start && end && (!Number.isFinite(Date.parse(start)) || !Number.isFinite(Date.parse(end)) || Date.parse(start) >= Date.parse(end))) return `${label}结束时间必须晚于开始时间。`
+  }
+  if (campaign.nominationEnd && campaign.votingStart && Date.parse(campaign.votingStart) < Date.parse(campaign.nominationEnd)) return '投票开始时间不能早于提名结束时间。'
+  return ''
+}
+
+export function campaignWindowMessage(campaign: AwardCampaign, phase: 'nomination' | 'voting', now = Date.now()) {
+  const start = phase === 'nomination' ? campaign.nominationStart : campaign.votingStart
+  const end = phase === 'nomination' ? campaign.nominationEnd : campaign.votingEnd
+  const label = phase === 'nomination' ? '提名' : '投票'
+  if (start && now < Date.parse(start)) return `${label}时间尚未开始。`
+  if (end && now >= Date.parse(end)) return `${label}时间已结束。`
+  return ''
+}
+
+export function collectAwardCandidates(nominations: AwardNomination[], campaignId: string): AwardCandidate[] {
+  const grouped = new Map<string, AwardCandidate>()
+  for (const item of nominations) {
+    if (item.campaignId !== campaignId || item.status !== 'approved') continue
+    const existing = grouped.get(item.candidateId)
+    if (existing) existing.nominations.push(item)
+    else grouped.set(item.candidateId, { id: item.candidateId, title: item.title, studio: item.studio, coverRank: item.coverRank, nominations: [item] })
+  }
+  return [...grouped.values()].sort((a, b) => b.nominations.length - a.nominations.length || a.title.localeCompare(b.title, 'zh-CN'))
+}
+
+export function validateBallot(candidateIds: string[], candidates: AwardCandidate[], limit: number) {
+  if (!candidateIds.length) return '请至少选择一部作品。'
+  if (new Set(candidateIds).size !== candidateIds.length) return '同一部作品只能获得你的一票。'
+  if (candidateIds.length > limit) return `本届每人最多选择 ${limit} 部作品。`
+  const available = new Set(candidates.map(candidate => candidate.id))
+  if (candidateIds.some(id => !available.has(id))) return '选票包含不在正式候选名单中的作品，请重新选择。'
+  return ''
+}
+
+export function tallyAwardResults(candidates: AwardCandidate[], ballots: AwardBallot[], campaignId: string): AwardResult[] {
+  // Keep only the last submitted ballot per account, including on restored preview data.
+  const latestBallots = new Map<string, AwardBallot>()
+  for (const ballot of ballots) {
+    if (ballot.campaignId !== campaignId) continue
+    const previous = latestBallots.get(ballot.accountId)
+    if (!previous || Date.parse(previous.updatedAt) <= Date.parse(ballot.updatedAt)) latestBallots.set(ballot.accountId, ballot)
+  }
+  const counts = new Map(candidates.map(candidate => [candidate.id, 0]))
+  for (const ballot of latestBallots.values()) {
+    for (const id of new Set(ballot.candidateIds)) if (counts.has(id)) counts.set(id, counts.get(id)! + 1)
+  }
+  const sorted = candidates.map(candidate => ({ ...candidate, votes: counts.get(candidate.id) || 0, rank: 0 })).sort((a, b) => b.votes - a.votes || a.title.localeCompare(b.title, 'zh-CN'))
+  for (let index = 0; index < sorted.length; index++) sorted[index]!.rank = index > 0 && sorted[index]!.votes === sorted[index - 1]!.votes ? sorted[index - 1]!.rank : index + 1
+  return sorted
+}
+
+export function validatePhaseTransition(from: CampaignPhase, to: CampaignPhase, pendingCount: number, candidateCount: number) {
+  const next: Partial<Record<CampaignPhase, CampaignPhase>> = { draft: 'nomination', nomination: 'voting', voting: 'results', results: 'archived' }
+  if (next[from] !== to) return '活动需按筹备、提名、投票、公布、归档的顺序推进。'
+  if (to === 'voting' && pendingCount) return '请先处理所有待审核提名，再开启投票。'
+  if (to === 'voting' && !candidateCount) return '至少需要一部审核通过的作品才能开启投票。'
+  return ''
+}
+
+export function formatAwardTime(value: string | null) {
+  if (!value) return '时间待公布'
+  return new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(value))
+}
+
+export function toAwardTimeInput(value: string | null) {
+  if (!value) return ''
+  const offsetDate = new Date(Date.parse(value) + 8 * 60 * 60 * 1000)
+  return offsetDate.toISOString().slice(0, 16)
+}
+
+export function fromAwardTimeInput(value: string) {
+  return value ? new Date(`${value}:00+08:00`).toISOString() : null
+}

@@ -1,0 +1,22 @@
+{
+  "name": "@chengzhixiang/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev --host 127.0.0.1 --port 3100",
+    "build": "nuxt build",
+    "postinstall": "nuxt prepare",
+    "typecheck": "nuxt typecheck",
+    "preview": "nuxt preview --host 127.0.0.1 --port 3100"
+  },
+  "dependencies": {
+    "lucide-vue-next": "1.0.0",
+    "nuxt": "4.6.3",
+    "vue": "3.5.44",
+    "vue-router": "5.4.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vue-tsc": "3.3.14"
+  }
+}
