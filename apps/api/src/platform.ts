@@ -21,5 +21,14 @@ export class Platform {
   await this.db.execute('UPDATE users SET role=?,status=? WHERE id=?',[role,status,id],tx);await this.db.execute('DELETE FROM auth_sessions WHERE user_id=?',[id],tx);await this.audit(actor,`调整账号 ${target.nickname}：${role} / ${status}`,null,tx)
   return {message:'账号已更新，受影响账号需重新登录。'}
  })}
- async bootstrap(email:string){return this.db.transaction(async tx=>{await this.lock('account-roles',tx);if((await this.db.rows("SELECT id FROM users WHERE role='super_admin' AND status='active'",[],tx)).length)throw reject('已经存在超级管理员，请使用权限管理界面。');const user=(await this.db.rows<Actor>('SELECT id,nickname,role,status FROM users WHERE email_key=? AND email_verified_at IS NOT NULL FOR UPDATE',[email.trim().toLowerCase()],tx))[0];if(!user||user.status!=='active')throw reject('请先完成该邮箱的注册。');await this.db.execute("UPDATE users SET role='super_admin' WHERE id=?",[user.id],tx);await this.db.execute('DELETE FROM auth_sessions WHERE user_id=?',[user.id],tx);await this.audit(user,'本机引导：创建首名超级管理员',null,tx)})}
+ async bootstrap(email:string){return this.db.transaction(async tx=>{
+  await this.lock('account-roles',tx)
+  if((await this.db.rows("SELECT id FROM users WHERE role='super_admin' AND status='active'",[],tx)).length)throw reject('已经存在超级管理员，请使用权限管理界面。')
+  const user=(await this.db.rows<Actor & {email_verified_at:number|null}>('SELECT id,nickname,role,status,email_verified_at FROM users WHERE email_key=? FOR UPDATE',[email.trim().toLowerCase()],tx))[0]
+  const verifiedAt=Number(user?.email_verified_at)
+  if(!user||user.status!=='active'||!Number.isFinite(verifiedAt)||verifiedAt<=0)throw reject('请先完成该邮箱的注册。')
+  await this.db.execute("UPDATE users SET role='super_admin' WHERE id=?",[user.id],tx)
+  await this.db.execute('DELETE FROM auth_sessions WHERE user_id=?',[user.id],tx)
+  await this.audit(user,'本机引导：创建首名超级管理员',null,tx)
+ })}
 }

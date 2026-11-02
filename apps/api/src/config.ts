@@ -6,7 +6,6 @@ const schema = z.object({
   WEB_ORIGIN: z.url(), DB_HOST: z.string().default('127.0.0.1'), DB_PORT: z.coerce.number().int().default(3306),
   DB_USER: z.string().min(1), DB_PASSWORD: z.string(), DB_NAME: z.string().regex(/^[a-zA-Z0-9_]+$/),
   AUTH_SECRET: z.string().min(64), MAIL_TRANSPORT: z.enum(['smtp','capture']).default('smtp'),
-  DEV_ADMIN_PASSWORD: z.preprocess(value=>value===''?undefined:value,z.string().min(12).max(128).optional()),
   SMTP_HOST: z.string().trim().default(''), SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587), SMTP_SECURE: z.enum(['true','false']).default('false'),
   SMTP_USER: z.string().trim().default(''), SMTP_PASSWORD: z.string().default(''), MAIL_FROM: z.string().trim().default(''),
   TRUST_PROXY: z.string().default('loopback'),
