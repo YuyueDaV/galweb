@@ -1,6 +1,0 @@
-{
-  "buildCommand": "pnpm --dir ../.. build:edgeone",
-  "installCommand": "npm install --global pnpm@11.25.0 && pnpm --dir ../.. install --frozen-lockfile",
-  "outputDirectory": ".edgeone",
-  "nodeVersion": "24.18.0"
-}

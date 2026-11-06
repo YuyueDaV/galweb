@@ -2,11 +2,18 @@ import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 import { once } from 'node:events'
 import { readFile, readdir } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
+import { createRequire } from 'node:module'
 import { Readable } from 'node:stream'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-const output = fileURLToPath(new URL('../../apps/web/.edgeone/', import.meta.url))
+const root = fileURLToPath(new URL('../../', import.meta.url))
+const deployment = JSON.parse(await readFile(join(root, 'edgeone.json'), 'utf8'))
+const output = resolve(root, deployment.outputDirectory)
+// The cloud adapter imports Nuxt Kit from the app root, not Nuxt's dependency tree.
+const require = createRequire(join(root, 'apps/web/package.json'))
+const kit = await import(pathToFileURL(require.resolve('@nuxt/kit')).href)
+assert.equal(typeof kit.defineNuxtModule, 'function')
 const secret = 'edgeone-smoke-only-gateway-secret-0123456789'
 const calls = []
 const backend = createServer(async (req, res) => {

@@ -247,14 +247,14 @@ location ^~ /api/ {
 
 ## 8. 接通 EdgeOne
 
-在 EdgeOne 选择仓库 `YuyueDaV/galweb` 和分支 `codex/edgeone-deployment`，项目根目录为 `apps/web`，框架选择 Other / 自定义构建。已提交的 `apps/web/edgeone.json` 提供安装和构建设置；如果界面要求手动填写，使用以下值：
+在 EdgeOne 选择仓库 `YuyueDaV/galweb` 和分支 `codex/edgeone-deployment`，项目根目录为 `./`（仓库根目录），框架选择 Other / 自定义构建。根目录的 `edgeone.json` 提供安装和构建设置；已有项目需要在控制台把根目录从 `apps/web` 改为 `./`，然后使用最新提交重新部署。如果界面要求手动填写，使用以下值：
 
-| 设置      | 值                                                                                |
-| --------- | --------------------------------------------------------------------------------- |
-| 安装命令  | `npm install --global pnpm@11.25.0 && pnpm --dir ../.. install --frozen-lockfile` |
-| 构建命令  | `pnpm --dir ../.. build:edgeone`                                                  |
-| 输出目录  | `.edgeone`，相对于 `apps/web`                                                     |
-| Node 版本 | 平台提供的 Node 24，当前配置 `24.18.0`                                            |
+| 设置      | 值                                                                    |
+| --------- | --------------------------------------------------------------------- |
+| 安装命令  | `npm install --global pnpm@11.25.0 && pnpm install --frozen-lockfile` |
+| 构建命令  | `pnpm build:edgeone`                                                  |
+| 输出目录  | `apps/web/.edgeone`，相对于仓库根目录                                 |
+| Node 版本 | 平台提供的 Node 24，当前配置 `24.18.0`                                |
 
 在 EdgeOne 的生产目标环境填写：
 
