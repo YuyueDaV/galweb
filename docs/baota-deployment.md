@@ -287,6 +287,44 @@ pnpm --filter @chengzhixiang/api admin:bootstrap your-email@example.com
 
 ## 常见失败排查
 
+### 迁移报 3780 / ER_FK_INCOMPATIBLE_COLUMNS
+
+已在 MySQL 8.0.46、数据库默认 `utf8mb4_general_ci` 的环境复现旧版脚本问题：`users` 显式声明 `DEFAULT CHARSET=utf8mb4`，而 `auth_sessions` 等部分表没有声明，导致字符串外键两端继承了不同的排序规则。新版脚本为所有表声明相同的默认字符集，保留 `email_key`、`username_key` 的专用二进制排序规则，不修改已有表及用户数据。
+
+若服务器尚未获取代码修复，可在宝塔终端应用同样的源文件修复。命令先备份原文件，仅补齐缺失的建表字符集声明，不操作 `.env`，不改变数据库默认配置，也不删除或转换已有表：
+
+```bash
+cd /www/wwwroot/galweb/apps/api
+node <<'NODE'
+const fs = require('node:fs');
+const file = 'src/schema.ts';
+const source = fs.readFileSync(file, 'utf8');
+let changed = 0;
+const updated = source.replace(/\) ENGINE=InnoDB(?=`)/g, () => {
+  changed++;
+  return ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4';
+});
+if (changed) {
+  const backup = file + '.before-charset-fix.bak';
+  if (!fs.existsSync(backup)) fs.copyFileSync(file, backup);
+  fs.writeFileSync(file, updated);
+}
+console.log('已补齐字符集声明的表数：', changed);
+NODE
+```
+
+然后依次重建、重跑迁移：
+
+```bash
+cd /www/wwwroot/galweb
+pnpm --filter @chengzhixiang/api build
+pnpm db:migrate
+```
+
+原版脚本应补齐 9 张表；已修复时显示 0，可以重复执行。迁移保留已成功创建的表并补建其余表。如果仍报外键不兼容，检查实际关联列的 `CHARACTER_SET_NAME`、`COLLATION_NAME` 和字段类型；不要直接转换整库排序规则或关闭外键检查。已有库经其他程序修改过列定义时，需要依据实际结构单独制定迁移。
+
+### 其他问题
+
 | 现象                       | 优先检查                                                              |
 | -------------------------- | --------------------------------------------------------------------- |
 | `npm: command not found`   | Node 版本管理器是否设定命令行版本，重开终端                           |
