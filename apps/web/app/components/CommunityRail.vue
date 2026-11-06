@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { works } from '~/data/forum'
-const { composerOpen, loginOpen, username } = useForum()
+const { composerOpen, username } = useForum()
 </script>
 
 <template>

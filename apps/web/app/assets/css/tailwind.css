@@ -1,0 +1,18 @@
+/* No Preflight: retain the established reset, typography and form styles. */
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme) prefix(tw);
+@import 'tailwindcss/utilities.css' layer(utilities) prefix(tw);
+@source '../../';
+
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+@theme inline {
+  --color-czx-ink: var(--ink);
+  --color-czx-subtle: var(--subtle);
+  --color-czx-surface: var(--surface);
+  --color-czx-orange: var(--orange);
+  --color-czx-line: var(--line);
+  --font-czx-serif: var(--serif);
+  --font-czx-sans: var(--sans);
+  --radius-czx-panel: var(--radius-panel);
+  --radius-czx-card: var(--radius-card);
+}

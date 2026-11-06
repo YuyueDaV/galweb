@@ -4,6 +4,7 @@ import { phaseNames, formatAwardTime, campaignWindowMessage } from '~/utils/awar
 import type { AwardCandidate } from '~/types/awards'
 
 const awards = useAwards()
+const route=useRoute()
 const identity = usePreviewIdentity()
 const { campaign, campaigns, selectedCampaignId, candidates, myNominations, myBallot, results } = awards
 const { notify } = useForum()
@@ -19,7 +20,7 @@ const ballotError = ref('')
 const now = ref(Date.now())
 let clock: ReturnType<typeof setInterval> | undefined
 
-onMounted(() => { awards.initialize(); clock = setInterval(() => { now.value = Date.now() }, 30000) })
+onMounted(async () => { await awards.initialize(); const requested=route.query.campaign; if(typeof requested==='string'&&campaigns.value.some(item=>item.id===requested))selectedCampaignId.value=requested; clock = setInterval(() => { now.value = Date.now() }, 30000) })
 onBeforeUnmount(() => { if (clock) clearInterval(clock) })
 watch([myBallot, selectedCampaignId, identity.selectedId], () => { selected.value = [...(myBallot.value?.candidateIds || [])]; ballotError.value = ''; search.value = '' }, { immediate: true, deep: true })
 const nominationCount = computed(() => myNominations.value.filter(item => item.status !== 'rejected').length)

@@ -1,0 +1,79 @@
+/* Shared visual tokens: palette, typography, glass, geometry and motion. */
+:root {
+  font-size: 125%;
+  --bg: #f7f6f2;
+  --surface: #fffefa;
+  --surface-solid: #fff;
+  --ink: #33352f;
+  --muted: #96978d;
+  --subtle: #6f7267;
+  --line: #e9e7df;
+  --orange: #d97542;
+  --orange-hover: #c35e30;
+  --orange-soft: #faf0e7;
+  --green: #74816a;
+  --blue: #7e98a5;
+  --purple: #a296b0;
+  --hero: #f0eee5;
+  --shadow: 0 0.75rem 2.5rem #443a2110;
+  --serif: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', SimSun, serif;
+  --sans: 'DM Sans', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  color-scheme: light;
+}
+:root {
+  --header-top: 0.75rem;
+  --header-height: 5.3125rem;
+  --glass-header: rgb(255 254 250 / 62%);
+  --glass-header-scrolled: rgb(255 254 250 / 85%);
+  --glass-card: rgb(255 254 250 / 76%);
+  --glass-welcome: rgb(250 240 231 / 68%);
+  --glass-line: rgb(255 255 255 / 76%);
+  --glass-highlight: rgb(255 255 255 / 80%);
+  --glass-shadow: rgb(76 62 37 / 8%);
+  --glass-control: rgb(255 254 250 / 48%);
+  --glass-selected: rgb(255 254 250 / 94%);
+  --glass-nav: rgb(227 221 208 / 35%);
+  --glass-art-opacity: 0.5;
+  --glass-orange-glow: rgb(226 161 110 / 20%);
+  --glass-green-glow: rgb(154 176 135 / 17%);
+}
+html[data-theme='dark'] {
+  --bg: #1d201c;
+  --surface: #242820;
+  --surface-solid: #252a23;
+  --ink: #e3e2d7;
+  --muted: #939b89;
+  --subtle: #a9b09e;
+  --line: #363d30;
+  --orange: #e79a68;
+  --orange-hover: #efb48d;
+  --orange-soft: #3a3027;
+  --green: #acbfa0;
+  --hero: #2b3025;
+  --shadow: 0 0.75rem 2.5rem #0002;
+  color-scheme: dark;
+}
+html[data-theme='dark'] {
+  --glass-header: rgb(36 40 32 / 70%);
+  --glass-header-scrolled: rgb(36 40 32 / 93%);
+  --glass-card: rgb(36 40 32 / 82%);
+  --glass-welcome: rgb(58 48 39 / 72%);
+  --glass-line: rgb(183 191 161 / 16%);
+  --glass-highlight: rgb(235 232 212 / 7%);
+  --glass-shadow: rgb(0 0 0 / 16%);
+  --glass-control: rgb(240 236 216 / 7%);
+  --glass-selected: rgb(67 69 57 / 94%);
+  --glass-nav: rgb(0 0 0 / 16%);
+  --glass-art-opacity: 0.24;
+  --glass-orange-glow: rgb(171 110 65 / 15%);
+  --glass-green-glow: rgb(112 142 88 / 13%);
+}
+
+:root {
+  --radius-panel: 1.5rem;
+  --radius-card: 0.75rem;
+  --radius-control: 999px;
+  --motion-fast: 180ms;
+  --motion-normal: 300ms;
+  --motion-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}

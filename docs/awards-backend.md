@@ -21,7 +21,8 @@
 | --- | --- | --- | --- |
 | 提名和投票、撤回本人记录 | ✓ | ✓ | ✓ |
 | 配置当届活动、审核、推进到公布 | — | ✓ | ✓ |
-| 创建届次、归档、分配角色 | — | — | ✓ |
+| 创建届次、归档、查看及启停账号 | — | ✓ | ✓ |
+| 分配角色 | — | — | ✓ |
 
 角色来自数据库和有效登录会话。活动写请求在事务内重新校验账号状态及权限；系统始终保留至少一名有效超级管理员，变更角色会撤销受影响账号的会话。
 
@@ -45,14 +46,14 @@
 | --- | --- |
 | GET /api/award-campaigns | 届次列表 |
 | GET /api/award-campaigns/:id | 根据会话权限返回公开、本人与管理所需数据 |
-| POST /api/admin/award-campaigns | 超级管理员创建草稿 |
+| POST /api/admin/award-campaigns | 管理员创建草稿 |
 | PATCH /api/admin/award-campaigns/:id | 管理员保存配置，携带 version |
 | POST /api/admin/award-campaigns/:id/transitions | 推进阶段，携带 phase 与 version |
 | POST /api/award-campaigns/:id/nominations | 提名 title / studio / reason |
 | PATCH /api/award-campaigns/:id/nominations/:nominationId | status=withdrawn / approved / rejected，退回必须附 note |
 | PUT /api/award-campaigns/:id/ballot | candidateIds 与 version；candidateIds=null 撤回 |
-| GET /api/admin/users | 超级管理员账号列表 |
-| PATCH /api/admin/users/:id | 超级管理员修改角色或账号状态 |
+| GET /api/admin/users | 管理员查看账号列表（含头像地址） |
+| PATCH /api/admin/users/:id | 管理员修改账号状态；角色变更仅限超级管理员 |
 
 写接口要求有效会话、同源请求与 CSRF 校验；提名与投票有独立限流。失败使用 401、403、404、409、422 或 429，客户端必须处理异常后刷新状态。
 

@@ -1,0 +1,134 @@
+[
+  {
+    "rank": 1,
+    "title": "命运石之门",
+    "url": "/images/works/source/1-45de6fa556a4.webp",
+    "width": 600,
+    "height": 900,
+    "updated": true,
+    "sourcePage": "https://store.steampowered.com/app/412830/",
+    "sourceAsset": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/412830/library_600x900_2x.jpg",
+    "note": "官方商店竖版封面，实际为 600×900；不按文件名宣称 2 倍分辨率。"
+  },
+  {
+    "rank": 2,
+    "title": "装甲恶鬼村正",
+    "url": "/images/works/source/2-77275187a68f.webp",
+    "width": 1020,
+    "height": 1200,
+    "updated": false,
+    "sourcePage": null,
+    "sourceAsset": null,
+    "note": "保留原项目较清晰的图片；本轮找到的官网预览图未比原图更合适，未替换为低清图。"
+  },
+  {
+    "rank": 3,
+    "title": "魔法使之夜",
+    "url": "/images/works/source/3-1aea97ce15fa.webp",
+    "width": 1920,
+    "height": 2680,
+    "updated": true,
+    "sourcePage": "https://typemoon.com/products/mahoyo/",
+    "sourceAsset": "https://cache.typemoon.com/images/i06de313984e603170e223ace37f6c0f3mg",
+    "note": "日文游戏官网主视觉，保留原画与日文宣传语；1920×2680。"
+  },
+  {
+    "rank": 4,
+    "title": "近月少女的礼仪",
+    "url": "/images/works/source/4-f5e4f0c1fbe4.webp",
+    "width": 600,
+    "height": 900,
+    "updated": true,
+    "sourcePage": "https://store.steampowered.com/app/1776970/",
+    "sourceAsset": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1776970/library_600x900_2x.jpg",
+    "note": "官方商店竖版封面，实际为 600×900；不按文件名宣称 2 倍分辨率。"
+  },
+  {
+    "rank": 5,
+    "title": "白色相簿2",
+    "url": "/images/works/source/5-83b5c1919a4c.webp",
+    "width": 960,
+    "height": 835,
+    "updated": true,
+    "sourcePage": "https://aquaplus.jp/wa2vita/",
+    "sourceAsset": "https://aquaplus.jp/wa2vita/images/mainvisual.png",
+    "note": "官网主视觉，完整保留画面。"
+  },
+  {
+    "rank": 6,
+    "title": "素晴日",
+    "url": "/images/works/source/6-76475b5f5ac2.webp",
+    "width": 700,
+    "height": 900,
+    "updated": true,
+    "sourcePage": "https://www.keroq.co.jp/suba_10th/",
+    "sourceAsset": "https://www.keroq.co.jp/suba_10th/img/sp_mainVisual.jpg",
+    "note": "日文官网 10 周年竖版宣传图，保留日文作品标题；700×900。"
+  },
+  {
+    "rank": 7,
+    "title": "9-nine- 系列",
+    "url": "/images/works/source/7-875b5d150f02.webp",
+    "width": 1200,
+    "height": 1200,
+    "updated": false,
+    "sourcePage": null,
+    "sourceAsset": null,
+    "note": "保留原项目较清晰的图片；本轮找到的官网预览图未比原图更合适，未替换为低清图。"
+  },
+  {
+    "rank": 8,
+    "title": "Fate/stay night",
+    "url": "/images/works/source/8-465b5f514958.webp",
+    "width": 600,
+    "height": 900,
+    "updated": true,
+    "sourcePage": "https://store.steampowered.com/app/2396980/",
+    "sourceAsset": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2396980/library_600x900_2x.jpg",
+    "note": "官方商店竖版封面，实际为 600×900；不按文件名宣称 2 倍分辨率。"
+  },
+  {
+    "rank": 9,
+    "title": "樱之诗",
+    "url": "/images/works/source/9-38972ac9a19b.webp",
+    "width": 1600,
+    "height": 900,
+    "updated": false,
+    "sourcePage": null,
+    "sourceAsset": null,
+    "note": "保留原项目较清晰的图片；本轮找到的官网预览图未比原图更合适，未替换为低清图。"
+  },
+  {
+    "rank": 10,
+    "title": "CLANNAD",
+    "url": "/images/works/source/10-079ee927f893.webp",
+    "width": 600,
+    "height": 900,
+    "updated": true,
+    "sourcePage": "https://store.steampowered.com/app/324160/",
+    "sourceAsset": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/324160/library_600x900_2x.jpg",
+    "note": "官方商店竖版封面，实际为 600×900；不按文件名宣称 2 倍分辨率。"
+  },
+  {
+    "rank": 11,
+    "title": "秽翼的尤斯蒂娅",
+    "url": "/images/works/source/11-16e5f72d4284.webp",
+    "width": 1920,
+    "height": 2005,
+    "updated": true,
+    "sourcePage": "https://www.entergram.co.jp/eustia/",
+    "sourceAsset": "https://www.entergram.co.jp/eustia/assets/images/top/fv-visual.jpg",
+    "note": "官网主视觉，完整保留画面。"
+  },
+  {
+    "rank": 12,
+    "title": "甜蜜女友2",
+    "url": "/images/works/source/12-b6f51160f538.webp",
+    "width": 1920,
+    "height": 1356,
+    "updated": true,
+    "sourcePage": "https://azarashi-soft.nexton-net.jp/amakano2/",
+    "sourceAsset": "https://azarashi-soft.nexton-net.jp/amakano2/images/top/header_visual.jpg",
+    "note": "官网主视觉，完整保留画面。"
+  }
+]

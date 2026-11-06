@@ -1,0 +1,11 @@
+node_modules
+.data
+**/.nuxt*
+**/.output*
+**/dist
+**/public
+pnpm-lock.yaml
+apps/api/src/award-rules.ts
+apps/api/src/award-types.ts
+apps/web/app/utils/awards.ts
+apps/web/app/types/awards.ts

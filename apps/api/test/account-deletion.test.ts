@@ -7,7 +7,7 @@ import sharp from 'sharp'
 import {readConfig} from '../src/config'
 import {Database} from '../src/database'
 import {schema} from '../src/schema'
-import {Platform,type Actor} from '../src/platform'
+import {Platform} from '../src/platform'
 import {AccountDeletion} from '../src/account-deletion'
 import {Auth} from '../src/auth'
 import {Mailer} from '../src/mail'
@@ -61,9 +61,16 @@ test('注销完整流程：撤销会话、匿名讨论与榜单、删除图片�
   await awards.vote(member,ended.id,[historicalNomination.candidateId],0);await awards.vote(other,ended.id,[historicalNomination.candidateId],0)
   await awards.phase(owner,ended.id,'results',(await awards.campaign(ended.id)).version!)
   const before=await awards.state(ended.id,owner)
+  await db.execute('INSERT INTO forum_drafts(user_id,data,updated_at) VALUES (?,?,?)',[member.id,JSON.stringify({content:'私密草稿'}),Date.now()])
+  await db.execute('INSERT INTO works(id,data) VALUES (?,?)',[79124,JSON.stringify({rank:79124,title:'注销书单测试'})])
+  await db.execute('INSERT INTO user_library(user_id,work_id,state,note,updated_at) VALUES (?,?,?,?,?)',[member.id,79124,'reading','私密短评',Date.now()])
+  const peerPost=await forum.create(other,{title:'另一位同好的讨论',content:'验证注销后通知中的发言人也会被匿名处理。',category:'作品讨论',spoiler:false})
+  await forum.reply(member,peerPost.id,'这条回复会给另一位同好带来通知。')
   await assert.rejects(()=>deletion.remove(member,'wrong-password'),/密码不正确/)
   assert.equal((await auth.session(firstSession.session)).id,member.id)
   await deletion.remove(member,password)
+  for(const table of ['forum_drafts','user_library','notifications'])assert.equal((await db.rows(`SELECT user_id FROM ${table} WHERE user_id=?`,[member.id])).length,0)
+  const peerNotifications=await db.rows<{title:string}>('SELECT title FROM notifications WHERE user_id=?',[other.id]);assert.ok(peerNotifications.some(item=>item.title==='一位已注销的同好回复了你的讨论。'));assert.ok(peerNotifications.every(item=>!item.title.includes(member.nickname)))
   const tombstone=(await db.rows<{username:null,email:string,nickname:string,signature:string,password_hash:string,status:string,deleted_at:number}>('SELECT username,email,nickname,signature,password_hash,status,deleted_at FROM users WHERE id=?',[member.id]))[0]!
   assert.equal(tombstone.username,null);assert.notEqual(tombstone.email,member.email);assert.equal(tombstone.nickname,'已注销用户');assert.equal(tombstone.signature,'');assert.equal(tombstone.password_hash,'');assert.equal(tombstone.status,'deleted');assert.ok(Number(tombstone.deleted_at)>0)
   await migrateUsernames(db);assert.equal((await db.rows<{username:null}>('SELECT username FROM users WHERE id=?',[member.id]))[0]!.username,null)

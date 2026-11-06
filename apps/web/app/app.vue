@@ -1,24 +1,38 @@
 <script setup lang="ts">
 const forum = useForum()
+const site=useSiteSettings(),inbox=useNotifications()
+await site.load().catch(()=>{})
 const identity = usePreviewIdentity()
 const auth=useAuth()
 const route = useRoute()
 const mobileOpen = ref(false)
 const dark = ref(false)
+const headerScrolled = ref(false)
 const searchInput = ref<HTMLInputElement | null>(null)
 const searchExpanded = ref(false)
 const { username, query, category, composerOpen, loginOpen, bookmarks, toast } = forum
 const activeSection = computed(() => route.path.startsWith('/account') ? 'account' : route.path.startsWith('/admin') ? 'admin' : route.path.startsWith('/works') ? 'works' : route.path.startsWith('/ranking') || route.path.startsWith('/awards') ? 'ranking' : route.path.startsWith('/about') ? 'about' : 'home')
 useHead({ htmlAttrs: { 'data-theme': computed(() => dark.value ? 'dark' : 'light') } })
 
+function updateHeaderScroll() { headerScrolled.value = window.scrollY > 16 }
+onMounted(() => {
+  updateHeaderScroll()
+  window.addEventListener('scroll', updateHeaderScroll, { passive: true })
+})
+onBeforeUnmount(() => window.removeEventListener('scroll', updateHeaderScroll))
+
 onMounted(async () => {
   await auth.initialize()
-  await Promise.all([forum.initialize(),identity.initialize()])
+  await forum.initialize()
+  await inbox.load().catch(()=>{})
   try { dark.value = localStorage.getItem('chengzhixiang-theme') === 'dark' } catch {}
 })
-watch(identity.selectedId,async()=>{await forum.syncMine();await forum.loadFeed();await identity.refreshAccounts()})
-watch(()=>auth.user.value?.id,async()=>{try{await forum.syncMine()}catch(e){forum.notify((e as Error).message)}})
+watch(identity.selectedId,async()=>{await forum.syncMine();await forum.loadFeed()})
+watch(()=>auth.user.value?.id,async()=>{try{await forum.syncMine();await inbox.load()}catch(e){forum.notify((e as Error).message)}})
 watch(() => route.fullPath, () => { mobileOpen.value = false })
+let notificationTimer:ReturnType<typeof setInterval>|undefined
+onMounted(()=>{notificationTimer=setInterval(()=>{if(document.visibilityState==='visible')void inbox.load(1,true).catch(()=>{})},60000)})
+onBeforeUnmount(()=>clearInterval(notificationTimer))
 function toggleTheme() {
   dark.value = !dark.value
   try { localStorage.setItem('chengzhixiang-theme', dark.value ? 'dark' : 'light') } catch {}
@@ -38,8 +52,9 @@ function resetFeed() { query.value = ''; category.value = '全部' }
 
 <template>
   <div class="site-wrap">
+    <div class="header-artwork" aria-hidden="true"><img src="/images/header-autumn.webp" alt="" width="1600" height="520" decoding="async" fetchpriority="low" /></div>
     <a class="skip-link" href="#main-content">跳转到正文</a>
-    <header class="site-header">
+    <header class="site-header" :class="{ 'is-scrolled': headerScrolled }">
       <div class="header-inner">
         <button class="icon-button mobile-toggle" :aria-expanded="mobileOpen" aria-controls="community-nav" aria-label="展开社区导航" @click="mobileOpen = !mobileOpen"><AppIcon :name="mobileOpen ? 'close' : 'menu'" /></button>
         <NuxtLink to="/" class="brand" aria-label="澄之响首页" @click="resetFeed"><ClubMark /><span class="brand-name">澄之响<span class="brand-english">CHENG ZHI XIANG</span></span><span class="brand-divider"></span><span class="brand-school">南京工程学院<br>视觉小说同好会</span></NuxtLink>
@@ -50,8 +65,8 @@ function resetFeed() { query.value = ''; category.value = '全部' }
         </nav>
         <div class="header-actions">
           <form class="header-search" :class="{ 'search-open': searchExpanded }" role="search" @submit.prevent="search"><button type="button" class="search-trigger" aria-label="打开搜索" @click="openSearch"><AppIcon name="search" :size="16" /></button><input ref="searchInput" v-model="query" aria-label="搜索帖子和作品" placeholder="寻找故事，也寻找同好" @keydown.esc="searchExpanded = false" /><kbd>↵</kbd><button v-if="searchExpanded" type="button" class="search-close" aria-label="关闭搜索" @click="searchExpanded = false"><AppIcon name="close" :size="14" /></button></form>
-          <button class="icon-button theme-toggle" :aria-label="dark ? '切换浅色模式' : '切换深色模式'" @click="toggleTheme"><AppIcon :name="dark ? 'sun' : 'moon'" :size="19" /></button>
-          <NuxtLink v-if="auth.user.value" to="/account" class="login-button" aria-label="进入用户中心"><UserAvatar class="mini-user" :src="auth.user.value.avatarUrl" :name="username" /><span>{{ username }}</span></NuxtLink><button v-else class="login-button" @click="loginOpen = true"><AppIcon name="login" :size="16" /><span>登录 / 加入</span></button>
+          <NuxtLink v-if="auth.user.value" to="/notifications" class="notification-link" :aria-label="`消息通知，${inbox.unread.value} 条未读`"><AppIcon name="bell" :size="19" /><span v-if="inbox.unread.value" class="notification-badge">{{ inbox.unread.value>99?'99+':inbox.unread.value }}</span></NuxtLink><button class="icon-button theme-toggle" :aria-label="dark ? '切换浅色模式' : '切换深色模式'" @click="toggleTheme"><AppIcon :name="dark ? 'sun' : 'moon'" :size="19" /></button>
+          <NuxtLink v-if="auth.user.value" to="/account" class="login-button" aria-label="进入用户中心"><UserAvatar class="mini-user" :src="auth.user.value.avatarUrl" :name="username" /><span>{{ username }}</span></NuxtLink><button v-else class="login-button" aria-label="登录 / 加入" @click="loginOpen = true"><AppIcon name="login" :size="16" /><span>登录 / 加入</span></button>
         </div>
       </div>
     </header>
@@ -75,12 +90,16 @@ function resetFeed() { query.value = ''; category.value = '全部' }
         </div>
         <div class="sidebar-section personal-section">
           <p class="sidebar-label">我的小角落</p>
-          <NuxtLink to="/account" class="sidebar-link" :class="{ selected: activeSection === 'account' }"><AppIcon name="users" /><span>用户中心</span></NuxtLink>
+          <NuxtLink to="/library" class="sidebar-link"><AppIcon name="book" /><span>我的书单</span></NuxtLink><NuxtLink to="/account" class="sidebar-link" :class="{ selected: activeSection === 'account' }"><AppIcon name="users" /><span>用户中心</span></NuxtLink>
           <NuxtLink to="/?saved=1#discussions" class="sidebar-link" :class="{ selected: !!route.query.saved }" @click="resetFeed"><AppIcon name="bookmark" /><span>我的收藏</span><span v-if="bookmarks.length" class="bookmark-count">{{ bookmarks.length }}</span></NuxtLink>
           <button class="sidebar-link" @click="composerOpen = true"><AppIcon name="pen" /><span>写点什么</span></button>
         </div>
-        <div v-if="identity.can('campaign.manage')" class="sidebar-section staff-nav"><p class="sidebar-label">{{ identity.roleNames[identity.role.value] }}</p><NuxtLink to="/admin/awards" class="sidebar-link" :class="{ selected: activeSection === 'admin' }"><AppIcon name="filter" /><span>活动管理</span></NuxtLink></div>
-        <div class="sidebar-bottom">
+        <div v-if="identity.can('campaign.manage')" class="sidebar-section staff-nav">
+          <p class="sidebar-label">{{ identity.roleNames[identity.role.value] }}</p><NuxtLink to="/admin" class="sidebar-link"><AppIcon name="filter" /><span>社区内容管理</span></NuxtLink>
+          <NuxtLink to="/admin/awards" class="sidebar-link" :class="{ selected: route.path === '/admin/awards' }"><AppIcon name="filter" /><span>活动管理</span></NuxtLink>
+          <NuxtLink v-if="identity.can('account.view')" to="/admin/accounts" class="sidebar-link" :class="{ selected: route.path === '/admin/accounts' }"><AppIcon name="users" /><span>账号权限</span></NuxtLink>
+        </div>
+        <NuxtLink to="/community" class="sidebar-link"><AppIcon name="calendar" /><span>社团动态与相册</span></NuxtLink><div class="sidebar-bottom">
           <div class="sidebar-flower" aria-hidden="true">✳</div>
           <p>因为喜欢，<br>所以在这里相遇。</p>
           <NuxtLink to="/about">关于澄之响 <AppIcon name="arrowUpRight" :size="14" /></NuxtLink>

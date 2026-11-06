@@ -1,5 +1,15 @@
+// Generated from packages/domain by scripts/sync-award-rules.mjs. Do not edit.
 export type AccountRole = 'member' | 'admin' | 'super_admin'
-export type AwardPermission = 'nomination.submit' | 'ballot.submit' | 'campaign.manage' | 'nomination.review' | 'campaign.create' | 'campaign.archive' | 'account.manage'
+export type AwardPermission =
+  | 'nomination.submit'
+  | 'ballot.submit'
+  | 'campaign.manage'
+  | 'nomination.review'
+  | 'campaign.create'
+  | 'campaign.archive'
+  | 'account.view'
+  | 'account.status'
+  | 'account.manage'
 export type CampaignPhase = 'draft' | 'nomination' | 'voting' | 'results' | 'archived'
 export type NominationStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn'
 
@@ -8,6 +18,8 @@ export interface PreviewAccount {
   id: string
   name: string
   role: AccountRole
+  status: 'active' | 'disabled' | 'deleted'
+  avatarUrl: string | null
 }
 
 export interface AwardCampaign {

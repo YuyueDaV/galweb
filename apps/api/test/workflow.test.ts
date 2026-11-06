@@ -16,7 +16,7 @@ test('步骤 1–2：服务端角色保护、论坛发布回复、跨用户收�
   const [owner,admin,member,other]=actors as [Actor,Actor,Actor,Actor]
   const otherOwners=await db.rows<{id:string}>("SELECT id FROM users WHERE role='super_admin' AND id<>?",[owner.id])
   try{await db.execute("UPDATE users SET role='admin' WHERE role='super_admin' AND id<>?",[owner.id]);await assert.rejects(()=>platform.updateAccount(owner,owner.id,{role:'member'}),/至少保留/);await assert.rejects(()=>platform.updateAccount(owner,owner.id,{status:'disabled'}),/至少保留/)}finally{for(const account of otherOwners)await db.execute("UPDATE users SET role='super_admin' WHERE id=?",[account.id])}
-  await assert.rejects(()=>platform.accounts(member),/超级管理员/)
+  await assert.rejects(()=>platform.accounts(member),/管理员/)
   await assert.rejects(()=>platform.updateAccount(admin,member.id,{role:'admin'}),/超级管理员/)
   await platform.updateAccount(owner,other.id,{role:'admin'});assert.equal((await db.rows<{role:string}>('SELECT role FROM users WHERE id=?',[other.id]))[0]!.role,'admin')
   const post=await forum.create(member,{title:'这是一篇真实测试帖子',content:'在不同账号之间测试数据库持久化与权限。',category:'作品讨论',spoiler:false})

@@ -5,10 +5,28 @@
   "scripts": {
     "dev": "pnpm --filter @chengzhixiang/web dev",
     "dev:api": "pnpm --filter @chengzhixiang/api dev",
-    "build": "node scripts/sync-award-rules.mjs && pnpm -r build",
+    "build": "node scripts/sync-award-rules.mjs --check && pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "db:migrate": "pnpm --filter @chengzhixiang/api migrate",
     "test:api": "pnpm --filter @chengzhixiang/api test",
-    "test": "node --test tests/awards.test.mjs tests/avatar.test.mjs tests/feed-client.test.mjs tests/post-card.test.mjs tests/auth-feedback.test.mjs && pnpm test:api"
+    "test": "node --test tests/awards.test.mjs tests/avatar.test.mjs tests/feed-client.test.mjs tests/post-card.test.mjs tests/auth-feedback.test.mjs tests/admin-accounts.test.mjs tests/markdown.test.mjs && pnpm test:api",
+    "rules:sync": "node scripts/sync-award-rules.mjs",
+    "rules:check": "node scripts/sync-award-rules.mjs --check",
+    "lint": "eslint apps packages scripts tests e2e playwright.config.ts eslint.config.mjs",
+    "lint:fix": "pnpm lint --fix",
+    "format": "prettier --write packages/domain scripts/quality e2e playwright.config.ts eslint.config.mjs .prettierrc.json apps/web/app/components/SafeImage.vue apps/web/app/components/BookShelf.vue apps/web/app/utils/award-time.ts apps/web/app/assets/css/tokens.css apps/web/app/assets/css/foundations.css apps/web/app/assets/css/tailwind.css",
+    "format:check": "prettier --check packages/domain scripts/quality e2e playwright.config.ts eslint.config.mjs .prettierrc.json apps/web/app/components/SafeImage.vue apps/web/app/components/BookShelf.vue apps/web/app/utils/award-time.ts apps/web/app/assets/css/tokens.css apps/web/app/assets/css/foundations.css apps/web/app/assets/css/tailwind.css",
+    "build:check": "node scripts/quality/build.mjs",
+    "test:e2e": "playwright test",
+    "check": "node scripts/quality/check.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@playwright/test": "^1.64.1",
+    "eslint": "^9.39.5",
+    "eslint-plugin-vue": "^10.12.0",
+    "globals": "^17.14.0",
+    "prettier": "^3.9.10",
+    "typescript-eslint": "^8.72.1"
   }
 }

@@ -1,6 +1,10 @@
 node_modules/
 .nuxt/
+.nuxt-check/
 .output/
+.output-check/
+playwright-report/
+test-results/
 .data/
 .env
 .env.*

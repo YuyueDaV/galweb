@@ -2,6 +2,7 @@
 import { categories } from '~/data/forum'
 import type { Category } from '~/types/forum'
 const route = useRoute()
+const {settings}=useSiteSettings()
 const { category, query, composerOpen,loadFeed,hasMore,feedPosts,feedTotal,loadingFeed,feedLoaded,feedError } = useForum()
 const tab = ref('最新回响')
 const sort = ref('latest')
@@ -22,17 +23,17 @@ watch(options,()=>{clearTimeout(feedTimer);const version=++requestVersion,next={
 onBeforeUnmount(()=>{clearTimeout(feedTimer);requestVersion++})
 async function more(){if(!pending.value)await loadFeed(options.value,true)}
 async function retry(){clearTimeout(feedTimer);const version=++requestVersion;pending.value=true;await loadFeed(options.value);if(version===requestVersion)pending.value=false}
-useSeoMeta({ title: '澄之响 · 故事之外，总有回响' })
+useSeoMeta({ title:()=>settings.value.title+' · 澄之响',description:()=>settings.value.description })
 </script>
 
 <template>
   <div>
     <section class="home-hero" aria-labelledby="hero-title">
-      <div class="hero-grid" aria-hidden="true"></div><div class="hero-copy"><p class="hero-kicker"><span class="small-spark">✳</span> NJIT · VISUAL NOVEL CLUB</p><h1 id="hero-title">故事之外，<br>总有新的<span class="hero-echo">回响<span class="title-spark" aria-hidden="true">✳</span></span>。</h1><p class="hero-description">南京工程学院澄之响视觉小说同好会<br>让读完后的心情，遇见另一个懂你的人。</p><div class="hero-links"><a href="#discussions" class="button hero-button">去听听大家的故事<AppIcon name="arrowUpRight" :size="17" /></a><NuxtLink to="/about" class="hero-about">认识澄之响<AppIcon name="arrowRight" :size="15" /></NuxtLink></div><div class="hero-caption"><span class="tiny-line"></span> FOR EVERY STORY, AND EVERY ONE OF YOU.</div></div>
+      <div class="hero-grid" aria-hidden="true"></div><div class="hero-copy"><p class="hero-kicker"><span class="small-spark">✳</span> NJIT · VISUAL NOVEL CLUB</p><h1 id="hero-title">故事之外，<br>总有新的<span class="hero-echo">回响<span class="title-spark" aria-hidden="true">✳</span></span>。</h1><p class="hero-description">{{ settings.title }}<br>{{ settings.description }}</p><div class="hero-links"><a href="#discussions" class="button hero-button">去听听大家的故事<AppIcon name="arrowUpRight" :size="17" /></a><NuxtLink to="/about" class="hero-about">认识澄之响<AppIcon name="arrowRight" :size="15" /></NuxtLink></div><div class="hero-caption"><span class="tiny-line"></span> FOR EVERY STORY, AND EVERY ONE OF YOU.</div></div>
       <div class="hero-art" aria-hidden="true"><div class="hero-orbit orbit-one"></div><div class="hero-orbit orbit-two"></div><div class="hero-sun"></div><div class="art-word">RESONATE</div><figure class="hero-polaroid"><div class="polaroid-top"><span>THE STORIES WE SHARE</span><span>NO. 001</span></div><WorkCover :rank="9" variant="hero" alt="" loading="eager" fetchpriority="high" /><figcaption><span>喜欢的故事，想和你一起聊。</span><span class="handwriting">with you.</span></figcaption></figure><div class="art-sticker sticker-top"><span>✳</span> 欢迎来到我们的故事</div><div class="art-sticker sticker-bottom"><span class="status-dot"></span>下一段故事，等你加入。</div><div class="art-cross">✳</div><span class="art-label">CHENG ZHI XIANG<br>EST. IN OUR STORIES</span></div>
     </section>
 
-    <div class="home-intro-line"><span><span class="status-dot"></span>一个属于视觉小说爱好者的温柔角落</span><span>HELLO, FELLOW READER <AppIcon name="leaf" :size="14" /></span></div>
+    <div v-if="settings.announcement" class="site-announcement" role="status"><AppIcon name="bell" :size="16" />{{ settings.announcement }}</div><div class="home-intro-line"><span><span class="status-dot"></span>一个属于视觉小说爱好者的温柔角落</span><span>HELLO, FELLOW READER <AppIcon name="leaf" :size="14" /></span></div>
 
     <div class="community-grid">
       <div class="feed-column">

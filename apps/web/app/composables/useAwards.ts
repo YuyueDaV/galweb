@@ -1,4 +1,4 @@
-import type {AwardCampaign,AwardNomination,AwardBallot,AwardAuditEntry,AwardResult,CampaignPhase,AccountRole} from '~/types/awards'
+import type {AwardCampaign,AwardNomination,AwardBallot,AwardAuditEntry,AwardResult,CampaignPhase} from '~/types/awards'
 import {collectAwardCandidates} from '~/utils/awards'
 const fallback:AwardCampaign={id:'orange-awards-2',edition:2,title:'第二届澄之响十二橙器',phase:'draft',nominationLimit:3,voteLimit:12,winnerCount:12,nominationStart:null,nominationEnd:null,votingStart:null,votingEnd:null,createdAt:'2026-10-31T00:00:00.000Z',version:0}
 export function useAwards(){
@@ -11,8 +11,7 @@ export function useAwards(){
  async function mutate(path:string,body:unknown,method:'POST'|'PATCH'|'PUT'='POST'){await auth.request(path,body,method);await refresh()}
  const root=()=>`/award-campaigns/${campaign.value.id}`,adminRoot=()=>`/admin/award-campaigns/${campaign.value.id}`
  async function createCampaign(){const c=await auth.request<AwardCampaign>('/admin/award-campaigns',{});selectedCampaignId.value=c.id;await refresh();return c}
- async function changeAccountRole(id:string,role:AccountRole){await identity.setAccountRole(id,role);await refresh()}
- return {campaigns,selectedCampaignId,campaign,campaignNominations,nominations,candidates,myNominations,myBallot,results,audit,ballotCount,online,initialize,refresh,persist:initialize,createCampaign,changeAccountRole,
+ return {campaigns,selectedCampaignId,campaign,campaignNominations,nominations,candidates,myNominations,myBallot,results,audit,ballotCount,online,initialize,refresh,persist:initialize,createCampaign,
   saveSettings:(next:AwardCampaign)=>mutate(adminRoot(),next,'PATCH'),movePhase:(phase:CampaignPhase)=>mutate(adminRoot()+'/transitions',{phase,version:campaign.value.version}),
   submitNomination:(title:string,studio:string,reason:string)=>mutate(root()+'/nominations',{title,studio,reason}),
   withdrawNomination:(id:string)=>mutate(root()+'/nominations/'+id,{status:'withdrawn'},'PATCH'),

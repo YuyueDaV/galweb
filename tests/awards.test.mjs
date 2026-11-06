@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { hasAwardPermission, normalizeWorkTitle, validateCampaignSettings, campaignWindowMessage, collectAwardCandidates, validateBallot, tallyAwardResults, validatePhaseTransition, toAwardTimeInput, fromAwardTimeInput } from '../apps/web/app/utils/awards.ts'
+import { hasAwardPermission, permissionLabels, normalizeWorkTitle, validateCampaignSettings, campaignWindowMessage, collectAwardCandidates, validateBallot, tallyAwardResults, validatePhaseTransition, toAwardTimeInput, fromAwardTimeInput } from '../apps/web/app/utils/awards.ts'
 
 const campaign = { id: 'second', edition: 2, title: '第二届十二橙器', phase: 'draft', nominationLimit: 3, voteLimit: 12, winnerCount: 12, nominationStart: null, nominationEnd: null, votingStart: null, votingEnd: null, createdAt: '2026-10-31T00:00:00Z' }
 const nomination = (id, candidateId, overrides = {}) => ({ id, candidateId, campaignId: 'second', title: candidateId, studio: '', reason: '一个值得分享给所有同好的故事。', accountId: id, accountName: id, status: 'approved', createdAt: campaign.createdAt, ...overrides })
@@ -12,9 +12,10 @@ test('成员、管理员和超级管理员的权限边界', () => {
   assert.equal(hasAwardPermission('member', 'campaign.manage'), false)
   assert.equal(hasAwardPermission('admin', 'campaign.manage'), true)
   assert.equal(hasAwardPermission('admin', 'nomination.review'), true)
-  for (const permission of ['campaign.create', 'campaign.archive', 'account.manage']) {
-    assert.equal(hasAwardPermission('admin', permission), false)
+  for (const permission of Object.keys(permissionLabels)) {
+    assert.equal(hasAwardPermission('admin', permission), permission !== 'account.manage')
     assert.equal(hasAwardPermission('super_admin', permission), true)
+    assert.equal(hasAwardPermission('member', permission), ['nomination.submit', 'ballot.submit'].includes(permission))
   }
 })
 

@@ -1,4 +1,5 @@
 import type { ForumPost, Work, Category, IconName } from '~/types/forum'
+import coverSources from './cover-sources.json'
 
 export const categories: { name: Category; icon: IconName; description: string; color: string }[] = [
   { name: '作品讨论', icon: 'book', description: '聊聊故事里的那些事', color: 'orange' },
@@ -22,7 +23,7 @@ export const works: Work[] = [
   { rank: 12, title: '甜蜜女友2', subtitle: 'AMAKANO 2', studio: 'あざらしそふと', description: '那些温柔而细碎的日常，正是想要珍藏的回忆。', nominator: '和泉智宏', color: '#cca0a8' },
 ]
 
-export const coverUrl = (rank: number) => `/images/works/${rank}.${rank === 12 ? 'webp' : 'jpg'}`
+export const coverUrl = (rank: number) => coverSources.find(source => source.rank === rank)?.url || `/images/works/${rank}.${rank === 12 ? 'webp' : 'jpg'}`
 
 export const initialPosts: ForumPost[] = [
   { id: 'welcome', title: '欢迎来到澄之响！在故事之外，找到你的同好', excerpt: '初次见面，这里是南京工程学院澄之响视觉小说同好会。先来认识一下彼此，也读一读这份小小的社区指南。', content: ['欢迎来到澄之响，一个属于南京工程学院视觉小说爱好者的小小角落。无论你刚刚读完第一部作品，还是已经走过许多条故事线，这里都为你留了一个位置。', '我们想把这里建成一个可以安心分享的地方：聊喜欢的角色，交换通关后的感想，收藏值得再读一遍的文字，也认识坐在屏幕另一端的同好。', '发帖前，请选择合适的分区。涉及关键剧情时，请开启剧透标记；讨论作品时，也请尊重不同的阅读感受。请勿发布盗版资源、个人隐私或未经允许的转载内容。', '这个页面目前是论坛雏形，展示内容与活动安排为示例。你发布的帖子、回复和收藏会保存在当前浏览器中。很高兴在这里遇见你。'], category: '社团活动', author: '澄之响编辑部', avatar: '澄', avatarColor: 'orange', time: '社区指南', createdAt: 100, replies: 12, views: 628, likes: 42, tags: ['新人必读', '社区指南'], pinned: true },

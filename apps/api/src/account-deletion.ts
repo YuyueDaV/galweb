@@ -33,6 +33,10 @@ export class AccountDeletion {
    // Retain short-lived challenge timestamps and rate buckets to preserve mail limits.
    await this.db.execute("UPDATE email_verification_challenges SET consumed_at=?,code_hmac='',delivery_status='failed' WHERE email_key=?",[now,account.email_key],tx)
    await this.db.execute('DELETE FROM forum_reactions WHERE user_id=?',[actor.id],tx)
+   await this.db.execute('DELETE FROM forum_drafts WHERE user_id=?',[actor.id],tx)
+   await this.db.execute('DELETE FROM notifications WHERE user_id=?',[actor.id],tx)
+   await this.db.execute("UPDATE notifications n JOIN forum_replies r ON r.id=n.reply_id SET n.title='一位已注销的同好回复了你的讨论。' WHERE r.user_id=?",[actor.id],tx)
+   await this.db.execute('DELETE FROM user_library WHERE user_id=?',[actor.id],tx)
    await this.db.execute("UPDATE forum_posts SET data=JSON_SET(JSON_REMOVE(data,'$.uploadedImage'),'$.author',?,'$.avatar',?) WHERE user_id=?",[anonymous,'已',actor.id],tx)
    await this.db.execute("UPDATE assets SET status='hidden' WHERE user_id=?",[actor.id],tx)
    await this.db.execute('DELETE FROM award_ballots WHERE user_id=?',[actor.id],tx)

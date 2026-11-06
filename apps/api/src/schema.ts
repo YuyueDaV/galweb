@@ -42,3 +42,11 @@ schema.push(
 `CREATE TABLE IF NOT EXISTS award_results (campaign_id VARCHAR(64) PRIMARY KEY, data JSON NOT NULL, FOREIGN KEY(campaign_id) REFERENCES award_campaigns(id)) ENGINE=InnoDB`
 )
 schema.push(`CREATE TABLE IF NOT EXISTS assets (id CHAR(36) PRIMARY KEY,user_id CHAR(36) NOT NULL,width INT NOT NULL,height INT NOT NULL,bytes INT NOT NULL,status ENUM('active','hidden') NOT NULL DEFAULT 'active',created_at BIGINT NOT NULL,FOREIGN KEY(user_id) REFERENCES users(id)) ENGINE=InnoDB`)
+schema.push(
+`CREATE TABLE IF NOT EXISTS forum_drafts (user_id CHAR(36) PRIMARY KEY,data JSON NOT NULL,updated_at BIGINT NOT NULL,FOREIGN KEY(user_id) REFERENCES users(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+`CREATE TABLE IF NOT EXISTS forum_reply_context (reply_id CHAR(36) PRIMARY KEY,parent_id CHAR(36) NOT NULL,FOREIGN KEY(reply_id) REFERENCES forum_replies(id),FOREIGN KEY(parent_id) REFERENCES forum_replies(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+`CREATE TABLE IF NOT EXISTS notifications (id CHAR(36) PRIMARY KEY,user_id CHAR(36) NOT NULL,kind VARCHAR(24) NOT NULL,title VARCHAR(160) NOT NULL,link VARCHAR(200) NOT NULL,post_id VARCHAR(64) NULL,reply_id CHAR(36) NULL,read_at BIGINT NULL,created_at BIGINT NOT NULL,FOREIGN KEY(user_id) REFERENCES users(id),INDEX inbox(user_id,created_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+`CREATE TABLE IF NOT EXISTS site_settings (id INT PRIMARY KEY,data JSON NOT NULL,version INT NOT NULL DEFAULT 0) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+`CREATE TABLE IF NOT EXISTS community_entries (id CHAR(36) PRIMARY KEY,user_id CHAR(36) NOT NULL,data JSON NOT NULL,status ENUM('published','hidden') NOT NULL DEFAULT 'published',created_at BIGINT NOT NULL,FOREIGN KEY(user_id) REFERENCES users(id),INDEX entry_order(status,created_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+`CREATE TABLE IF NOT EXISTS user_library (user_id CHAR(36) NOT NULL,work_id INT NOT NULL,state ENUM('wish','reading','finished') NOT NULL,note VARCHAR(500) NOT NULL DEFAULT '',is_public BOOLEAN NOT NULL DEFAULT FALSE,updated_at BIGINT NOT NULL,PRIMARY KEY(user_id,work_id),FOREIGN KEY(user_id) REFERENCES users(id),FOREIGN KEY(work_id) REFERENCES works(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+)

@@ -1,0 +1,157 @@
+/* Illustration sits behind the floating navigation; reading surfaces stay solid. */
+
+
+
+
+/* Opaque base colours also provide a fallback without backdrop-filter. */
+.site-wrap { position: relative; isolation: isolate; padding-top: var(--header-top); }
+html { scroll-padding-top: calc(var(--header-top) + var(--header-height) + 1.25rem); }
+.header-artwork {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 14rem;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--hero);
+  -webkit-mask-image: linear-gradient(#000 35%, transparent);
+  mask-image: linear-gradient(#000 35%, transparent);
+}
+.header-artwork img { width: 100%; height: 100%; object-fit: cover; object-position: center 40%; opacity: var(--glass-art-opacity); }
+.header-artwork::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, var(--bg), transparent 48%, transparent 85%, var(--bg)); }
+.site-header {
+  width: min(97rem, calc(100% - 2rem));
+  height: var(--header-height);
+  top: var(--header-top);
+  margin-inline: auto;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  box-shadow: 0 .5rem 2rem var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+  transition: background-color var(--motion-fast) var(--motion-ease), box-shadow var(--motion-fast) var(--motion-ease);
+}
+.site-header.is-scrolled {
+  box-shadow: 0 .65rem 2rem var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+}
+.site-header .header-inner { width: calc(100% - 2.5rem); gap: 1.5rem; }
+.site-header .top-nav { height: auto; gap: .2rem; margin-left: .25rem; padding: .25rem; border: 1px solid var(--glass-line); border-radius: var(--radius-control); background: var(--glass-nav); }
+.site-header .top-nav > a { height: auto; min-height: 2.1rem; padding: .35rem .8rem; border: 1px solid transparent; border-radius: var(--radius-control); font-weight: 500; color: var(--ink); }
+.site-header .top-nav > a:hover { background: var(--glass-control); }
+.site-header .top-nav > a.active { background: var(--glass-selected); color: var(--orange); border-color: var(--glass-line); box-shadow: 0 .15rem .5rem var(--glass-shadow); }
+.site-header .top-nav > a.active::after { display: none; }
+.site-header .header-search { border-radius: var(--radius-control); background: var(--glass-control); border-color: var(--glass-line); color: var(--subtle); }
+.site-header .header-search:focus-within { background: var(--glass-selected); box-shadow: 0 0 0 3px var(--orange-soft); border-color: var(--orange); }
+.site-header .icon-button, .site-header .notification-link { border-radius: var(--radius-control); background: var(--glass-control); border: 1px solid var(--glass-line); }
+.site-header .icon-button:hover, .site-header .notification-link:hover { background: var(--glass-selected); color: var(--orange); }
+.site-header .login-button { padding: .45rem .75rem; min-height: 2.25rem; border: 1px solid var(--glass-line); border-radius: var(--radius-control); background: var(--glass-control); color: var(--ink); }
+.site-header .login-button:hover { background: var(--glass-selected); color: var(--orange); }
+.site-header .login-button > span:last-child { max-width: 7rem; overflow: hidden; text-overflow: ellipsis; }
+.left-sidebar { top: calc(var(--header-top) + var(--header-height) + 1rem); }
+
+.community-rail {
+  position: relative;
+  isolation: isolate;
+}
+
+.community-rail::before {
+  content: '';
+  position: absolute;
+  inset: -1rem 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 2rem;
+  background:
+    radial-gradient(ellipse at 80% 12%, var(--glass-orange-glow), transparent 58%),
+    radial-gradient(ellipse at 12% 62%, var(--glass-green-glow), transparent 58%);
+}
+
+.community-rail .rail-card {
+  border-color: var(--glass-line);
+  box-shadow: 0 .45rem 1.5rem var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .site-header {
+    background: var(--glass-header);
+    -webkit-backdrop-filter: blur(22px) saturate(130%);
+    backdrop-filter: blur(22px) saturate(130%);
+  }
+
+  .site-header.is-scrolled {
+    background: var(--glass-header-scrolled);
+  }
+
+  .community-rail .rail-card {
+    background: var(--glass-card);
+    -webkit-backdrop-filter: blur(12px) saturate(110%);
+    backdrop-filter: blur(12px) saturate(110%);
+  }
+
+  .community-rail .welcome-card {
+    background: linear-gradient(135deg, var(--glass-card), var(--glass-welcome));
+  }
+
+  @media (max-width: 54.6875rem) {
+    .site-header {
+      -webkit-backdrop-filter: blur(14px) saturate(120%);
+      backdrop-filter: blur(14px) saturate(120%);
+    }
+
+    .community-rail .rail-card {
+      -webkit-backdrop-filter: blur(6px);
+      backdrop-filter: blur(6px);
+    }
+  }
+}
+
+@media (max-width: 75rem) {
+  .site-header .header-inner { gap: .85rem; width: calc(100% - 2rem); }
+  .site-header .top-nav > a { padding-inline: .6rem; }
+  .site-header .header-actions { gap: .6rem; }
+}
+@media (max-width: 54.6875rem) {
+  :root { --header-top: .5rem; --header-height: 4.125rem; }
+  .site-header { width: calc(100% - 1rem); border-radius: 1.25rem; }
+  .site-header .header-inner { width: calc(100% - 1.25rem); gap: .5rem; }
+  .site-header .top-nav { display: none; }
+  .header-artwork { height: 10rem; }
+  .site-header .header-actions { gap: .35rem; }
+  .site-header .mobile-toggle { width: 2rem; height: 2rem; margin-left: 0; flex-shrink: 0; }
+  .site-header .brand { gap: .4rem; }
+  .site-header .club-mark { width: 2rem; height: 2rem; }
+  .site-header .brand-name { font-size: 1.1rem; }
+  .site-header .brand-school, .site-header .brand-divider { display: none; }
+  .site-header .brand-english { font-size: .3rem; margin-top: .25rem; }
+  .site-header .login-button { font-size: .65rem; padding: .35rem .55rem; gap: .3rem; min-height: 2rem; }
+  .site-header .login-button > span:last-child { max-width: 3.5rem; }
+  .site-header .theme-toggle { width: 2rem; height: 2rem; }
+  .site-header .header-search.search-open { top: .7rem; left: .65rem; right: .65rem; height: 2.6rem; background: var(--surface); }
+  .left-sidebar.mobile-open { top: calc(var(--header-top) + var(--header-height) + .65rem); left: .5rem; bottom: .5rem; border: 1px solid var(--glass-line); border-radius: 1rem; }
+}
+@media (max-width: 26rem) {
+  .site-header .login-button[aria-label="进入用户中心"] > span:last-child { display: none; }
+  .site-header .login-button[aria-label="进入用户中心"] { padding: .2rem; }
+}
+@media (max-width: 23rem) {
+  .site-header .brand-name { font-size: 1rem; }
+  .site-header .club-mark { width: 1.75rem; height: 1.75rem; }
+  .site-header .header-inner { gap: .3rem; width: calc(100% - 1rem); }
+  .site-header .login-button { padding-inline: .45rem; font-size: .6rem; }
+  .site-header .header-actions { gap: .2rem; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .site-header,
+  .site-header.is-scrolled,
+  .community-rail .rail-card {
+    background: var(--surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .community-rail::before, .header-artwork { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-header { transition: none; }
+}

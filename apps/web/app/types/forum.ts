@@ -2,6 +2,10 @@ export type Category = '作品讨论' | '阅读手记' | '同好闲聊' | '社�
 export type IconName = 'home' | 'forum' | 'library' | 'trophy' | 'calendar' | 'users' | 'search' | 'arrowUpRight' | 'arrowRight' | 'plus' | 'chevronDown' | 'chevronRight' | 'sun' | 'moon' | 'menu' | 'close' | 'comment' | 'eye' | 'heart' | 'bookmark' | 'pin' | 'flame' | 'sparkles' | 'filter' | 'clock' | 'hash' | 'check' | 'send' | 'arrowLeft' | 'quote' | 'info' | 'copy' | 'leaf' | 'image' | 'bell' | 'login' | 'pen' | 'external' | 'book' | 'star' | 'more'
 
 export interface ForumPost {
+  format?: 'plain'|'markdown'
+  body?: string
+  assetIds?: string[]
+  workId?: number|null
   avatarUrl?: string|null
   userId?: string
   uploadedImage?: string
@@ -36,6 +40,8 @@ export interface Work {
 }
 
 export interface Reply {
+  parentId?: string|null
+  parentAuthor?: string|null
   userId?: string
   avatarUrl?: string|null
   id: string
