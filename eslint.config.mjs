@@ -9,6 +9,7 @@ export default [
       '**/node_modules/**',
       '**/.nuxt*/**',
       '**/.output*/**',
+      '**/.edgeone/**',
       '**/dist/**',
       '.data/**',
       '**/public/**',

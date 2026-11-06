@@ -75,6 +75,8 @@ apps/web/
 
 完整运行、首名管理员、备份恢复与部署说明见 [运行与部署](docs/deployment.md)。账号接口详情见 [账号后端运行说明](docs/auth-setup.md)。
 
+EdgeOne Pages / Makers 前端上线分支的构建配置、服务器接口网关和环境变量见 [EdgeOne 部署说明](docs/edgeone-deployment.md)。部署检查命令为 `pnpm build:edgeone`、`pnpm test:edgeone`，需先配置文档中的部署变量。
+
 新增编辑器、通知、主页、书单、站点配置与活动相册的入口、数据表及部署配置见 [社区内容体验](docs/community-experience.md)。
 
 十二橙器的角色边界、阶段规则、MySQL 实体和接口约定见 [后端接入说明](docs/awards-backend.md)。

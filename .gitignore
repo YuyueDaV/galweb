@@ -1,6 +1,9 @@
 node_modules/
 .nuxt/
 .nuxt-check/
+.nuxt-edgeone/
+.edgeone/
+.edgeone-nitro-config.mjs
 .output/
 .output-check/
 playwright-report/

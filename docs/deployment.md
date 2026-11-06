@@ -1,5 +1,7 @@
 # 运行、备份与上线
 
+EdgeOne Pages / Makers 托管 Nuxt、独立服务器托管 API 与 MySQL 的方案见 [EdgeOne 部署说明](edgeone-deployment.md)。本页原有 Docker 示例适用于前后端一起放在服务器的方案。
+
 四个阶段的实现入口：账号与权限 `auth.ts / platform.ts`，论坛 `forum.ts`，评选 `awards.ts`，上传 `assets.ts`，API 路由 `main.ts / business-api.ts`。网页通过 Nuxt `/api` 代理调用后端，身份、帖子、回复、互动和评选数据不再使用体验 localStorage。
 
 ## 本机

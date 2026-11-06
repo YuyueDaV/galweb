@@ -6,6 +6,8 @@
     "dev": "pnpm --filter @chengzhixiang/web dev",
     "dev:api": "pnpm --filter @chengzhixiang/api dev",
     "build": "node scripts/sync-award-rules.mjs --check && pnpm -r build",
+    "build:edgeone": "node scripts/edgeone/build.mjs",
+    "test:edgeone": "node scripts/edgeone/smoke.mjs",
     "typecheck": "pnpm -r typecheck",
     "db:migrate": "pnpm --filter @chengzhixiang/api migrate",
     "test:api": "pnpm --filter @chengzhixiang/api test",
