@@ -86,3 +86,37 @@
   src: url(/fonts/font-12.ttf) format('truetype');
 }
 
+
+/* Supplement glyphs missing from the original subsets: 体 (4F53), 卡 (5361). */
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts/noto-sans-sc-supplement.woff2) format('woff2');
+  unicode-range: U+4F53, U+5361;
+}
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/fonts/noto-sans-sc-supplement.woff2) format('woff2');
+  unicode-range: U+4F53, U+5361;
+}
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(/fonts/noto-sans-sc-supplement.woff2) format('woff2');
+  unicode-range: U+4F53, U+5361;
+}
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(/fonts/noto-sans-sc-supplement.woff2) format('woff2');
+  unicode-range: U+4F53, U+5361;
+}

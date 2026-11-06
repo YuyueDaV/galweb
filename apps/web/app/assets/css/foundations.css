@@ -21,6 +21,9 @@
   background: var(--surface);
 }
 .shelf-view-switch button {
+  font-family: var(--sans);
+  font-weight: 400;
+  font-synthesis: none;
   padding: 0.35rem 0.65rem;
   border-radius: var(--radius-control);
   font-size: 0.65rem;
