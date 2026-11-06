@@ -1,5 +1,7 @@
 # EdgeOne Pages / Makers 部署
 
+使用宝塔管理服务器时，可按 [宝塔后端部署步骤](baota-deployment.md) 配置数据库、Node 进程、HTTPS 和接口网关。
+
 此分支采用「EdgeOne Nuxt SSR 前端 + 独立 NestJS 后端 + MySQL」方案，保留现有业务、登录会话与数据库。只运行构建不会发布网站、创建云项目、发送邮件或修改数据库。Pages 已升级为 Makers，以下统一称 EdgeOne。
 
 ## 分支与部署范围
