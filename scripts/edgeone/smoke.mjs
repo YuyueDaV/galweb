@@ -10,6 +10,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const deployment = JSON.parse(await readFile(join(root, 'edgeone.json'), 'utf8'))
 const output = resolve(root, deployment.outputDirectory)
+// Match the CLI's fixed SSR discovery path, not only a locally importable file.
+assert.equal(output, resolve(root, '.edgeone'), 'Publish the full artifact at the project root')
 // The cloud adapter imports Nuxt Kit from the app root, not Nuxt's dependency tree.
 const require = createRequire(join(root, 'apps/web/package.json'))
 const kit = await import(pathToFileURL(require.resolve('@nuxt/kit')).href)
@@ -127,6 +129,11 @@ try {
   const tooBig = await request('/api/uploads', 'POST', Buffer.alloc(6 * 1024 * 1024 + 1))
   assert.equal(tooBig.status, 413)
   assert.equal(calls.length, previousCalls)
+
+  const home = await request('/')
+  assert.equal(home.status, 200)
+  assert.match(home.headers.get('content-type'), /text\/html/)
+  assert.match(await home.text(), /<html/)
 
   const page = await request('/account')
   assert.equal(page.status, 200)

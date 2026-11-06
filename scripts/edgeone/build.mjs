@@ -7,6 +7,7 @@ import { run } from '../quality/run.mjs'
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const web = join(root, 'apps/web')
 const output = join(web, '.edgeone')
+const published = join(root, '.edgeone')
 
 function httpsOrigin(name) {
   let value
@@ -38,6 +39,16 @@ await run(process.execPath, [join(root, 'scripts/sync-award-rules.mjs'), '--chec
 // Validate the fixed absolute target before removing this deployment's old output.
 if (resolve(output) !== resolve(web, '.edgeone')) throw new Error('Invalid output directory.')
 await rm(output, { recursive: true, force: true })
+// The CLI discovers SSR under the project root's .edgeone, regardless of
+// outputDirectory. Preserve CLI state and clear only our generated files.
+if (resolve(published) !== resolve(root, '.edgeone')) throw new Error('Invalid publish directory.')
+for (const name of ['assets', 'cloud-functions/ssr-node']) {
+  const target = resolve(published, name)
+  const inside = relative(published, target)
+  if (inside.startsWith('..') || isAbsolute(inside)) throw new Error('Invalid publish target.')
+  await rm(target, { recursive: true, force: true })
+}
+await rm(join(published, 'routes.json'), { force: true })
 await run(process.execPath, [join(web, 'node_modules/nuxt/bin/nuxt.mjs'), 'build'], {
   cwd: web,
   env: { ...process.env, CZX_EDGEONE_BUILD: '1', CZX_CHECK: '', NITRO_PRESET: 'node-server' },
@@ -88,5 +99,9 @@ async function stripPrivateFiles(directory) {
 }
 await stripPrivateFiles(output)
 await writeFile(join(output, 'package.json'), JSON.stringify({ private: true, type: 'module' }))
-console.log(`EdgeOne artifact ready: ${output}`)
+await cp(output, published, { recursive: true, dereference: true })
+await access(join(published, 'cloud-functions/ssr-node/handler.js'))
+await access(join(published, 'cloud-functions/ssr-node/config.json'))
+console.log(`EdgeOne artifact ready: ${published}`)
+console.log('SSR entry ready: .edgeone/cloud-functions/ssr-node/handler.js')
 console.log('Build only: no cloud project was linked and no deployment was published.')

@@ -253,7 +253,7 @@ location ^~ /api/ {
 | --------- | --------------------------------------------------------------------- |
 | 安装命令  | `npm install --global pnpm@11.25.0 && pnpm install --frozen-lockfile` |
 | 构建命令  | `pnpm build:edgeone`                                                  |
-| 输出目录  | `apps/web/.edgeone`，相对于仓库根目录                                 |
+| 输出目录  | `.edgeone`，相对于仓库根目录                                          |
 | Node 版本 | 平台提供的 Node 24，当前配置 `24.18.0`                                |
 
 在 EdgeOne 的生产目标环境填写：

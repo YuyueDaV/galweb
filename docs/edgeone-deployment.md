@@ -30,11 +30,13 @@
 | Node 构建版本 | `24.18.0`                                                             |
 | 安装命令      | `npm install --global pnpm@11.25.0 && pnpm install --frozen-lockfile` |
 | 构建命令      | `pnpm build:edgeone`                                                  |
-| 输出目录      | `apps/web/.edgeone`，相对于仓库根目录                                 |
+| 输出目录      | `.edgeone`，相对于仓库根目录                                          |
 
 仓库根目录的 `edgeone.json` 已写入上述配置。已有 EdgeOne 项目需要在控制台将根目录从 `apps/web` 改为 `./`；旧的应用目录配置文件已移除。仓库根目录是 workspace 项目，由自定义脚本进入前端目录构建并生成 SSR 函数，避免平台在前端应用目录再次加载 Nuxt 适配器。不要改成 `nuxt generate`，不要只上传 `.edgeone/assets`，也不要添加全部路由重写到 `index.html` 的 SPA 规则。
 
 若日志出现 `.edgeone-nitro-config.mjs` 和 `Cannot find module '@nuxt/kit'`，表示平台自动注入的模块无法从应用目录解析依赖，末尾 `No server-handler detected` 是构建中断后的结果。前端现已显式固定 `@nuxt/kit@4.6.3`，与 Nuxt 版本一致；仍需按上表使用仓库根目录入口，避免自动适配覆盖本项目处理 Cookie、二进制上传和可信 IP 的函数入口。更新代码、修改项目根目录后，使用最新提交重新部署，必要时清除构建缓存。
+
+若构建成功却仍出现 `No server-handler detected`，且部署的「函数」页为空，则检查产物位置：CLI 固定从项目根目录 `.edgeone/cloud-functions/ssr-node/` 识别 SSR，而不是从任意 `outputDirectory` 里寻找。构建脚本先在 `apps/web/.edgeone` 生成、校验及清理中间产物，再发布到仓库根目录 `.edgeone`。控制台输出目录也应改为 `.edgeone`。不能仅把中间产物目录作为普通静态目录上传，否则会缺少函数并返回平台 404。
 
 当前锁文件使用 pnpm 11.25；安装包含开发依赖，构建需要 Nuxt、Tailwind 和适配器。不要设置 `--prod` 安装。Node 24.18 是官方构建指南当前列出的预装版本；平台配置若调整，以控制台实际可用版本为准。
 
@@ -48,7 +50,7 @@
 
 部署变量需对构建与函数运行生效，更新后重新部署。网关密钥不以 `NUXT_PUBLIC_` 开头，不写进网页、不提交仓库。可在受控终端使用 `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"` 生成，然后仅填入控制台和服务器配置。
 
-构建入口只编译前端和校验共享规则；要求配置公共 HTTPS 地址和网关密钥，防止误用本机地址。产物为 `apps/web/.edgeone`：`assets/` 保存图片、字体及 JS/CSS，`cloud-functions/ssr-node/` 保存 SSR、Nuxt `/api` 转发和路由元数据。开发目录 `.nuxt`、常规 `.output`、检查目录 `.output-check` 均保持独立。
+构建入口只编译前端和校验共享规则；要求配置公共 HTTPS 地址和网关密钥，防止误用本机地址。最终发布产物为仓库根目录 `.edgeone`：`assets/` 保存图片、字体及 JS/CSS，`cloud-functions/ssr-node/` 保存 SSR、Nuxt `/api` 转发和路由元数据。`apps/web/.edgeone` 是中间产物，开发目录 `.nuxt`、常规 `.output`、检查目录 `.output-check` 均保持独立。
 
 ## 后端服务器
 
@@ -83,7 +85,7 @@ pnpm build:edgeone
 pnpm test:edgeone
 ```
 
-测试从根目录 `edgeone.json` 读取实际输出路径，验证前端可解析 Nuxt Kit，再在本机随机端口建立临时模拟接口并直接调用构建后的 SSR 函数，检查 Cookie、二进制上传、CSRF、可信 IP、错误状态、HEAD / 204、站点地图、静态资源结构以及私有文件排除。不会连接本机正式 MySQL，也不会发送邮件。测试只证明产物在 Node 下的转发与渲染行为；EdgeOne 的真实路由、环境变量、请求体限制、网络和域名证书还需在测试项目验证。
+测试从根目录 `edgeone.json` 读取实际输出路径，断言最终产物符合 CLI 的根目录识别约定，验证前端可解析 Nuxt Kit，再在本机随机端口建立临时模拟接口并直接调用构建后的 SSR 函数，检查首页、Cookie、二进制上传、CSRF、可信 IP、错误状态、HEAD / 204、站点地图、静态资源结构以及私有文件排除。不会连接本机正式 MySQL，也不会发送邮件。测试只证明产物在 Node 下的转发与渲染行为；EdgeOne 的真实路由、环境变量、请求体限制、网络和域名证书还需在测试项目验证。
 
 完整原有回归检查仍为 `pnpm check`。EdgeOne 检查单独执行，因为它需要部署环境变量，并构建独立的函数产物。
 
