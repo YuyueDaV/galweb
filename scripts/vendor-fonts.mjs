@@ -1,56 +1,96 @@
-import { readdir, readFile, mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
 import { resolve, join } from 'node:path'
 
+// Manual asset maintenance only; builds and visitors never contact Google.
+// Do not use text=: UI wording and user content change after fonts are vendored.
+// https://developers.google.com/fonts/docs/css2
 const root = resolve(import.meta.dirname, '../apps/web')
-async function sourceText(directory) {
-  let text = ''
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    const path = join(directory, entry.name)
-    if (entry.isDirectory()) text += await sourceText(path)
-    else if (/\.(vue|ts)$/.test(entry.name)) text += await readFile(path, 'utf8')
-  }
-  return text
+const directory = join(root, 'public/fonts/generated')
+const userAgent =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+const families = [
+  { name: 'Noto Sans SC', key: 'noto-sans-sc', weights: '400..700', license: 'notosanssc' },
+  { name: 'Noto Serif SC', key: 'noto-serif-sc', weights: '400..800', license: 'notoserifsc' },
+  { name: 'DM Sans', key: 'dm-sans', weights: '400..700', license: 'dmsans' },
+]
+async function fetchAsset(url) {
+  const response = await fetch(url, {
+    headers: { 'User-Agent': userAgent },
+    signal: AbortSignal.timeout(60000),
+  })
+  if (!response.ok) throw new Error(`Font download HTTP ${response.status}`)
+  return response
 }
-const characters = [...new Set(((await sourceText(join(root, 'app'))).match(/[\u3000-\u303f\u3400-\u9fff\uff00-\uffef]/gu) || []))].join('')
-const serif = new URL('https://fonts.googleapis.com/css2')
-serif.searchParams.set('family', 'Noto Serif SC:wght@500;600;700;800')
-serif.searchParams.set('display', 'swap')
-serif.searchParams.set('text', characters)
-const sans = new URL('https://fonts.googleapis.com/css2')
-sans.searchParams.set('family', 'Noto Sans SC:wght@400;500;600;700')
-sans.searchParams.set('display', 'swap')
-sans.searchParams.set('text', characters)
-const sources = [serif.href, sans.href, 'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap']
-const files = new Map()
-let css = '/* Locally hosted Google Fonts. Font licenses are in public/fonts/LICENSES.txt. */\n'
-await mkdir(join(root, 'public/fonts'), { recursive: true })
-for (const source of sources) {
-  const response = await fetch(source, { headers: { 'User-Agent': 'Mozilla/5.0' } })
-  if (!response.ok) throw new Error(`Font stylesheet HTTP ${response.status}`)
-  let sheet = await response.text()
-  for (const match of sheet.matchAll(/url\((https:[^)]+)\)/g)) {
-    const url = match[1]
-    let name = files.get(url)
-    if (!name) {
-      name = `font-${files.size + 1}.${url.includes('.woff2') ? 'woff2' : url.includes('.woff') ? 'woff' : 'ttf'}`
-      const font = await fetch(url)
-      if (!font.ok) throw new Error(`Font asset HTTP ${font.status}`)
-      await writeFile(join(root, 'public/fonts', name), Buffer.from(await font.arrayBuffer()))
-      files.set(url, name)
+const tasks = []
+for (const family of families) {
+  const url = new URL('https://fonts.googleapis.com/css2')
+  url.searchParams.set('family', family.name + ':wght@' + family.weights)
+  url.searchParams.set('display', 'swap')
+  const sheet = await (await fetchAsset(url)).text()
+  const faces = [...sheet.matchAll(/@font-face\s*\{([^}]+)\}/g)]
+  if (!faces.length) throw new Error('Missing font faces for ' + family.name)
+  for (const [, body] of faces) {
+    const source = body.match(/src:\s*url\((https:[^)]+)\)\s*format\('woff2'\)/)?.[1]
+    const range = body.match(/unicode-range:\s*([^;]+);/)?.[1]
+    const weight = body.match(/font-weight:\s*([^;]+);/)?.[1]
+    if (
+      !source ||
+      new URL(source).hostname !== 'fonts.gstatic.com' ||
+      !range ||
+      !/^U\+[\da-f?, U+-]+$/i.test(range) ||
+      weight !== family.weights.replace('..', ' ')
+    ) {
+      throw new Error('Unexpected font face for ' + family.name)
     }
-    sheet = sheet.replaceAll(url, `/fonts/${name}`)
+    tasks.push({ family: family.name, key: family.key, source, range, weight })
   }
-  css += `${sheet}\n`
 }
-for (const [family, license] of [
-  ['Noto Serif SC', 'https://raw.githubusercontent.com/google/fonts/main/ofl/notoserifsc/OFL.txt'],
-  ['Noto Sans SC', 'https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/OFL.txt'],
-  ['DM Sans', 'https://raw.githubusercontent.com/google/fonts/main/ofl/dmsans/OFL.txt'],
-]) {
-  const response = await fetch(license)
-  if (!response.ok) throw new Error(`Font license HTTP ${response.status}`)
-  await writeFile(join(root, `public/fonts/${family.replaceAll(' ', '-')}-OFL.txt`), await response.text())
+await mkdir(directory, { recursive: true })
+let next = 0
+const results = new Array(tasks.length)
+await Promise.all(
+  Array.from({ length: 6 }, async () => {
+    while (next < tasks.length) {
+      const index = next++,
+        task = tasks[index]
+      const bytes = Buffer.from(await (await fetchAsset(task.source)).arrayBuffer())
+      if (bytes.toString('ascii', 0, 4) !== 'wOF2' || bytes.length > 2 * 1024 * 1024)
+        throw new Error('Invalid WOFF2 asset')
+      const sha256 = createHash('sha256').update(bytes).digest('hex')
+      const name = `${task.key}-${sha256.slice(0, 16)}.woff2`
+      await writeFile(join(directory, name), bytes)
+      results[index] = { ...task, file: '/fonts/generated/' + name, bytes: bytes.length, sha256 }
+    }
+  }),
+)
+// Publish CSS only after every referenced file and license is present.
+for (const family of families) {
+  const license = await (
+    await fetchAsset(`https://raw.githubusercontent.com/google/fonts/main/ofl/${family.license}/OFL.txt`)
+  ).text()
+  if (!license.includes('SIL OPEN FONT LICENSE')) throw new Error('Missing font license')
+  await writeFile(join(root, `public/fonts/${family.name.replaceAll(' ', '-')}-OFL.txt`), license)
 }
-await writeFile(join(root, 'public/fonts/LICENSES.txt'), 'Noto Serif SC, Noto Sans SC and DM Sans are distributed under the SIL Open Font License 1.1. See the adjacent *-OFL.txt files.\n')
+const css =
+  '/* Generated by scripts/vendor-fonts.mjs. Local Unicode subsets; no runtime external font requests. Licenses: /fonts/LICENSES.txt. */\n' +
+  results
+    .map(
+      (font) => `@font-face {
+  font-family: '${font.family}';
+  font-style: normal;
+  font-weight: ${font.weight};
+  font-display: swap;
+  src: url(${font.file}) format('woff2');
+  unicode-range: ${font.range};
+}\n`,
+    )
+    .join('\n')
+await writeFile(
+  join(root, 'public/fonts/manifest.json'),
+  JSON.stringify({ version: 1, fonts: results }, null, 2) + '\n',
+)
 await writeFile(join(root, 'app/assets/css/fonts.css'), css)
-console.log(`Vendored ${files.size} font files; ${characters.length} Chinese and punctuation glyphs.`)
+console.log(
+  `Vendored ${results.length} Unicode font subsets (${(results.reduce((sum, font) => sum + font.bytes, 0) / 1024 / 1024).toFixed(2)} MiB); browser loads only the ranges used on each page.`,
+)

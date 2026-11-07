@@ -1,3 +1,32 @@
+/* Keep individual CJK glyphs from being synthesized or inheriting a bold form label. */
+body,
+button,
+input,
+select,
+textarea {
+  font-synthesis: none;
+}
+button,
+input,
+select,
+textarea {
+  font-family: var(--sans);
+}
+input,
+select,
+textarea {
+  font-weight: 400;
+}
+input::placeholder,
+textarea::placeholder {
+  font-family: inherit;
+  font-weight: 400;
+  opacity: 1;
+}
+.page-footnote {
+  font-family: var(--sans);
+  font-weight: 400;
+}
 .image-fallback {
   display: flex;
   flex-direction: column;
