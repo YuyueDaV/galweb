@@ -29,7 +29,7 @@ useSeoMeta({ title:()=>settings.value.title+' · 澄之响',description:()=>sett
 <template>
   <div>
     <section class="home-hero" aria-labelledby="hero-title">
-      <div class="hero-grid" aria-hidden="true"></div><div class="hero-copy"><p class="hero-kicker"><span class="small-spark">✳</span> NJIT · VISUAL NOVEL CLUB</p><h1 id="hero-title">故事之外，<br>总有新的<span class="hero-echo">回响<span class="title-spark" aria-hidden="true">✳</span></span>。</h1><p class="hero-description">{{ settings.title }}<br>{{ settings.description }}</p><div class="hero-links"><a href="#discussions" class="button hero-button">去听听大家的故事<AppIcon name="arrowUpRight" :size="17" /></a><NuxtLink to="/about" class="hero-about">认识澄之响<AppIcon name="arrowRight" :size="15" /></NuxtLink></div><div class="hero-caption"><span class="tiny-line"></span> FOR EVERY STORY, AND EVERY ONE OF YOU.</div></div>
+      <div class="hero-grid" aria-hidden="true"></div><div class="hero-copy"><p class="hero-kicker"><span class="small-spark">✳</span> NJIT · VISUAL NOVEL CLUB</p><h1 id="hero-title">故事之外，<br>总有新的<span class="hero-echo">回响<span class="title-spark" aria-hidden="true">✳</span></span>。</h1><p class="hero-description">{{ settings.title }}<br>{{ settings.description }}</p><div class="hero-links"><a href="#discussions" class="button hero-button">去听听大家的故事<AppIcon name="arrowUpRight" :size="17" /></a><NuxtLink to="/about" class="hero-about">认识澄之响<AppIcon name="arrowRight" :size="15" /></NuxtLink><NuxtLink to="/about#join-club" class="hero-about">加入 QQ 群<AppIcon name="users" :size="15" /></NuxtLink></div><div class="hero-caption"><span class="tiny-line"></span> FOR EVERY STORY, AND EVERY ONE OF YOU.</div></div>
       <div class="hero-art" aria-hidden="true"><div class="hero-orbit orbit-one"></div><div class="hero-orbit orbit-two"></div><div class="hero-sun"></div><div class="art-word">RESONATE</div><figure class="hero-polaroid"><div class="polaroid-top"><span>THE STORIES WE SHARE</span><span>NO. 001</span></div><WorkCover :rank="9" variant="hero" alt="" loading="eager" fetchpriority="high" /><figcaption><span>喜欢的故事，想和你一起聊。</span><span class="handwriting">with you.</span></figcaption></figure><div class="art-sticker sticker-top"><span>✳</span> 欢迎来到我们的故事</div><div class="art-sticker sticker-bottom"><span class="status-dot"></span>下一段故事，等你加入。</div><div class="art-cross">✳</div><span class="art-label">CHENG ZHI XIANG<br>EST. IN OUR STORIES</span></div>
     </section>
 
@@ -51,3 +51,5 @@ useSeoMeta({ title:()=>settings.value.title+' · 澄之响',description:()=>sett
     </div>
   </div>
 </template>
+
+<style scoped>.hero-links { flex-wrap: wrap; }</style>

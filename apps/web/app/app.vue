@@ -110,9 +110,11 @@ function resetFeed() { query.value = ''; category.value = '全部' }
       <main id="main-content" class="page-content"><NuxtPage /></main>
     </div>
 
-    <footer class="site-footer shell"><span><span class="footer-mark">✳</span> 澄之响 <span class="footer-separator">/</span> 南京工程学院视觉小说同好会</span><span>故事有终章，热爱有回响。<span class="footer-year">© {{ new Date().getFullYear() }}</span></span></footer>
+    <footer class="site-footer shell"><span><span class="footer-mark">✳</span> 澄之响 <span class="footer-separator">/</span> 南京工程学院视觉小说同好会</span><span><NuxtLink to="/about#join-club" class="footer-club-link">加入 QQ 群<AppIcon name="arrowUpRight" :size="12" /></NuxtLink>故事有终章，热爱有回响。<span class="footer-year">© {{ new Date().getFullYear() }}</span></span></footer>
     <ForumDialogs />
     <Transition name="toast"><div v-if="toast" role="status" class="toast-message"><AppIcon name="check" :size="18" />{{ toast }}</div></Transition>
   </div>
 </template>
 <style scoped>.service-notice{padding:.6rem 1rem;font-size:.65rem;text-align:center;background:var(--hero);color:var(--subtle)}.service-notice button{color:var(--orange);margin-left:.8rem}</style>
+
+<style scoped>.footer-club-link { display: inline-flex; align-items: center; gap: .3rem; color: var(--orange); }</style>

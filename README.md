@@ -59,6 +59,8 @@ pnpm build
 
 顶部导航采用悬浮圆角毛玻璃面板，使用本地插画、半透明底色和背景模糊，支持浅色／深色模式与移动端搜索。滚动后提高面板不透明度；不支持背景模糊或偏好减少透明效果时使用实色底。外观参数集中在 `apps/web/app/assets/css/warm-glass.css`。
 
+同好会 QQ 群宣传接入首页、关于页和页脚，支持二维码放大、保存原图及复制群号；Logo、二维码和群号集中配置，更新方法见 [同好会宣传入口](docs/club-promotion.md)。
+
 字体使用本地托管的 Noto Sans SC、Noto Serif SC 和 DM Sans 可变 WOFF2，保留官方 Unicode 分段，浏览器仅加载页面用到的字形分段。维护时运行 `node scripts/vendor-fonts.mjs`，来源、字重、文件摘要及范围见 `apps/web/public/fonts/manifest.json`，许可证见相邻 OFL 文件；正常构建和访问页面都不请求外部字体服务。不要按某一版页面文案裁剪中文字符，否则新增文案和用户内容会触发系统字体回退，造成局部字重不一致。
 
 ## 目录
