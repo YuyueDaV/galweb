@@ -117,7 +117,7 @@ try {
     [path.join(api, 'node_modules/tsx/dist/cli.mjs'), '--test', '--test-concurrency=1', ...integrationFiles],
     { cwd: api, env: { ...env, AUTH_INTEGRATION: '1' } },
   )
-  // Only the editor and an open nomination campaign are fixtures; participation uses real UI/API requests.
+  // Staff accounts and an open campaign are fixtures; participation uses real UI/API requests.
   const campaign = {
     id: 'browser-voting',
     edition: 999,
@@ -139,6 +139,29 @@ try {
     JSON.stringify(campaign),
   ])
   const { hashPassword } = createRequire(import.meta.url)(path.join(root, 'apps/api/dist/security.js'))
+  // Integration tests leave historical users in this isolated database. Keep exactly
+  // two active owners for the self-demotion and last-owner browser checks.
+  await connection.query('UPDATE `' + database + "`.users SET role='admin' WHERE role='super_admin'")
+  for (const username of ['browser_owner', 'browser_owner_other', 'browser_member']) {
+    const email = username + '@example.com'
+    await connection.query(
+      'INSERT INTO `' +
+        database +
+        '`.users(id,username,username_key,email,email_key,nickname,password_hash,role,email_verified_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)',
+      [
+        randomUUID(),
+        username,
+        username,
+        email,
+        email,
+        username,
+        await hashPassword('Isolated moderator password 123!'),
+        username === 'browser_member' ? 'member' : 'super_admin',
+        Date.now(),
+        Date.now(),
+      ],
+    )
+  }
   const editorId = randomUUID()
   await connection.query(
     'INSERT INTO `' +

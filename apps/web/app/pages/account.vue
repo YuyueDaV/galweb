@@ -16,7 +16,7 @@ useSeoMeta({title:'用户中心 · 澄之响',robots:'noindex,nofollow'})
 async function uploadAvatar(event:Event){
  const input=event.target as HTMLInputElement,file=input.files?.[0]
  if(!file)return
- if(deleting.value||saving.value){input.value='';return}
+ if(uploading.value||deleting.value||saving.value){input.value='';return}
  error.value='';avatarError.value='';avatarFeedback.value='';saved.value=false
  uploading.value=true;uploadStage.value='processing'
  try{

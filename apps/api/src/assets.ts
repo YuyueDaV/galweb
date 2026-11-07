@@ -1,22 +1,43 @@
 import sharp, {type OutputInfo} from 'sharp'
 import {randomUUID} from 'node:crypto'
-import {mkdir,writeFile,unlink} from 'node:fs/promises'
+import {mkdir,writeFile,unlink,readFile,access} from 'node:fs/promises'
 import path from 'node:path'
 import {Database} from './database'
 import {reject,staff,type Actor,Platform} from './platform'
 export class Assets {
  readonly directory=path.resolve(process.env.UPLOAD_DIR||'.data/uploads')
  constructor(private db:Database,private platform:Platform){}
- async list(actor:Actor){staff(actor);return this.db.rows('SELECT id,user_id AS userId,width,height,bytes,status,created_at AS createdAt FROM assets ORDER BY created_at DESC LIMIT 200')}
+ async list(actor:Actor){staff(actor);return this.db.rows('SELECT a.id,a.user_id AS userId,u.nickname AS uploader,u.status AS ownerStatus,a.width,a.height,a.bytes,a.status,a.created_at AS createdAt FROM assets a JOIN users u ON u.id=a.user_id ORDER BY a.created_at DESC,a.id DESC LIMIT 200')}
  async create(actor:Actor,buffer:Buffer){
   if(buffer.length>5*1024*1024)throw reject('图片不能超过 5 MB。',413)
   let output:Buffer,info:OutputInfo
   try{const image=sharp(buffer,{limitInputPixels:40000000,animated:false});const metadata=await image.metadata();if(!['jpeg','png','webp'].includes(metadata.format||''))throw new Error('format');const result=await image.rotate().resize({width:2400,height:2400,fit:'inside',withoutEnlargement:true}).webp({quality:85}).toBuffer({resolveWithObject:true});output=result.data;info=result.info}catch{throw reject('请上传有效的 JPG、PNG 或 WebP 图片。',422)}
   const id=randomUUID(),filename=path.join(this.directory,id+'.webp');await mkdir(this.directory,{recursive:true});await writeFile(filename,output,{flag:'wx',mode:0o600})
-  try{await this.db.transaction(async tx=>{await this.platform.actor(actor.id,tx);await this.db.execute('INSERT INTO assets(id,user_id,width,height,bytes,created_at) VALUES (?,?,?,?,?,?)',[id,actor.id,info.width,info.height,output.length,Date.now()],tx)})}catch(error){await unlink(filename).catch(()=>{});throw error}
-  return {id,url:'/api/assets/'+id,width:info.width,height:info.height}
+  let storedId:string=id
+  try{
+   storedId=await this.db.transaction(async tx=>{
+    // The uploader row serializes uploads from the same account, including retries.
+    await this.platform.actor(actor.id,tx)
+    const matches=await this.db.rows<{id:string}>("SELECT id FROM assets WHERE user_id=? AND status='active' AND width=? AND height=? AND bytes=? ORDER BY created_at DESC",[actor.id,info.width,info.height,output.length],tx)
+    for(const candidate of matches){
+     if(!/^[a-f0-9-]{36}$/.test(candidate.id))continue
+     try{if((await readFile(path.join(this.directory,candidate.id+'.webp'))).equals(output))return candidate.id}
+     catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error}
+    }
+    await this.db.execute('INSERT INTO assets(id,user_id,width,height,bytes,created_at) VALUES (?,?,?,?,?,?)',[id,actor.id,info.width,info.height,output.length,Date.now()],tx)
+    return id
+   })
+   if(storedId!==id)await unlink(filename)
+  }catch(error){await unlink(filename).catch(()=>{});throw error}
+  return {id:storedId,url:'/api/assets/'+storedId,width:info.width,height:info.height}
  }
  async file(id:string){if(!/^[a-f0-9-]{36}$/.test(id))throw reject('图片不存在。',404);if(!(await this.db.rows("SELECT id FROM assets WHERE id=? AND status='active'",[id])).length)throw reject('图片不存在。',404);return path.join(this.directory,id+'.webp')}
+ async adminFile(actor:Actor,id:string){
+  staff(await this.platform.actor(actor.id))
+  if(!/^[a-f0-9-]{36}$/.test(id))throw reject('图片不存在。',404)
+  if(!(await this.db.rows("SELECT a.id FROM assets a JOIN users u ON u.id=a.user_id WHERE a.id=? AND u.status<>'deleted'",[id])).length)throw reject('图片不存在。',404)
+  return path.join(this.directory,id+'.webp')
+ }
  async cleanupDeletedAccounts(){
   const rows=await this.db.rows<{id:string}>("SELECT a.id FROM assets a JOIN users u ON u.id=a.user_id WHERE u.status='deleted' AND a.status='hidden' LIMIT 200")
   for(const row of rows){
@@ -25,5 +46,22 @@ export class Assets {
    await this.db.execute("DELETE FROM assets WHERE id=? AND status='hidden'",[row.id])
   }
  }
- async hide(actor:Actor,id:string){staff(actor);return this.db.transaction(async tx=>{await this.platform.actor(actor.id,tx);await this.db.execute("UPDATE assets SET status='hidden' WHERE id=?",[id],tx);await this.platform.audit(actor,'隐藏图片 '+id,null,tx);return {message:'图片已隐藏。'}})}
+ async moderate(actor:Actor,id:string,status:'active'|'hidden'){
+  staff(actor)
+  if(!/^[a-f0-9-]{36}$/.test(id))throw reject('图片不存在。',404)
+  return this.db.transaction(async tx=>{
+   await this.platform.lock('account-roles',tx)
+   const current=await this.platform.actor(actor.id,tx);staff(current)
+   const target=(await this.db.rows<{id:string,status:string,ownerStatus:string}>('SELECT a.id,a.status,u.status AS ownerStatus FROM assets a JOIN users u ON u.id=a.user_id WHERE a.id=? FOR UPDATE',[id],tx))[0]
+   if(!target)throw reject('图片不存在。',404)
+   if(status==='active'){
+    if(target.ownerStatus==='deleted')throw reject('已注销账号的图片不能恢复。')
+    try{await access(path.join(this.directory,id+'.webp'))}
+    catch(error){if((error as NodeJS.ErrnoException).code==='ENOENT')throw reject('图片文件已丢失，无法恢复，请重新上传。');throw error}
+   }
+   if(target.status!==status){await this.db.execute('UPDATE assets SET status=? WHERE id=?',[status,id],tx);await this.platform.audit(current,(status==='active'?'恢复图片 ':'隐藏图片 ')+id,null,tx)}
+   return {message:status==='active'?'图片已恢复。':'图片已隐藏。'}
+  })
+ }
+ async hide(actor:Actor,id:string){return this.moderate(actor,id,'hidden')}
 }

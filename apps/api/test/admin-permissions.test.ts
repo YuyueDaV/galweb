@@ -83,6 +83,24 @@ test('管理员仍不能禁用最后一名有效超级管理员',async()=>{
  assert.deepEqual(changes(f.writes),[])
 })
 
+test('有其他有效超管时允许自行降级，并撤销自己的全部会话',async()=>{
+ const owner=actor('super_admin'),f=fixture(owner,actor('super_admin'),2)
+ assert.equal((await f.platform.accounts(owner))[0]!.isLastSuperAdmin,false)
+ await f.platform.updateAccount(owner,owner.id,{role:'member'})
+ assert.equal(f.users.get(owner.id)!.role,'member')
+ assert.ok(f.writes.some(write=>write.sql.startsWith('DELETE FROM auth_sessions')&&write.values[0]===owner.id))
+})
+
+test('最后一名有效超管不能自行降级，禁用的其他超管不计入有效人数',async()=>{
+ const owner=actor('super_admin'),f=fixture(owner,{...actor('super_admin'),status:'disabled'},1)
+ const accounts=await f.platform.accounts(owner)
+ assert.equal(accounts[0]!.isLastSuperAdmin,true)
+ assert.equal(accounts[1]!.isLastSuperAdmin,false)
+ await assert.rejects(()=>f.platform.updateAccount(owner,owner.id,{role:'member'}),/至少保留/)
+ assert.equal(f.users.get(owner.id)!.role,'super_admin')
+ assert.deepEqual(changes(f.writes),[])
+})
+
 test('已降权的旧身份不能更改账号状态或创建及归档活动',async()=>{
  const stale=actor('admin'),f=fixture({...stale,role:'member'})
  await assert.rejects(()=>f.platform.updateAccount(stale,stale.id,{status:'disabled'}),/管理员/)

@@ -19,6 +19,7 @@ export interface PreviewAccount {
   role: AccountRole
   status: 'active' | 'disabled' | 'deleted'
   avatarUrl: string | null
+  isLastSuperAdmin?: boolean
 }
 
 export interface AwardCampaign {

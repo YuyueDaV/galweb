@@ -39,6 +39,11 @@ async function updateAccount(id: string, patch: { role?: AccountRole; status?: '
   if (pendingId.value || !allowed.value) return
   if (patch.role !== undefined && !identity.can('account.manage')) return
   if (patch.status !== undefined && !identity.can('account.status')) return
+  const target = accounts.value.find(item => item.id === id)
+  if (target?.isLastSuperAdmin && ((patch.role !== undefined && patch.role !== 'super_admin') || patch.status === 'disabled')) {
+    error.value = '这是最后一位有效超级管理员，请先将另一账号提升为超级管理员。'
+    return
+  }
   pendingId.value = id
   error.value = ''
   try {
@@ -46,6 +51,7 @@ async function updateAccount(id: string, patch: { role?: AccountRole; status?: '
     if (id === identity.selectedId.value) {
       await auth.refresh()
       notify('账号权限已更新，请重新登录。')
+      loginOpen.value = true
     } else {
       await loadAccounts()
       notify(patch.role ? '账号角色已更新，受影响账号需重新登录。' : patch.status === 'disabled' ? '账号已禁用，现有登录会话已撤销。' : '账号已启用。')
@@ -89,7 +95,7 @@ onBeforeUnmount(() => { ++requestVersion })
       <div><p class="eyebrow">让每一份信任，各有职责。</p><h1>账号权限<span>。</span></h1><p>{{ identity.account.value.name }}<span class="award-admin-role">{{ roleNames[identity.role.value] }}</span></p></div>
       <button class="button secondary" :disabled="loading || !!pendingId" @click="loadAccounts"><AppIcon name="users" :size="16" />刷新账号</button>
     </header>
-    <div class="award-prototype-notice"><AppIcon name="info" :size="15" /><span>系统至少保留一名有效超级管理员。角色或状态变更会撤销该账号的现有登录会话。</span></div>
+    <div class="award-prototype-notice"><AppIcon name="info" :size="15" /><span>有其他有效超级管理员时可以自行降级；最后一位有效超管不能降级或禁用。角色或状态变更后，受影响账号需重新登录。</span></div>
     <p v-if="error" class="award-admin-error" role="alert"><AppIcon name="info" :size="16" />{{ error }}</p>
 
     <section class="award-admin-card" aria-labelledby="account-list-heading" :aria-busy="loading">
@@ -104,11 +110,12 @@ onBeforeUnmount(() => { ++requestVersion })
           </div>
           <div class="account-actions">
             <template v-if="identity.can('account.manage')">
-              <select v-model="roleDrafts[item.id]" :disabled="item.status === 'deleted' || !!pendingId" :aria-label="`${item.name}的角色`"><option v-for="role in matrixRoles" :key="role" :value="role">{{ roleNames[role] }}</option></select>
-              <button class="button secondary" :disabled="item.status === 'deleted' || !!pendingId || roleDrafts[item.id] === item.role" :aria-label="`保存${item.name}的角色`" @click="updateAccount(item.id, { role: roleDrafts[item.id] })">保存角色</button>
+              <select v-model="roleDrafts[item.id]" :disabled="item.status === 'deleted' || item.isLastSuperAdmin || !!pendingId" :aria-label="`${item.name}的角色`"><option v-for="role in matrixRoles" :key="role" :value="role">{{ roleNames[role] }}</option></select>
+              <button class="button secondary" :disabled="item.status === 'deleted' || item.isLastSuperAdmin || !!pendingId || roleDrafts[item.id] === item.role" :aria-label="`保存${item.name}的角色`" @click="updateAccount(item.id, { role: roleDrafts[item.id] })">保存角色</button>
             </template>
             <span v-else class="account-role-label">{{ roleNames[item.role] }}</span>
-            <button v-if="identity.can('account.status') && item.status !== 'deleted'" class="button secondary" :disabled="!!pendingId" :aria-label="`${item.status === 'active' ? '禁用' : '启用'}账号${item.username || item.name}`" @click="updateAccount(item.id, { status: item.status === 'active' ? 'disabled' : 'active' })">{{ item.status === 'active' ? '禁用账号' : '启用账号' }}</button>
+            <button v-if="identity.can('account.status') && item.status !== 'deleted'" class="button secondary" :disabled="!!pendingId || item.isLastSuperAdmin" :aria-label="`${item.status === 'active' ? '禁用' : '启用'}账号${item.username || item.name}`" @click="updateAccount(item.id, { status: item.status === 'active' ? 'disabled' : 'active' })">{{ item.status === 'active' ? '禁用账号' : '启用账号' }}</button>
+            <small v-if="item.isLastSuperAdmin" class="account-role-help">最后一位有效超管；先提升另一账号，才能降级或禁用。</small>
           </div>
         </article>
       </div>
@@ -126,6 +133,7 @@ onBeforeUnmount(() => { ++requestVersion })
 .account-permissions-page > .award-admin-card + .award-admin-card { margin-top: 1.25rem; }
 .award-account-list .account-actions { flex-wrap: wrap; }
 .account-role-label { font-size: .6875rem; color: var(--subtle); }
+.account-role-help { flex-basis: 100%; font-size: .625rem; color: var(--subtle); line-height: 1.6; }
 .award-account-list .account-status { display: inline-block; margin-top: .35rem; padding: .15rem .45rem; border-radius: .25rem; background: var(--bg); color: var(--subtle); }
 .award-account-list .account-status.active { color: #657c4f; background: #eaf0e0; }
 .award-account-list .account-status.disabled { color: var(--orange); background: var(--hero); }

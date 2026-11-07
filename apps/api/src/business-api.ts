@@ -16,6 +16,11 @@ export function businessControllers(db:Database,auth:Auth,platform:Platform,cook
  const forum=new Forum(db,platform)
  const awards=new Awards(db,platform)
  const assets=new Assets(db,platform)
+ const sendImage=async(filename:string,res:Response)=>{
+  let contents:Buffer
+  try{contents=await readFile(filename)}catch(error){if((error as NodeJS.ErrnoException).code==='ENOENT')throw new HttpException('图片不存在。',404);throw error}
+  res.setHeader('Content-Type','image/webp');res.setHeader('Content-Security-Policy',"default-src 'none'; sandbox");res.setHeader('Cache-Control','private, no-store');return res.send(contents)
+ }
  const sessionToken=(req:Request)=>(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>s.startsWith(cookieName+'='))?.slice(cookieName.length+1)
  const actor=async(req:Request,write=false)=>{const u=await auth.session(sessionToken(req));if(write&&!equal(digest(req.header('X-CSRF-Token')||''),u.csrf_hash))throw new HttpException('请求校验失败。',403);return u}
  const optional=async(req:Request)=>{if(!sessionToken(req))return undefined;try{return await actor(req)}catch(e){if(e instanceof HttpException&&e.getStatus()===401)return undefined;throw e}}
@@ -50,7 +55,9 @@ export function businessControllers(db:Database,auth:Auth,platform:Platform,cook
  @Controller('api') class AssetsController{
   @Get('admin/assets') async list(@Req() req:Request){return assets.list(await actor(req))}
   @Post('uploads') @UseGuards(UploadGuard) @UseInterceptors(FileInterceptor('file',{limits:{fileSize:5*1024*1024,files:1,fields:0}})) async upload(@UploadedFile() file:{buffer:Buffer}|undefined,@Req() req:Request){const user=await actor(req,true);await auth.limit('uploads',user.id,20,600000);if(!file)throw new HttpException('请选择图片。',422);return assets.create(user,file.buffer)}
-  @Get('assets/:id') async image(@Param('id') id:string,@Res() res:Response){const contents=await readFile(await assets.file(id));res.setHeader('Content-Type','image/webp');res.setHeader('Content-Security-Policy',"default-src 'none'; sandbox");res.setHeader('Cache-Control','public,max-age=300');return res.send(contents)}
+  @Get('assets/:id') async image(@Param('id') id:string,@Res() res:Response){return sendImage(await assets.file(id),res)}
+  @Get('admin/assets/:id') async preview(@Param('id') id:string,@Req() req:Request,@Res() res:Response){return sendImage(await assets.adminFile(await actor(req),id),res)}
+  @Patch('admin/assets/:id') async moderate(@Param('id') id:string,@Body() body:unknown,@Req() req:Request){const user=await actor(req,true);const patch=validate(z.object({status:z.enum(['active','hidden'])}).strict(),body);return assets.moderate(user,id,patch.status)}
   @Delete('admin/assets/:id') async hide(@Param('id') id:string,@Req() req:Request){return assets.hide(await actor(req,true),id)}
  }
  return [ForumController,AwardsController,AssetsController,...communityControllers(db,auth,platform,cookieName)]
