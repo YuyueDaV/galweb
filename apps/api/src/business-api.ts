@@ -53,12 +53,14 @@ export function businessControllers(db:Database,auth:Auth,platform:Platform,cook
  }
  class UploadGuard implements CanActivate {async canActivate(context:ExecutionContext){await actor(context.switchToHttp().getRequest(),true);return true}}
  @Controller('api') class AssetsController{
+  @Get('admin/asset-management') async capabilities(@Req() req:Request){return assets.capabilities(await actor(req))}
   @Get('admin/assets') async list(@Req() req:Request){return assets.list(await actor(req))}
   @Post('uploads') @UseGuards(UploadGuard) @UseInterceptors(FileInterceptor('file',{limits:{fileSize:5*1024*1024,files:1,fields:0}})) async upload(@UploadedFile() file:{buffer:Buffer}|undefined,@Req() req:Request){const user=await actor(req,true);await auth.limit('uploads',user.id,20,600000);if(!file)throw new HttpException('请选择图片。',422);return assets.create(user,file.buffer)}
   @Get('assets/:id') async image(@Param('id') id:string,@Res() res:Response){return sendImage(await assets.file(id),res)}
   @Get('admin/assets/:id') async preview(@Param('id') id:string,@Req() req:Request,@Res() res:Response){return sendImage(await assets.adminFile(await actor(req),id),res)}
   @Patch('admin/assets/:id') async moderate(@Param('id') id:string,@Body() body:unknown,@Req() req:Request){const user=await actor(req,true);const patch=validate(z.object({status:z.enum(['active','hidden'])}).strict(),body);return assets.moderate(user,id,patch.status)}
   @Delete('admin/assets/:id') async hide(@Param('id') id:string,@Req() req:Request){return assets.hide(await actor(req,true),id)}
+  @Delete('admin/assets/:id/permanent') async remove(@Param('id') id:string,@Body() body:unknown,@Req() req:Request){const user=await actor(req,true);validate(z.object({confirmation:z.literal('永久删除')}).strict(),body);return assets.remove(user,id)}
  }
  return [ForumController,AwardsController,AssetsController,...communityControllers(db,auth,platform,cookieName)]
 }

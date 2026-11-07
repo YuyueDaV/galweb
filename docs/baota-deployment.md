@@ -325,6 +325,30 @@ pnpm db:migrate
 
 ### 其他问题
 
+管理页出现 `Cannot PATCH /api/admin/assets/...`，或匿名访问图片预览地址返回 `Cannot GET /api/admin/assets/...`，说明请求到达的后端没有加载新版路由。GitHub/EdgeOne 更新不会自动更新宝塔 Node 进程。先检查工作区与分支：
+
+```bash
+cd /www/wwwroot/galweb
+git status --short
+git branch --show-current
+git log -1 --oneline
+```
+
+仅在工作区干净且分支为 `codex/edgeone-deployment` 时更新并构建：
+
+```bash
+git pull --ff-only origin codex/edgeone-deployment
+pnpm --filter @chengzhixiang/api build
+```
+
+在宝塔「网站 → Node 项目」中重启 `galweb-api`，确认项目目录 `/www/wwwroot/galweb/apps/api`、启动命令 `node dist/main.js`。然后验证正在运行的进程，而不是只检查磁盘源码：
+
+```bash
+curl --noproxy '*' -i http://127.0.0.1:3200/api/admin/asset-management
+```
+
+未携带登录 Cookie 时，新版路由应返回 `401` 和“请先登录”；`404` 与 `Cannot GET` 表示旧进程或错误目录仍在提供服务。再从主站访问同一路径，预期也为 `401`；若本机 `401`、主站 `404`，检查 EdgeOne 的后端地址及 Nginx 转发目标。管理页也会检查接口能力，旧后端下禁用图片操作并给出更新提示。
+
 | 现象                       | 优先检查                                                              |
 | -------------------------- | --------------------------------------------------------------------- |
 | `npm: command not found`   | Node 版本管理器是否设定命令行版本，重开终端                           |
@@ -343,6 +367,10 @@ pnpm db:migrate
 每次更新前备份数据库和上传目录，核对版本后再构建 API、按需迁移并在宝塔重启对应 Node 项目。不覆盖 `.env` 和持久目录。备份操作参考 [运行与部署](deployment.md#备份与恢复)，并定期复制到服务器以外的位置。
 
 图片审核与上传去重这次更新同时涉及 API 和前端。先同步服务器代码，运行 `pnpm --filter @chengzhixiang/api build`，在宝塔重启 `galweb-api`，再部署 EdgeOne 前端；本次没有数据库结构变更，无需迁移。管理页使用需要登录的 `/api/admin/assets/:id` 预览隐藏图片，普通访客仍不能访问隐藏图片；恢复操作会检查上传者未注销且文件仍存在。
+
+“永久删除”需要管理员登录、CSRF 校验和二次确认，调用独立的 `DELETE /api/admin/assets/:id/permanent`，避免旧版用于隐藏的 DELETE 请求意外变成永久删除。删除会移除上传记录和图片文件，清除上传者正在使用的头像引用；帖子、草稿或相册仍引用该地址时将无法显示图片，因此操作不可恢复。缺失文件的上传记录也可以删除，不删除帖子文字或相册条目。
+
+删除时图片暂存于私有上传目录的 `.trash`，数据库事务失败会还原；提交后移除暂存文件。进程中断或文件清理暂时失败时，启动及每小时的后台任务会依据数据库记录恢复未提交的文件或清理已删除文件。此目录与上传目录一起保持 `www` 用户可写，不放入静态站点根目录。
 
 同一账号上传内容完全相同、经处理后字节一致的图片时，复用已有正常图片记录。已隐藏图片及不同账号的图片不会被复用。历史上传记录保留，避免破坏头像或帖子的引用；管理列表包含头像、帖子配图和未保存到个人资料的上传。超管仅在另有有效超级管理员时可以自行降级，降级后必须重新登录。
 

@@ -57,7 +57,8 @@ async function bootstrap(){
   await app.listen(c.API_PORT,c.API_HOST)
   console.log(`Auth API listening on ${c.API_HOST}:${c.API_PORT}`)
   void assets.cleanupDeletedAccounts().catch(()=>console.error('Deleted account asset cleanup failed'))
-  const cleanup=setInterval(()=>{void Promise.all([assets.cleanupDeletedAccounts(),db.execute('DELETE FROM forum_view_receipts WHERE expires_at<?',[Date.now()]),db.execute('DELETE FROM auth_sessions WHERE expires_at<?',[Date.now()]),db.execute('DELETE FROM auth_rate_limits WHERE expires_at<?',[Date.now()]),db.execute('DELETE FROM email_verification_challenges WHERE expires_at<?',[Date.now()-86400000])]).catch(()=>console.error('Auth cleanup failed'))},3600000);cleanup.unref()
+  void assets.cleanupPendingDeletes().catch(()=>console.error('Deleted asset file cleanup failed'))
+  const cleanup=setInterval(()=>{void Promise.all([assets.cleanupDeletedAccounts(),assets.cleanupPendingDeletes(),db.execute('DELETE FROM forum_view_receipts WHERE expires_at<?',[Date.now()]),db.execute('DELETE FROM auth_sessions WHERE expires_at<?',[Date.now()]),db.execute('DELETE FROM auth_rate_limits WHERE expires_at<?',[Date.now()]),db.execute('DELETE FROM email_verification_challenges WHERE expires_at<?',[Date.now()-86400000])]).catch(()=>console.error('Auth cleanup failed'))},3600000);cleanup.unref()
   for(const signal of ['SIGINT','SIGTERM'] as const)process.once(signal,()=>{clearInterval(cleanup);void app.close().then(()=>db.pool.end())})
 }
 bootstrap().catch(()=>{console.error('API startup failed. Check .env, database connectivity and run migrations.');void db.pool.end();process.exitCode=1})
