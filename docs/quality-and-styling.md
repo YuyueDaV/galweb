@@ -38,6 +38,8 @@ GitHub Actions 的 `quality.yml` 使用任务专属的 MySQL 服务，未使用�
 
 `tokens.css` 管理配色、字体、毛玻璃参数、圆角和动画时间。`warm-glass.css` 负责导航效果，`foundations.css` 负责共享降级与书架效果。
 
+批量液态玻璃由 `liquid-glass.css`、Vue `LiquidGlass` 组件及客户端增强器统一维护。折射与磨砂的应用范围、性能上限和参考组件的适配差异见 [Liquid Glass 说明](liquid-glass.md)。
+
 `SafeImage` 支持原图回退，仍不可用时显示文字提示，也处理 SSR 图片在客户端接管前已失败的情况。相册大图在打开时创建。立体书架点击后按需加载，仅使用 CSS 透视与过渡；手机端和减少动画偏好下保留普通书架操作。默认显示卡片列表。
 
 ## Tailwind

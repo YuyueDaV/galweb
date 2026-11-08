@@ -61,7 +61,7 @@ pnpm.cmd build
 
 首页大图、书架、帖子缩略图与侧栏封面使用 `WorkCover` 组件，根据显示尺寸与屏幕像素密度选择图片。运行 `node scripts/prepare-cover-variants.mjs` 可从仓库中的 `public/images/works/source` 图片生成 WebP 变体与尺寸清单，无需依赖旧 uploads 目录。封面保留完整比例，横幅单独裁剪，不放大源图；图片路径含内容摘要以避免旧缓存。来源和实际尺寸见 [作品图片来源](docs/cover-sources.md)。它不依赖网站运行时图片处理服务。
 
-顶部导航采用悬浮圆角毛玻璃面板，使用本地插画、半透明底色和背景模糊，支持浅色／深色模式与移动端搜索。滚动后提高面板不透明度；不支持背景模糊或偏好减少透明效果时使用实色底。外观参数集中在 `apps/web/app/assets/css/warm-glass.css`。
+导航、卡片、弹窗与次按钮统一采用 Liquid Glass 视觉层，使用本地插画、半透明底色、边缘高光与按需 SVG 折射，支持浅色／深色模式和手机端磨砂降级。正文与表单保持清晰底色，减少透明度时使用实色底。外观参数、应用范围及参考组件适配差异见 [Liquid Glass 说明](docs/liquid-glass.md)。
 
 同好会 QQ 群宣传接入首页、关于页和页脚，支持二维码放大、保存原图及复制群号；Logo、二维码和群号集中配置，更新方法见 [同好会宣传入口](docs/club-promotion.md)。
 

@@ -40,6 +40,7 @@ export default defineNuxtConfig({
     '~/assets/css/covers.css',
     '~/assets/css/catalog.css',
     '~/assets/css/foundations.css',
+    '~/assets/css/liquid-glass.css',
   ],
   app: {
     head: {

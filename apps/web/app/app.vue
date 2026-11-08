@@ -54,7 +54,7 @@ function resetFeed() { query.value = ''; category.value = '全部' }
   <div class="site-wrap">
     <div class="header-artwork" aria-hidden="true"><img src="/images/header-autumn.webp" alt="" width="1600" height="520" decoding="async" fetchpriority="low" /></div>
     <a class="skip-link" href="#main-content">跳转到正文</a>
-    <header class="site-header" :class="{ 'is-scrolled': headerScrolled }">
+    <LiquidGlass as="header" class="site-header" :class="{ 'is-scrolled': headerScrolled }" :radius="30" :scale="24" :bevel-depth="12" :aberration="1.2" :tint="0.64" :frost="0.6">
       <div class="header-inner">
         <button class="icon-button mobile-toggle" :aria-expanded="mobileOpen" aria-controls="community-nav" aria-label="展开社区导航" @click="mobileOpen = !mobileOpen"><AppIcon :name="mobileOpen ? 'close' : 'menu'" /></button>
         <NuxtLink to="/" class="brand" aria-label="澄之响首页" @click="resetFeed"><ClubMark /><span class="brand-name">澄之响<span class="brand-english">CHENG ZHI XIANG</span></span><span class="brand-divider"></span><span class="brand-school">南京工程学院<br>视觉小说同好会</span></NuxtLink>
@@ -69,7 +69,7 @@ function resetFeed() { query.value = ''; category.value = '全部' }
           <NuxtLink v-if="auth.user.value" to="/account" class="login-button" aria-label="进入用户中心"><UserAvatar class="mini-user" :src="auth.user.value.avatarUrl" :name="username" /><span>{{ username }}</span></NuxtLink><button v-else class="login-button" aria-label="登录 / 加入" @click="loginOpen = true"><AppIcon name="login" :size="16" /><span>登录 / 加入</span></button>
         </div>
       </div>
-    </header>
+    </LiquidGlass>
     <div v-if="auth.ready.value&&!forum.online.value" class="service-notice" role="status">社区服务暂时不可用，部分内容可能尚未更新。<button @click="forum.loadFeed()">重试连接</button></div>
 
     <div class="layout shell">

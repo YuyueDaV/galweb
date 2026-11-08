@@ -11,7 +11,7 @@
     "typecheck": "pnpm -r typecheck",
     "db:migrate": "pnpm --filter @chengzhixiang/api migrate",
     "test:api": "pnpm --filter @chengzhixiang/api test",
-    "test": "node --test tests/awards.test.mjs tests/avatar.test.mjs tests/feed-client.test.mjs tests/post-card.test.mjs tests/auth-feedback.test.mjs tests/admin-accounts.test.mjs tests/markdown.test.mjs && pnpm test:api",
+    "test": "node --test tests/awards.test.mjs tests/avatar.test.mjs tests/feed-client.test.mjs tests/post-card.test.mjs tests/auth-feedback.test.mjs tests/admin-accounts.test.mjs tests/markdown.test.mjs tests/liquid-glass.test.mjs && pnpm test:api",
     "rules:sync": "node scripts/sync-award-rules.mjs",
     "rules:check": "node scripts/sync-award-rules.mjs --check",
     "lint": "eslint apps packages scripts tests e2e playwright.config.ts eslint.config.mjs",
