@@ -6,24 +6,26 @@
 
 要求 Node.js 24.16 或兼容版本、pnpm 11.25。
 
+先配置 `apps/api/.env` 中的数据库连接。Windows PowerShell 使用 `pnpm.cmd`，可避免 `pnpm.ps1` 被执行策略拦截。
+
 ```powershell
-pnpm install
-pnpm db:migrate
-pnpm dev:api
+pnpm.cmd install
+pnpm.cmd db:migrate
+pnpm.cmd dev:api
 ```
 
-先配置 `apps/api/.env` 中的数据库连接。另一个终端启动网页：
+保持后端终端运行，在另一个终端启动网页：
 
 ```powershell
-pnpm dev
+pnpm.cmd dev
 ```
 
 预览地址：<http://127.0.0.1:3100>。
 
 ```powershell
-pnpm typecheck
-pnpm test
-pnpm build
+pnpm.cmd typecheck
+pnpm.cmd test
+pnpm.cmd build
 ```
 
 ## 已完成
