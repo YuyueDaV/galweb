@@ -164,7 +164,7 @@ useSeoMeta({ title: '消息通知 · 澄之响', robots: 'noindex,nofollow' })
   text-align: left;
   overflow-wrap: anywhere;
   color: var(--ink);
-  font-size: 0.95rem;
+  font-size: 1.1rem;
   font-weight: 500;
   line-height: 1.7;
 }
@@ -243,7 +243,7 @@ useSeoMeta({ title: '消息通知 · 澄之响', robots: 'noindex,nofollow' })
     padding-left: calc(1rem - 2px);
   }
   .inbox-item .notification-title {
-    font-size: 0.9rem;
+    font-size: 1.05rem;
   }
   .inbox-item .notification-footer time {
     font-size: 0.6rem;
