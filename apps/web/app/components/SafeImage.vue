@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { bangumiImageSource } from '~/utils/bangumi-image'
 defineOptions({ inheritAttrs: false })
 const props = withDefaults(
   defineProps<{ src: string; alt?: string; fallbackSrc?: string; srcset?: string }>(),
@@ -7,7 +8,9 @@ const props = withDefaults(
 const failed = ref(false)
 const image = ref<HTMLImageElement | null>(null)
 const original = ref(false)
-const current = computed(() => (original.value && props.fallbackSrc ? props.fallbackSrc : props.src))
+const current = computed(() =>
+  bangumiImageSource(original.value && props.fallbackSrc ? props.fallbackSrc : props.src),
+)
 watch(
   () => [props.src, props.fallbackSrc],
   () => {

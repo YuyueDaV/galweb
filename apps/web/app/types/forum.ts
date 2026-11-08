@@ -31,6 +31,9 @@ export interface ForumPost {
 }
 
 export interface Work {
+  coverUrl?:string
+  addedBy?:{id:string|null;name:string}|null
+  addedAt?:number
   archiveRank?: number
   version?: number
   bangumi?: import('./catalog').BangumiSubject

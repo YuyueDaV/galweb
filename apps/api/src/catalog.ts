@@ -4,10 +4,14 @@ import type { PoolConnection } from 'mysql2/promise'
 import { Database } from './database'
 import { Platform, staff, reject, type Actor } from './platform'
 import { decode } from './forum'
+import { normalizeWorkTitle } from './award-rules'
 import { Bangumi, type BangumiSubject } from './bangumi'
 import { TierVoting, validTierChoices, tierPublicationKey, type TierChoice } from './tier-voting'
 
 export interface CatalogWork {
+  addedById?: string
+  addedAt?: number
+  coverAssetId?: string | null
   rank: number
   title: string
   subtitle: string
@@ -19,6 +23,32 @@ export interface CatalogWork {
   version: number
   bangumi?: BangumiSubject
   catalogVisible?: boolean
+}
+export const workContributionSchema = z
+  .object({
+    subjectId: z.number().int().positive().max(2147483647).nullable().default(null),
+    title: z.string().trim().min(1).max(160),
+    subtitle: z.string().trim().max(160).default(''),
+    studio: z.string().trim().max(200).default(''),
+    description: z.string().trim().max(8000).default(''),
+    coverAssetId: z.uuid().nullable().default(null),
+  })
+  .strict()
+const publicWorkSelect =
+  "SELECT w.id,w.data,u.id AS contributorId,u.nickname AS contributorName,u.status AS contributorStatus,a.id AS activeCover FROM works w LEFT JOIN users u ON u.id=JSON_UNQUOTE(JSON_EXTRACT(w.data,'$.addedById')) LEFT JOIN assets a ON a.id=JSON_UNQUOTE(JSON_EXTRACT(w.data,'$.coverAssetId')) AND a.status='active'"
+type PublicWorkRow = {
+  id: number
+  data: unknown
+  contributorId?: string
+  contributorName?: string
+  contributorStatus?: string
+  activeCover?: string
+}
+function workKeys(work: Pick<CatalogWork, 'title' | 'subtitle' | 'bangumi'>) {
+  return [work.title, work.subtitle, work.bangumi?.title, work.bangumi?.originalTitle]
+    .filter((s): s is string => !!s)
+    .map(normalizeWorkTitle)
+    .filter(Boolean)
 }
 export const workEditSchema = z
   .object({
@@ -110,15 +140,111 @@ export class Catalog {
       await this.db.rows<{ id: number; data: unknown }>('SELECT id,data FROM works ORDER BY id', [], tx)
     ).map((row) => this.work(row))
   }
+  private publicWork(row: PublicWorkRow) {
+    const { addedById, ...work } = this.work(row)
+    return {
+      ...work,
+      coverUrl: row.activeCover ? '/api/assets/' + row.activeCover : undefined,
+      addedBy: addedById
+        ? {
+            id: row.contributorStatus === 'deleted' ? null : row.contributorId || null,
+            name: row.contributorStatus === 'deleted' ? '已注销用户' : row.contributorName || '同好',
+          }
+        : null,
+    }
+  }
   async publicWorks() {
-    return (await this.works()).filter((work) => work.catalogVisible !== false)
+    return (await this.db.rows<PublicWorkRow>(publicWorkSelect + ' ORDER BY w.id'))
+      .map((row) => this.publicWork(row))
+      .filter((work) => work.catalogVisible !== false)
   }
   async detail(id: number) {
-    const row = (
-      await this.db.rows<{ id: number; data: unknown }>('SELECT id,data FROM works WHERE id=?', [id])
-    )[0]
+    const row = (await this.db.rows<PublicWorkRow>(publicWorkSelect + ' WHERE w.id=?', [id]))[0]
     if (!row) throw reject('作品不存在。', 404)
-    return this.work(row)
+    return this.publicWork(row)
+  }
+  async contribute(actor: Actor, input: z.infer<typeof workContributionSchema>) {
+    await this.platform.actor(actor.id)
+    const subject = input.subjectId ? await this.bangumi.detail(input.subjectId) : undefined
+    const rank = await this.write(
+      actor,
+      async (tx, current) => {
+        const all = await this.works(tx)
+        const proposed = {
+          title: input.title,
+          subtitle: input.subtitle || subject?.originalTitle || '',
+          bangumi: subject,
+        }
+        const keys = workKeys(proposed)
+        if (!normalizeWorkTitle(input.title)) throw reject('请输入有效的作品名称。', 422)
+        const existing =
+          all.find((work) => subject && work.bangumi?.id === subject.id) ||
+          all.find((work) => workKeys(work).some((key) => keys.includes(key)))
+        if (existing && existing.catalogVisible !== false)
+          throw reject('书库已存在《' + existing.title + '》，请直接查看已有作品。', 409)
+        if (existing?.bangumi && subject && existing.bangumi.id !== subject.id)
+          throw reject('已有同名作品，请核对作品及 Bangumi 编号。', 409)
+        if (input.coverAssetId) await this.requireCover(current, input.coverAssetId, tx)
+        const id = existing?.rank || Math.max(12, ...all.map((work) => work.rank)) + 1
+        if (id > 2147483647) throw reject('书库编号已达上限。')
+        const work: CatalogWork = {
+          ...existing,
+          rank: id,
+          title: input.title,
+          subtitle: proposed.subtitle,
+          studio: input.studio || subject?.studio || '',
+          description: input.description || subject?.summary || '',
+          nominator: '成员收录',
+          color: existing?.color || '#d97542',
+          version: (existing?.version || 0) + 1,
+          ...(subject ? { bangumi: subject } : {}),
+          catalogVisible: true,
+          coverAssetId: input.coverAssetId,
+          addedById: current.id,
+          addedAt: Date.now(),
+        }
+        if (existing)
+          await this.db.execute('UPDATE works SET data=? WHERE id=?', [JSON.stringify(work), id], tx)
+        else await this.db.execute('INSERT INTO works(id,data) VALUES (?,?)', [id, JSON.stringify(work)], tx)
+        await this.platform.audit(current, '添加书库作品 ' + id, null, tx)
+        return id
+      },
+      false,
+    )
+    return this.detail(rank)
+  }
+  private async requireCover(actor: Actor, id: string, tx: PoolConnection) {
+    if (
+      !(
+        await this.db.rows(
+          "SELECT id FROM assets WHERE id=? AND user_id=? AND status='active' FOR UPDATE",
+          [id, actor.id],
+          tx,
+        )
+      ).length
+    )
+      throw reject('封面图片不可用或不属于当前账号。', 422)
+  }
+  async changeCover(actor: Actor, id: number, assetId: string | null, version: number) {
+    await this.write(
+      actor,
+      async (tx, current) => {
+        const work = (await this.works(tx)).find((work) => work.rank === id)
+        if (!work) throw reject('作品不存在。', 404)
+        if (current.role === 'member' && work.addedById !== current.id)
+          throw reject('只能修改自己添加作品的封面。', 403)
+        if (work.version !== version) throw reject('作品已更新，请刷新后重试。', 409)
+        if (assetId) await this.requireCover(current, assetId, tx)
+        await this.db.execute(
+          'UPDATE works SET data=? WHERE id=?',
+          [JSON.stringify({ ...work, coverAssetId: assetId, version: version + 1 }), id],
+          tx,
+        )
+        await this.platform.audit(current, '修改作品封面 ' + id, null, tx)
+      },
+      false,
+    )
+    return this.detail(id)
   }
   async import(actor: Actor, subjectId: number, existingWorkId?: number, version?: number) {
     staff(await this.platform.actor(actor.id))
@@ -127,9 +253,22 @@ export class Catalog {
       const all = await this.works(tx),
         duplicate =
           all.find((work) => work.bangumi?.id === subjectId && work.catalogVisible !== false) ||
-          all.find((work) => work.bangumi?.id === subjectId)
+          all.find((work) => work.bangumi?.id === subjectId) ||
+          (!existingWorkId
+            ? all.find((work) =>
+                workKeys(work).some((key) =>
+                  [subject.title, subject.originalTitle].map(normalizeWorkTitle).includes(key),
+                ),
+              )
+            : undefined)
       if (duplicate?.catalogVisible === false && !existingWorkId) {
-        const work = { ...duplicate, catalogVisible: true, version: duplicate.version + 1 }
+        const work = {
+          ...duplicate,
+          catalogVisible: true,
+          addedById: current.id,
+          addedAt: Date.now(),
+          version: duplicate.version + 1,
+        }
         await this.db.execute('UPDATE works SET data=? WHERE id=?', [JSON.stringify(work), work.rank], tx)
         await this.platform.audit(current, '将 Bangumi 作品加入公开书库 ' + subjectId, null, tx)
         return { work, reused: false }
@@ -156,6 +295,8 @@ export class Catalog {
             studio: subject.studio,
             description: subject.summary,
             nominator: '管理员收录',
+            addedById: current.id,
+            addedAt: Date.now(),
             color: '#d97542',
             bangumi: subject,
             version: 1,

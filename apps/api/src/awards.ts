@@ -13,6 +13,7 @@ import {
   ballotRules,
   loveChoices,
   normalizeCampaign,
+  normalizeCampaignConfirmation,
   validateWeightedBallot,
   collectAwardCandidates,
   validateBallot,
@@ -214,7 +215,7 @@ export class Awards {
   async remove(actor: Actor, id: string, version: number, confirmation: string) {
     return this.mutate(actor, id, 'admin', async (c, tx, current) => {
       if (c.version !== version) throw reject('活动已更新，请刷新后再删除。')
-      if (confirmation !== c.title) throw reject('请输入完整活动名称确认删除。', 422)
+      if (normalizeCampaignConfirmation(confirmation) !== normalizeCampaignConfirmation(c.title)) throw reject('请输入完整活动名称确认删除。', 422)
       await this.db.execute(
         'UPDATE award_campaigns SET data=?,version=version+1 WHERE id=?',
         [JSON.stringify({ ...c, deletedAt: new Date().toISOString(), version: c.version! + 1 }), id],

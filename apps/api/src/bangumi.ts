@@ -33,8 +33,8 @@ export function bangumiCover(value: string) {
       url.hostname === 'lain.bgm.tv' &&
       !url.username &&
       !url.password &&
-      !url.port &&
-      /^\/(?:r\/\d+(?:x\d+)?\/)?pic\/cover\//.test(url.pathname)
+      !url.port && !url.search && !url.hash &&
+      /^\/(?:r\/\d+(?:x\d+)?\/)?pic\/cover\/[a-zA-Z0-9/_-]+\.(?:jpe?g|png|webp|gif)$/.test(url.pathname)
       ? url.href
       : ''
   } catch {

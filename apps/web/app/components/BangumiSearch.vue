@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Work } from '~/types/forum'
 import type { BangumiSubject } from '~/types/catalog'
-const props = defineProps<{ works: Work[]; selectable?: boolean; selecting?: boolean; personal?: boolean }>()
+const props = defineProps<{ works: Work[]; selectable?: boolean; selecting?: boolean; personal?: boolean;selectionLabel?:string }>()
 const emit = defineEmits<{
   imported: []
   selected: [payload: { subject: BangumiSubject; existingWorkId?: number }]
@@ -137,6 +137,7 @@ onBeforeUnmount(() => {
               {{ busy === item.id ? '收录中…' : '收录到书库' }}
             </button>
           </div>
+          <NuxtLink v-if="auth.user.value && !manager && !personal && !selectable && !local(item.id)" class="button secondary" :to="'/works/new?bangumi='+item.id">添加到书库</NuxtLink>
           <button
             v-if="selectable"
             type="button"
@@ -144,7 +145,7 @@ onBeforeUnmount(() => {
             :disabled="selecting"
             @click="emit('selected', { subject: item, existingWorkId: target[item.id] })"
           >
-            加入榜单作品池
+            {{ selectionLabel||'加入榜单作品池' }}
           </button>
         </div>
       </article>

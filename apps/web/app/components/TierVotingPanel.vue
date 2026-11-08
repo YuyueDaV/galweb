@@ -141,7 +141,7 @@ onBeforeUnmount(() => {
           <NuxtLink :to="'/works/' + work.rank"
             ><WorkCover
               :rank="work.rank"
-              :src="work.rank > 12 ? work.bangumi?.coverUrl || '/images/work-placeholder.svg' : undefined"
+              :src="work.coverUrl || (work.rank > 12 ? work.bangumi?.coverUrl || '/images/work-placeholder.svg' : undefined)"
               variant="cover"
               :alt="work.title + '封面'"
               sizes="100px"

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { createRequire } from 'node:module'
 
 test('访客开放 Bangumi 搜索；管理员编辑 Tier、草稿发布隔离和下架', async ({ page, playwright }) => {
   const origin = 'http://127.0.0.1:3117'
@@ -13,13 +14,25 @@ test('访客开放 Bangumi 搜索；管理员编辑 Tier、草稿发布隔离和
     summary: '书架搜索测试',
     studio: 'Key',
     date: '2004-04-28',
-    coverUrl: '',
+    coverUrl: 'https://lain.bgm.tv/pic/cover/l/test.jpg',
     score: 8.9,
     ratingCount: 100,
     tags: ['视觉小说'],
     syncedAt: Date.now(),
   }
   try {
+    const sharp = createRequire(new URL('../apps/api/package.json', import.meta.url))('sharp')
+    const cover = await sharp({ create: { width: 80, height: 110, channels: 3, background: '#d9b6a1' } })
+      .webp()
+      .toBuffer()
+    let directRequests = 0
+    await page.route('https://lain.bgm.tv/**', (route) => {
+      directRequests++
+      return route.abort()
+    })
+    await page.route('**/api/bangumi/cover?*', (route) =>
+      route.fulfill({ contentType: 'image/webp', body: cover }),
+    )
     await page.route('**/api/bangumi/search?*', (route) =>
       route.fulfill({ json: { items: [subject], total: 1, page: 1 } }),
     )
@@ -27,6 +40,11 @@ test('访客开放 Bangumi 搜索；管理员编辑 Tier、草稿发布隔离和
     await page.getByLabel('Bangumi 作品名称', { exact: true }).fill('CLANNAD')
     await page.getByRole('button', { name: '搜索 Bangumi', exact: true }).click()
     await expect(page.locator('.bangumi-result')).toContainText('Bangumi 8.9')
+    await expect(page.locator('.bangumi-result img')).toHaveAttribute('src', /^\/api\/bangumi\/cover\?image=/)
+    await expect
+      .poll(() => page.locator('.bangumi-result img').evaluate((img: HTMLImageElement) => img.naturalWidth))
+      .toBe(80)
+    expect(directRequests).toBe(0)
     await expect(
       page.locator('.bangumi-result').getByRole('link', { name: '查看 Bangumi ↗' }),
     ).toHaveAttribute('href', 'https://bgm.tv/subject/13')

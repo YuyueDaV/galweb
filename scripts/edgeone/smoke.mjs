@@ -35,6 +35,11 @@ const backend = createServer(async (req, res) => {
   }
   res.setHeader('Cache-Control', 'no-store')
   res.setHeader('Content-Type', 'application/json')
+  if (req.url.startsWith('/api/bangumi/cover?')) {
+    res.setHeader('Content-Type', 'image/webp')
+    res.end(Buffer.from('public-cover-fixture'))
+    return
+  }
   if (req.url.startsWith('/api/auth/login')) {
     res.setHeader('Set-Cookie', [
       '__Host-czx_session=smoke-session; Path=/; HttpOnly; Secure; SameSite=Lax',
@@ -83,6 +88,11 @@ try {
   assert.equal(calls.at(-1).headers['x-forwarded-for'], '203.0.113.42')
   assert.equal(calls.at(-1).headers['x-czx-proxy-secret'], secret)
   assert.match(health.headers.get('cache-control'), /no-store/)
+  const cover = await request('/api/bangumi/cover?image=fixture')
+  assert.equal(cover.status, 200)
+  assert.equal(cover.headers.get('content-type'), 'image/webp')
+  assert.match(cover.headers.get('cache-control'), /public, max-age=86400/)
+  assert.equal(cover.headers.get('set-cookie'), null)
 
   const login = await request(
     '/api/auth/login',

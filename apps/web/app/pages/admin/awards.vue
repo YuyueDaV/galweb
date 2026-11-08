@@ -2,6 +2,7 @@
 import type { AwardCampaign, CampaignPhase } from '~/types/awards'
 import {
   DEFAULT_BALLOT_RULES,
+  normalizeCampaignConfirmation,
   phaseNames,
   roleNames,
   formatAwardTime,
@@ -15,6 +16,29 @@ const { loginOpen, notify } = useForum()
 const busy = ref(false),
   deleteOpen = ref(false),
   deleteTitle = ref('')
+const deleteError = ref('')
+const deleteMatches = computed(
+  () =>
+    !!deleteTitle.value.trim() &&
+    normalizeCampaignConfirmation(deleteTitle.value) ===
+      normalizeCampaignConfirmation(campaign.value.title),
+)
+async function removeActivity() {
+  if (busy.value || !deleteMatches.value) return
+  busy.value = true
+  deleteError.value = ''
+  try {
+    await awards.deleteCampaign(deleteTitle.value)
+    notify('活动已删除。')
+  } catch (e) {
+    const message = (e as Error).message
+    deleteError.value = /Cannot DELETE/i.test(message)
+      ? '服务器尚未更新活动删除接口，请更新并重启后端后重试。'
+      : message
+  } finally {
+    busy.value = false
+  }
+}
 const tab = ref('settings')
 const reviewFilter = ref('pending')
 const reviewNotes = reactive<Record<string, string>>({})
@@ -90,6 +114,7 @@ function loadSettings() {
   confirmPhase.value = null
   deleteOpen.value = false
   deleteTitle.value = ''
+  deleteError.value = ''
 }
 onMounted(() => {
   awards.initialize()
@@ -480,9 +505,14 @@ function review(id: string, status: 'approved' | 'rejected') {
           </article>
         </div>
       </section>
-      <section class="award-admin-card">
-        <h2>删除活动</h2>
-        <p>删除后活动不再展示或接受投票，参与记录保留用于审计。此操作会影响所有参与者。</p>
+      <section class="award-admin-card campaign-delete-zone">
+        <header>
+          <AppIcon name="info" :size="22" />
+          <div>
+            <h2>删除活动</h2>
+            <p>删除后将停止展示和投票，已有参与记录保留用于审计。</p>
+          </div>
+        </header>
         <button
           v-if="!deleteOpen"
           type="button"
@@ -492,19 +522,132 @@ function review(id: string, status: 'approved' | 'rejected') {
         >
           删除本届活动
         </button>
-        <form v-else @submit.prevent="run(() => awards.deleteCampaign(deleteTitle), '活动已删除。')">
-          <label
-            >输入活动名称确认删除<input
-              v-model="deleteTitle"
-              :placeholder="campaign.title"
-              :disabled="busy" /></label
-          ><button type="button" class="button secondary" :disabled="busy" @click="deleteOpen = false">
-            取消删除</button
-          ><button type="submit" class="button primary" :disabled="busy || deleteTitle !== campaign.title">
-            确认删除活动
-          </button>
+        <form v-else @submit.prevent="removeActivity">
+          <p class="delete-campaign-name">
+            即将删除：<strong>{{ campaign.title }}</strong>
+          </p>
+          <label for="delete-campaign-title">输入活动名称确认删除</label>
+          <input
+            id="delete-campaign-title"
+            v-model="deleteTitle"
+            :placeholder="campaign.title"
+            maxlength="160"
+            autocomplete="off"
+            :disabled="busy"
+            aria-describedby="delete-campaign-help"
+          />
+          <p id="delete-campaign-help" :class="{ 'name-matched': deleteMatches }" role="status">
+            {{
+              deleteMatches
+                ? '名称已匹配，可以确认删除。'
+                : deleteTitle
+                  ? '名称尚未匹配，请核对上方活动名称；空格不影响匹配。'
+                  : '请填写完整活动名称，空格与全角字符会自动兼容。'
+            }}
+          </p>
+          <p v-if="deleteError" class="form-error" role="alert">{{ deleteError }}</p>
+          <div class="delete-campaign-actions">
+            <button type="button" class="button secondary" :disabled="busy" @click="deleteOpen = false">
+              取消删除</button
+            ><button type="submit" class="button danger" :disabled="busy || !deleteMatches">
+              {{ busy ? '正在删除…' : '确认删除活动' }}
+            </button>
+          </div>
         </form>
       </section>
     </template>
   </div>
 </template>
+
+<style scoped>
+.campaign-delete-zone {
+  margin-top: 1.5rem;
+  border-color: color-mix(in srgb, #bd493c 30%, var(--line));
+}
+.campaign-delete-zone > header {
+  display: flex;
+  gap: 0.8rem;
+  align-items: flex-start;
+  margin-bottom: 1.1rem;
+}
+.campaign-delete-zone > header > .app-icon {
+  color: #bd493c;
+  flex-shrink: 0;
+  margin-top: 0.3rem;
+}
+.campaign-delete-zone h2 {
+  font-family: var(--serif);
+  font-size: 1.35rem;
+  font-weight: 500;
+  margin: 0;
+}
+.campaign-delete-zone p {
+  font-size: 0.8rem;
+  line-height: 1.8;
+  color: var(--subtle);
+  margin: 0.5rem 0;
+}
+.campaign-delete-zone form {
+  display: grid;
+  gap: 0.65rem;
+  max-width: 42rem;
+}
+.campaign-delete-zone label {
+  font-size: 0.8rem;
+  display: block;
+}
+.campaign-delete-zone input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  background: var(--bg);
+  color: var(--ink);
+  padding: 0.8rem;
+  min-height: 2.8rem;
+  font: inherit;
+  font-size: 0.85rem;
+}
+.delete-campaign-name strong {
+  color: var(--ink);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.delete-campaign-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+.campaign-delete-zone .name-matched {
+  color: var(--green);
+}
+.campaign-delete-zone .form-error {
+  color: var(--orange);
+}
+.delete-campaign-actions .danger {
+  background: #b84236;
+  color: #fff;
+  min-height: 2.8rem;
+}
+.delete-campaign-actions .danger:disabled {
+  opacity: 0.5;
+}
+@media (max-width: 600px) {
+  .campaign-delete-zone input {
+    font-size: 16px;
+  }
+  .delete-campaign-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .delete-campaign-actions .button {
+    width: 100%;
+    justify-content: center;
+    padding: 0.7rem 0.5rem;
+  }
+  .campaign-delete-zone {
+    padding: 1.2rem;
+  }
+}
+</style>

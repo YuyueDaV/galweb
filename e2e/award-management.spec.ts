@@ -100,7 +100,31 @@ test('管理员创建修改删除活动；自定义分值、互斥选票、推�
     await page.getByRole('button', { name: '删除本届活动', exact: true }).click()
     await page.getByLabel('输入活动名称确认删除').fill('错误名称')
     await expect(page.getByRole('button', { name: '确认删除活动', exact: true })).toBeDisabled()
-    await page.getByLabel('输入活动名称确认删除').fill(title)
+    await page.getByLabel('输入活动名称确认删除').fill(title.replace(/\s+/g, ''))
+    await expect(page.getByRole('button', { name: '确认删除活动', exact: true })).toBeEnabled()
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.getByLabel('输入活动名称确认删除').scrollIntoViewIfNeeded()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBeTruthy()
+    await page
+      .locator('.campaign-delete-zone')
+      .screenshot({ path: test.info().outputPath('delete-mobile.png') })
+    await page.getByRole('button', { name: '切换深色模式' }).click()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+    await page.getByLabel('输入活动名称确认删除').scrollIntoViewIfNeeded()
+    await page
+      .locator('.campaign-delete-zone')
+      .screenshot({ path: test.info().outputPath('delete-mobile-dark.png') })
+    await page.route('**/api/admin/award-campaigns/' + id, async (route) => {
+      if (route.request().method() !== 'DELETE') return route.continue()
+      await route.fulfill({
+        status: 404,
+        json: { message: 'Cannot DELETE /api/admin/award-campaigns/' + id },
+      })
+    })
+    await page.getByRole('button', { name: '确认删除活动', exact: true }).click()
+    await expect(page.locator('.campaign-delete-zone [role=alert]')).toContainText('更新并重启后端')
+    await expect(page.getByRole('button', { name: '确认删除活动', exact: true })).toBeEnabled()
+    await page.unroute('**/api/admin/award-campaigns/' + id)
     await page.getByRole('button', { name: '确认删除活动', exact: true }).click()
     await expect(page.getByLabel('当前活动')).not.toHaveValue(id)
     expect((await api.get('/api/award-campaigns/' + id)).status()).toBe(404)

@@ -16,7 +16,7 @@ const byId = computed(() => new Map(props.works.map((work) => [work.rank, work])
           ><NuxtLink v-if="byId.get(id)" :to="'/works/' + id" class="tier-work"
             ><WorkCover
               :rank="id"
-              :src="id > 12 ? byId.get(id)?.bangumi?.coverUrl || '/images/work-placeholder.svg' : undefined"
+              :src="byId.get(id)?.coverUrl || (id > 12 ? byId.get(id)?.bangumi?.coverUrl || '/images/work-placeholder.svg' : undefined)"
               variant="cover"
               :alt="byId.get(id)!.title + '封面'"
               sizes="100px"

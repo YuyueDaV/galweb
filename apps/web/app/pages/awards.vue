@@ -5,6 +5,14 @@ import type { AwardCandidate } from '~/types/awards'
 
 const awards = useAwards()
 const route = useRoute()
+const activityReady = ref(false)
+async function loadActivity() {
+  activityReady.value = false
+  const requested = route.query.campaign
+  if (typeof requested === 'string') awards.selectedCampaignId.value = requested
+  await awards.initialize()
+  activityReady.value = true
+}
 const identity = usePreviewIdentity()
 const { campaign, campaigns, selectedCampaignId, candidates, myNominations, myBallot, results } = awards
 const { notify } = useForum()
@@ -21,10 +29,7 @@ const now = ref(Date.now())
 let clock: ReturnType<typeof setInterval> | undefined
 
 onMounted(async () => {
-  await awards.initialize()
-  const requested = route.query.campaign
-  if (typeof requested === 'string' && campaigns.value.some((item) => item.id === requested))
-    {selectedCampaignId.value = requested;await awards.refresh()}
+  await loadActivity()
   clock = setInterval(() => {
     now.value = Date.now()
   }, 30000)
@@ -81,7 +86,7 @@ const ballotChanged = computed(
     JSON.stringify([...selected.value].sort()) !==
     JSON.stringify([...(myBallot.value?.candidateIds || [])].sort()),
 )
-useSeoMeta({ title: () => `${campaign.value.title} · 澄之响` })
+useSeoMeta({ title: () => activityReady.value?`${campaign.value.title} · 澄之响`:'十二橙器活动 · 澄之响' })
 
 function selectEdition() {
   selected.value = []
@@ -151,7 +156,9 @@ async function withdrawBallot() {
 </script>
 
 <template>
-  <div class="awards-page">
+  <div v-if="!activityReady" class="empty-state" role="status">正在加载活动…</div>
+  <div v-else-if="!awards.online.value" class="empty-state" role="alert"><p>活动暂时未能加载。</p><button class="button secondary" @click="loadActivity">重新加载活动</button></div>
+  <div v-else class="awards-page">
     <p v-if="!campaigns.length && awards.online.value" class="empty-state">
       暂无开放的活动，欢迎关注后续投票。
     </p>

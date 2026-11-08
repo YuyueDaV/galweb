@@ -286,3 +286,7 @@ export function validatePhaseTransition(
   if (to === 'voting' && !candidateCount) return '至少需要一部审核通过的作品才能开启投票。'
   return ''
 }
+
+export function normalizeCampaignConfirmation(value: string) {
+  return value.normalize('NFKC').replace(/\s+/gu, '')
+}

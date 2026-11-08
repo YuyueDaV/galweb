@@ -1,12 +1,25 @@
-import { Controller, Get, Post, Put, Patch, Body, Query, Param, Req, HttpException } from '@nestjs/common'
-import type { Request } from 'express'
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Patch,
+  Body,
+  Query,
+  Param,
+  Req,
+  Res,
+  HttpException,
+} from '@nestjs/common'
+import type { Request, Response } from 'express'
 import { z } from 'zod'
 import { Auth } from './auth'
 import { Database } from './database'
 import { Platform, staff } from './platform'
 import { digest, equal } from './security'
-import { Catalog, workEditSchema, tierSchema } from './catalog'
+import { Catalog, workContributionSchema, workEditSchema, tierSchema } from './catalog'
 import type { Bangumi } from './bangumi'
+import { BangumiCovers } from './bangumi-covers'
 import { TierVoting, tierBallotSchema } from './tier-voting'
 
 export function catalogControllers(
@@ -18,6 +31,7 @@ export function catalogControllers(
 ) {
   const catalog = new Catalog(db, platform, bangumi)
   const voting = new TierVoting(db, platform)
+  const covers = new BangumiCovers()
   const parse = <T>(schema: z.ZodType<T>, body: unknown) => {
     const result = schema.safeParse(body)
     if (!result.success)
@@ -47,12 +61,43 @@ export function catalogControllers(
     @Get('works') works() {
       return catalog.publicWorks()
     }
+    @Post('works') async contribute(@Req() req: Request, @Body() body: unknown) {
+      const user = await actor(req, true, false)
+      await auth.limit('work-contribution', user.id, 10, 3600000)
+      return catalog.contribute(user, parse(workContributionSchema, body))
+    }
+    @Patch('works/:id/cover') async coverUpdate(
+      @Req() req: Request,
+      @Param('id') value: string,
+      @Body() body: unknown,
+    ) {
+      const user = await actor(req, true, false)
+      const input = parse(
+        z.object({ coverAssetId: z.uuid().nullable(), version: z.number().int().min(0) }).strict(),
+        body,
+      )
+      return catalog.changeCover(user, id(value), input.coverAssetId, input.version)
+    }
+    @Get('bangumi/subjects/:id') async subject(@Req() req: Request, @Param('id') value: string) {
+      await auth.limit('bangumi-public-detail', req.ip || 'unknown', 30, 60000)
+      return catalog.bangumi.detail(id(value))
+    }
     @Get('works/:id') work(@Param('id') value: string) {
       return catalog.detail(id(value))
     }
     @Get('admin/works') async adminWorks(@Req() req: Request) {
       await actor(req)
       return catalog.publicWorks()
+    }
+    @Get('bangumi/cover') async cover(@Req() req: Request, @Query() query: unknown, @Res() res: Response) {
+      const input = parse(z.object({ image: z.string().min(1).max(2000) }).strict(), query)
+      await auth.limit('bangumi-cover', req.ip || 'unknown', 180, 60000)
+      const image = await covers.image(input.image)
+      res.setHeader('Content-Type', 'image/webp')
+      res.setHeader('Cache-Control', 'private, max-age=86400')
+      res.setHeader('X-Content-Type-Options', 'nosniff')
+      res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox")
+      return res.send(image)
     }
     @Get('bangumi/search') async search(@Req() req: Request, @Query() query: unknown) {
       const input = parse(

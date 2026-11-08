@@ -293,7 +293,7 @@ useSeoMeta({
                   <WorkCover
                     :rank="id"
                     :src="
-                      id > 12 ? byId.get(id)?.bangumi?.coverUrl || '/images/work-placeholder.svg' : undefined
+                      byId.get(id)?.coverUrl || (id > 12 ? byId.get(id)?.bangumi?.coverUrl || '/images/work-placeholder.svg' : undefined)
                     "
                     variant="cover"
                     :alt="(byId.get(id)?.title || '作品') + '封面'"

@@ -59,9 +59,18 @@ export default async function handler(req, _res, context = {}) {
         else responseHeaders.set(name, String(value))
       }
     }
-    // SSR and API responses can contain private account data. Cache static files only.
-    responseHeaders.set('cache-control', 'private, no-store')
+    // Keep SSR and account data private; only validated public cover images may be cached.
     const status = response.status || response.statusCode || 200
+    const publicCover =
+      ['GET', 'HEAD'].includes(method) &&
+      /^\/api\/bangumi\/cover(?:\?|$)/.test(req.url || '') &&
+      status === 200 &&
+      responseHeaders.get('content-type') === 'image/webp' &&
+      !responseHeaders.has('set-cookie')
+    responseHeaders.set(
+      'cache-control',
+      publicCover ? 'public, max-age=86400, s-maxage=86400' : 'private, no-store',
+    )
     return new Response(method === 'HEAD' || [204, 205, 304].includes(status) ? null : response.body, {
       status,
       headers: responseHeaders,

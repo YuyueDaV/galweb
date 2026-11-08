@@ -13,7 +13,10 @@ defineProps<{ works: Work[] }>()
       <div class="shelf-book-object">
         <WorkCover
           :rank="work.rank"
-          :src="work.rank > 12 ? work.bangumi?.coverUrl || '/images/work-placeholder.svg' : undefined"
+          :src="
+            work.coverUrl ||
+            (work.rank > 12 ? work.bangumi?.coverUrl || '/images/work-placeholder.svg' : undefined)
+          "
           variant="cover"
           :alt="`${work.title}封面`"
           sizes="(max-width: 600px) 40vw, 220px"
