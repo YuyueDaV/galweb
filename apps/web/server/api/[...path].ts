@@ -1,4 +1,5 @@
 import { isIP } from 'node:net'
+import { verifiedRequestOrigin } from '~/utils/request-origin'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig(event)
@@ -18,6 +19,22 @@ export default defineEventHandler(async (event) => {
       }) || 'unknown'
     // Do not pass a visitor-supplied gateway credential through other deployments.
     headers['x-czx-proxy-secret'] = ''
+  }
+  // Repair missing Origin only after validating same-origin browser evidence.
+  // Never replace a foreign or opaque Origin with the configured site URL.
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(event.method)) {
+    const incoming = getRequestHeader(event, 'origin')
+    if (incoming === undefined) {
+      const origin = verifiedRequestOrigin(
+        {
+          referer: getRequestHeader(event, 'referer'),
+          fetchSite: getRequestHeader(event, 'sec-fetch-site'),
+          client: getRequestHeader(event, 'x-czx-client'),
+        },
+        config.public.siteUrl,
+      )
+      if (origin) headers.origin = origin
+    }
   }
   try {
     return await proxyRequest(event, `${config.apiBase}${event.path}`, { headers })

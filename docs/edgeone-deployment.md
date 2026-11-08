@@ -116,3 +116,11 @@ GitHub 的 Quality 工作流在原有检查后额外构建并测试 EdgeOne 产�
 - [Node Functions 与 clientIp](https://pages.edgeone.ai/zh/document/node-functions)
 - [域名与加速区域](https://pages.edgeone.ai/zh/document/domain-overview)
 - [Pages 与 Makers 的关系](https://pages.edgeone.ai/zh/document/faqs)
+
+## 部分浏览器注册来源校验兼容
+
+当请求缺少 Origin 时，网关与 API 可验证同源 Referer 或浏览器的 same-origin Fetch Metadata；两者均缺失时，站点前端写请求携带 X-CZX-Client: web 标记。此标记不加入 API 的 CORS allow-headers，外站浏览器不能通过预检；JSON 类型限制、CSRF、注册验证码及限流继续生效。
+
+明确的外站 Origin、Origin: null、外站 Referer 或 cross-site Fetch Metadata 不会被替换为可信来源。不要通过放开任意来源、删除 CSRF 或把网关密钥放入浏览器来解决兼容问题。
+
+错误现在区分 REQUEST_ORIGIN_REJECTED（403）和 REQUEST_CONTENT_TYPE_INVALID（415），前端给出可操作的提示。更新时先构建并重启宝塔 API，再部署 EdgeOne 前端；无需数据库迁移或新增环境变量。仍需确保 NUXT_PUBLIC_SITE_URL 与 API 的 WEB_ORIGIN 都是实际主站地址。

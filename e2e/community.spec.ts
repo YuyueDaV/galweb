@@ -6,6 +6,15 @@ import { createRequire } from 'node:module'
 test('邮件注册、登录、发帖回复、收藏、头像上传、提名审核与投票持久化', async ({ page, playwright }) => {
   const username = 'pw_' + Date.now().toString(36)
   const password = 'Browser registration password 123!'
+  // Reproduce browsers/proxies omitting Origin and Referer. Keep the same-origin
+  // AJAX marker, then exercise the full mail/register/login/CSRF flow below.
+  await page.route('**/api/auth/**', async (route) => {
+    const headers = { ...route.request().headers() }
+    delete headers.origin
+    delete headers.referer
+    delete headers['sec-fetch-site']
+    await route.continue({ headers })
+  })
   await page.goto('/')
   await page.getByRole('button', { name: '登录 / 加入', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: '账号与登录' })

@@ -97,6 +97,32 @@ try {
   assert.equal(login.headers.getSetCookie().length, 2)
   assert.match(login.headers.getSetCookie()[0], /HttpOnly; Secure/)
   assert.equal(calls.at(-1).headers.origin, 'https://forum.example.com')
+  // No real email service is used: all of these hit the local mock backend.
+  await request('/api/auth/registration-code', 'POST', Buffer.from('{}'), {
+    'content-type': 'application/json',
+    referer: 'https://forum.example.com/account',
+  })
+  assert.equal(calls.at(-1).headers.origin, 'https://forum.example.com')
+  await request('/api/auth/register', 'POST', Buffer.from('{}'), {
+    'content-type': 'application/json',
+    'x-czx-client': 'web',
+  })
+  assert.equal(calls.at(-1).headers.origin, 'https://forum.example.com')
+  for (const origin of ['https://untrusted.example', 'null']) {
+    await request('/api/auth/registration-code', 'POST', Buffer.from('{}'), {
+      'content-type': 'application/json',
+      origin,
+      referer: 'https://forum.example.com/',
+      'x-czx-client': 'web',
+    })
+    assert.equal(calls.at(-1).headers.origin, origin, 'Never launder an untrusted Origin')
+  }
+  await request('/api/auth/registration-code', 'POST', Buffer.from('{}'), {
+    'content-type': 'application/json',
+    referer: 'https://untrusted.example/',
+    'x-czx-client': 'web',
+  })
+  assert.equal(calls.at(-1).headers.origin, undefined)
 
   const multipart = Buffer.concat([
     Buffer.from(

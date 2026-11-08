@@ -14,6 +14,7 @@ import {validUsername} from './identity'
 import {apiError} from './http-errors'
 import {AccountDeletion} from './account-deletion'
 import {Assets} from './assets'
+import {verifiedRequestOrigin} from './request-origin'
 
 const email=z.string().trim().max(254).email().regex(/^[\x21-\x7e]+$/)
 const password=z.string().min(12).max(128)
@@ -52,7 +53,15 @@ async function bootstrap(){
   app.getHttpAdapter().getInstance().set('trust proxy',c.TRUST_PROXY.split(',').filter(Boolean))
   app.use(json({limit:'128kb'}))
   app.enableCors({origin:c.WEB_ORIGIN,credentials:true,methods:['GET','POST','PATCH','PUT','DELETE','OPTIONS'],allowedHeaders:['Content-Type','X-CSRF-Token']})
-  app.use((req:Request,res:Response,next:()=>void)=>{res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');const contentTypeOk=req.is('application/json')||(req.path==='/api/uploads'&&req.is('multipart/form-data'));if(!['GET','HEAD','OPTIONS'].includes(req.method)&&(req.headers.origin!==c.WEB_ORIGIN||!contentTypeOk)){res.status(403).json({message:'请求来源或内容类型无效。'});return}next()})
+  app.use((req:Request,res:Response,next:()=>void)=>{
+    res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff')
+    if(!['GET','HEAD','OPTIONS'].includes(req.method)){
+      const source=verifiedRequestOrigin({origin:req.header('origin'),referer:req.header('referer'),fetchSite:req.header('sec-fetch-site'),client:req.header('x-czx-client')},c.WEB_ORIGIN)
+      if(!source){res.status(403).json({code:'REQUEST_ORIGIN_REJECTED',message:'无法验证请求来源，请刷新页面后重试，或使用系统浏览器直接打开网站。'});return}
+      if(!(req.is('application/json')||(req.path==='/api/uploads'&&req.is('multipart/form-data')))){res.status(415).json({code:'REQUEST_CONTENT_TYPE_INVALID',message:'请求内容类型不正确，请刷新页面后重新提交。'});return}
+    }
+    next()
+  })
   app.useGlobalFilters(new Errors())
   await app.listen(c.API_PORT,c.API_HOST)
   console.log(`Auth API listening on ${c.API_HOST}:${c.API_PORT}`)

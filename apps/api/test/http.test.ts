@@ -12,6 +12,17 @@ test('HTTP：来源限制、严格字段、邮件注册、Cookie 登录及 CSRF 
   let ready=false;for(let i=0;i<100;i++){try{if((await fetch(base+'/api/health')).ok){ready=true;break}}catch{}await new Promise(r=>setTimeout(r,100))}assert.equal(ready,true,'API starts with migrated MySQL')
   const post=(path:string,body:unknown,extra:Record<string,string>={})=>fetch(base+'/api/auth/'+path,{method:'POST',headers:{'Content-Type':'application/json',Origin:origin,...extra},body:JSON.stringify(body)})
   assert.equal((await post('registration-code',{email:'any@example.com'},{Origin:'https://untrusted.example'})).status,403)
+  const probe=(headers:Record<string,string>)=>fetch(base+'/api/auth/registration-code',{method:'POST',headers:{'Content-Type':'application/json',...headers},body:'{}'})
+  assert.equal((await probe({Referer:origin+'/'})).status,422,'缺少 Origin、同源 Referer 可进入字段校验')
+  assert.equal((await probe({'X-CZX-Client':'web'})).status,422,'来源头均缺失的同源 AJAX 可进入字段校验')
+  assert.equal((await probe({'Sec-Fetch-Site':'same-origin'})).status,422)
+  const unknown=await probe({});assert.equal(unknown.status,403);assert.equal((await unknown.json() as {code:string}).code,'REQUEST_ORIGIN_REJECTED')
+  assert.equal((await probe({Origin:'null',Referer:origin+'/','X-CZX-Client':'web'})).status,403)
+  assert.equal((await probe({Referer:'https://untrusted.example/','X-CZX-Client':'web'})).status,403)
+  assert.equal((await probe({'Sec-Fetch-Site':'cross-site','X-CZX-Client':'web'})).status,403)
+  const contentType=await fetch(base+'/api/auth/registration-code',{method:'POST',headers:{Origin:origin,'Content-Type':'text/plain','X-CZX-Client':'web'},body:'{}'});assert.equal(contentType.status,415);assert.equal((await contentType.json() as {code:string}).code,'REQUEST_CONTENT_TYPE_INVALID')
+  const preflight=await fetch(base+'/api/auth/registration-code',{method:'OPTIONS',headers:{Origin:'https://untrusted.example','Access-Control-Request-Method':'POST','Access-Control-Request-Headers':'X-CZX-Client,Content-Type'}})
+  assert.notEqual(preflight.headers.get('access-control-allow-origin'),'https://untrusted.example');assert.doesNotMatch(preflight.headers.get('access-control-allow-headers')||'',/x-czx-client/i)
   assert.equal((await post('register',{role:'super_admin'})).status,422)
   const email=`http-${randomUUID()}@example.com`,password='a secure test password 123'
   const username='u_'+randomUUID().replace(/-/g,'').slice(0,20);
