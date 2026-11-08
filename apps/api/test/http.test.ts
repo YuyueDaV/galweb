@@ -35,7 +35,8 @@ test('HTTP：来源限制、严格字段、邮件注册、Cookie 登录及 CSRF 
   assert.equal((await post('login',{email,password})).status,422)
   const login=await post('login',{username,password});assert.equal(login.status,201);const cookie=login.headers.get('set-cookie')!;assert.match(cookie,/HttpOnly/i);assert.match(cookie,/SameSite=Lax/i)
   const identity=await login.json() as {csrfToken:string,user:{id:string,role:string}};assert.equal(identity.user.role,'member');const headers={Cookie:cookie.split(';')[0]!}
-  assert.equal((await fetch(base+'/api/auth/me',{headers})).status,200)
+  const bootstrap=await fetch(base+'/api/auth/me',{headers});assert.equal(bootstrap.status,200)
+  const sessionBootstrapData=await bootstrap.json() as {user:{id:string},csrfToken:string};assert.equal(sessionBootstrapData.user.id,identity.user.id);assert.equal(sessionBootstrapData.csrfToken,identity.csrfToken);assert.equal(bootstrap.headers.get('set-cookie'),null);assert.match(bootstrap.headers.get('cache-control')||'',/no-store/)
   const secureHeaders={...headers,'X-CSRF-Token':identity.csrfToken}
   const profile=await fetch(base+'/api/auth/me',{method:'PATCH',headers:{...secureHeaders,Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({nickname:'自行设置的昵称'})});assert.equal(profile.status,200);const profileData=await profile.json() as {user:{username:string,nickname:string}};assert.equal(profileData.user.username,username);assert.equal(profileData.user.nickname,'自行设置的昵称')
   assert.equal((await fetch(base+'/api/auth/me',{method:'PATCH',headers:{...secureHeaders,Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({username:'renamed_login'})})).status,422)

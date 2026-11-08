@@ -101,6 +101,13 @@ export class Auth {
     if(!row)throw fail('登录已过期，请重新登录。',401)
     return row
   }
+  async bootstrap(raw:string|undefined){
+    const user=await this.session(raw)
+    const csrf=mac(this.c.AUTH_SECRET,`csrf:${raw}`)
+    // Read-only bootstrap. Legacy sessions obtain their token through the
+    // existing POST endpoint; a page render must not mutate another tab's CSRF.
+    return {user:this.publicUser(user),csrfToken:equal(digest(csrf),user.csrf_hash)?csrf:null}
+  }
   publicUser(user:User){return {id:user.id,username:user.username,email:user.email,nickname:user.nickname,role:user.role,signature:user.signature||'',avatarAssetId:user.avatar_asset_id||null,avatarUrl:user.avatar_asset_id?'/api/assets/'+user.avatar_asset_id:null}}
   async updateProfile(user:User,patch:ProfilePatch){
     return this.db.transaction(async tx=>{

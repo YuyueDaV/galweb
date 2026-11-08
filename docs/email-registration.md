@@ -43,11 +43,15 @@
 | POST /api/auth/register | 接收 challengeId、username、email、password、confirmPassword、code；校验后在事务中创建普通成员并消费挑战 |
 | POST /api/auth/login | 邮箱与密码登录，创建或轮换会话，通过 Cookie 返回会话凭证 |
 | POST /api/auth/logout | 撤销当前会话并清除 Cookie |
-| GET /api/auth/me | 返回当前用户可公开给本人的资料及可信角色 |
+| GET /api/auth/me | 返回本人的资料、可信角色及当前会话的 CSRF 令牌；只读，不延长或重建会话 |
 | POST /api/auth/password-reset/request | 配套找回密码邮件，凭证与注册用途隔离 |
 | POST /api/auth/password-reset/confirm | 校验专用重置凭证、更新密码并撤销既有会话 |
 
 正式 HTTPS 环境使用 HttpOnly、Secure 和适当 SameSite 的会话 Cookie，写接口配合 CSRF 防护。不得使用 localStorage 中的体验身份作为正式授权依据。
+
+页面刷新时，Nuxt 在服务端根据当前请求的 Cookie 恢复账号，首屏直接显示本人头像、昵称和对应菜单；水合后复用该状态，不重复请求身份。初始化请求仅在同一个 Nuxt 请求或浏览器标签页内合并，不跨账号共享。带账号信息的 HTML 使用 `private, no-store`，禁止公共缓存。旧会话或旧后端缺少 CSRF 令牌时，浏览器通过原 `/auth/csrf` 接口补充，期间保留已确认的账号显示。
+
+接口短暂失败时保留已确认的账号，首次无法确认则显示等待或重试入口；只有服务端明确返回 401 才清除登录状态。退出、注销、重新登录后，迟到的旧身份请求不能覆盖新状态。本次无需数据库迁移，前后端一并更新并重启 API 即可。
 
 ## 发信依赖
 

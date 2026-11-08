@@ -4,6 +4,7 @@ const site=useSiteSettings(),inbox=useNotifications()
 await site.load().catch(()=>{})
 const identity = usePreviewIdentity()
 const auth=useAuth()
+if(import.meta.server){useResponseHeader('Cache-Control').value='private, no-store';await auth.initialize()}
 const route = useRoute()
 const mobileOpen = ref(false)
 const themeCookie=useCookie<'light'|'dark'>('czx-theme',{sameSite:'lax',maxAge:31536000})
@@ -71,11 +72,11 @@ function resetFeed() { query.value = ''; category.value = '全部' }
         <div class="header-actions">
           <form class="header-search" :class="{ 'search-open': searchExpanded }" role="search" @submit.prevent="search"><button type="button" class="search-trigger" aria-label="打开搜索" @click="openSearch"><AppIcon name="search" :size="16" /></button><input ref="searchInput" v-model="query" aria-label="搜索帖子和作品" placeholder="寻找故事，也寻找同好" @keydown.esc="searchExpanded = false" /><kbd>↵</kbd><button v-if="searchExpanded" type="button" class="search-close" aria-label="关闭搜索" @click="searchExpanded = false"><AppIcon name="close" :size="14" /></button></form>
           <NuxtLink v-if="auth.user.value" to="/notifications" class="notification-link" :aria-label="`消息通知，${inbox.unread.value} 条未读`"><AppIcon name="bell" :size="19" /><span v-if="inbox.unread.value" class="notification-badge">{{ inbox.unread.value>99?'99+':inbox.unread.value }}</span></NuxtLink><button class="icon-button theme-toggle" :aria-label="dark ? '切换浅色模式' : '切换深色模式'" @click="toggleTheme"><AppIcon :name="dark ? 'sun' : 'moon'" :size="19" /></button>
-          <NuxtLink v-if="auth.user.value" to="/account" class="login-button" aria-label="进入用户中心"><UserAvatar class="mini-user" :src="auth.user.value.avatarUrl" :name="username" /><span>{{ username }}</span></NuxtLink><button v-else class="login-button" aria-label="登录 / 加入" @click="loginOpen = true"><AppIcon name="login" :size="16" /><span>登录 / 加入</span></button>
+          <NuxtLink v-if="auth.user.value" to="/account" class="login-button" aria-label="进入用户中心"><UserAvatar class="mini-user" :src="auth.user.value.avatarUrl" :name="username" /><span>{{ username }}</span></NuxtLink><template v-else-if="!auth.ready.value"><button v-if="auth.restoreError.value" class="login-button" @click="auth.refresh()">重试登录状态</button><span v-else class="login-button auth-pending" role="status" aria-label="正在确认登录状态"><AppIcon name="users" :size="16" /><span>正在确认…</span></span></template><button v-else class="login-button" aria-label="登录 / 加入" @click="loginOpen = true"><AppIcon name="login" :size="16" /><span>登录 / 加入</span></button>
         </div>
       </div>
     </LiquidGlass>
-    <div v-if="auth.ready.value&&!forum.online.value" class="service-notice" role="status">社区服务暂时不可用，部分内容可能尚未更新。<button @click="forum.loadFeed()">重试连接</button></div>
+    <div v-if="!booting&&auth.ready.value&&!forum.online.value" class="service-notice" role="status">社区服务暂时不可用，部分内容可能尚未更新。<button @click="forum.loadFeed()">重试连接</button></div>
 
     <div class="layout shell">
       <aside id="community-nav" class="left-sidebar" :class="{ 'mobile-open': mobileOpen }" aria-label="社区导航">
