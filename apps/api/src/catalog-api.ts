@@ -17,7 +17,7 @@ import { Auth } from './auth'
 import { Database } from './database'
 import { Platform, staff } from './platform'
 import { digest, equal } from './security'
-import { Catalog, workContributionSchema, workEditSchema, tierSchema } from './catalog'
+import { Catalog, workContributionSchema, workEditSchema, tierSchema, catalogOrderSchema } from './catalog'
 import type { Bangumi } from './bangumi'
 import { BangumiCovers } from './bangumi-covers'
 import { TierVoting, tierBallotSchema } from './tier-voting'
@@ -97,6 +97,10 @@ export function catalogControllers(
     @Get('admin/works') async adminWorks(@Req() req: Request) {
       await actor(req)
       return catalog.publicWorks()
+    }
+    @Put('admin/works/order') async reorder(@Req() req: Request, @Body() body: unknown) {
+      const user = await actor(req, true)
+      return catalog.reorder(user, parse(catalogOrderSchema, body))
     }
     @Get('bangumi/cover') async cover(@Req() req: Request, @Query() query: unknown, @Res() res: Response) {
       const input = parse(z.object({ image: z.string().min(1).max(2000) }).strict(), query)

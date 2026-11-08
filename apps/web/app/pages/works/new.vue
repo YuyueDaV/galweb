@@ -20,6 +20,16 @@ const subject = ref<BangumiSubject | null>(null),
 const created = ref<Work | null>(null),
   completionOpen = ref(false),
   searchVersion = ref(0)
+const existing = ref<Work | null>(null),
+  existingOpen = ref(false)
+function showDuplicate() {
+  if (!duplicate.value) return
+  existing.value = duplicate.value
+  existingOpen.value = true
+}
+async function viewExisting() {
+  if (existing.value) await navigateTo('/works/' + existing.value.rank)
+}
 async function continueAdding() {
   created.value = null
   subject.value = null
@@ -57,6 +67,7 @@ function select({ subject: item }: { subject: BangumiSubject }) {
   studio.value = item.studio
   description.value = item.summary
   error.value = ''
+  showDuplicate()
 }
 onMounted(async () => {
   await auth.initialize()
@@ -116,6 +127,14 @@ async function save() {
     completionOpen.value = true
   } catch (e) {
     error.value = (e as Error).message
+    if ((e as { statusCode?: number }).statusCode === 409) {
+      try {
+        works.value = await api<Work[]>('/api/works')
+        showDuplicate()
+      } catch {
+        /* Keep the original failure visible if refreshing the catalog fails. */
+      }
+    }
   } finally {
     busy.value = false
   }
@@ -150,6 +169,7 @@ useSeoMeta({ title: '添加书库作品 · 澄之响', robots: 'noindex,nofollow
         :key="searchVersion"
         :works="works || []"
         selectable
+        contribution
         selection-label="使用这部作品资料"
         @selected="select"
       />
@@ -186,6 +206,15 @@ useSeoMeta({ title: '添加书库作品 · 澄之响', robots: 'noindex,nofollow
         </fieldset>
       </form></template
     >
+    <ActionDialog
+      v-model="existingOpen"
+      title="作品已收录"
+      :message="`书库已收录《${existing?.title || ''}》，无需重复添加。`"
+      primary="继续添加"
+      secondary="查看已有作品"
+      @primary="continueAdding"
+      @secondary="viewExisting"
+    />
     <ActionDialog
       v-model="completionOpen"
       title="作品添加成功"

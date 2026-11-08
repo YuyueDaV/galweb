@@ -49,6 +49,12 @@ test('访客开放 Bangumi 搜索；管理员编辑 Tier、草稿发布隔离和
       page.locator('.bangumi-result').getByRole('link', { name: '查看 Bangumi ↗' }),
     ).toHaveAttribute('href', 'https://bgm.tv/subject/13')
     await expect(page.getByRole('button', { name: '收录到书库', exact: true })).toHaveCount(0)
+    await page.getByRole('button', { name: '已收录 · 查看作品', exact: true }).click()
+    const existingDialog = page.getByRole('dialog', { name: '作品已收录', exact: true })
+    await expect(existingDialog).toContainText('CLANNAD')
+    await existingDialog.getByRole('button', { name: '继续添加', exact: true }).click()
+    await expect(page.getByLabel('Bangumi 作品名称', { exact: true })).toHaveValue('')
+    await page.getByLabel('Bangumi 作品名称', { exact: true }).fill('CLANNAD')
     await page.locator('.bangumi-panel').scrollIntoViewIfNeeded()
     await page.screenshot({ path: test.info().outputPath('public-bangumi-search.png') })
     await page.unroute('**/api/bangumi/search?*')
@@ -118,6 +124,44 @@ test('访客开放 Bangumi 搜索；管理员编辑 Tier、草稿发布隔离和
       'href',
       '/works/new',
     )
+    const catalog = await (await page.request.get('/api/works')).json()
+    const initialIds = catalog.map((work: { rank: number }) => work.rank)
+    const rows = page.locator('.catalog-order-row')
+    await expect(rows).toHaveCount(initialIds.length)
+    await page
+      .getByRole('button', { name: '拖拽排序' + catalog[0].title, exact: true })
+      .dragTo(page.locator(`[data-work-id="${initialIds[1]}"]`))
+    await expect(page.getByRole('button', { name: '保存排序', exact: true })).toBeEnabled()
+    await page.getByRole('button', { name: '保存排序', exact: true }).click()
+    await expect(page.getByRole('status').filter({ hasText: '书库顺序已保存' })).toBeVisible()
+    const expectedIds = [initialIds[1], initialIds[0], ...initialIds.slice(2)]
+    await page.reload()
+    await expect
+      .poll(() => rows.evaluateAll((items) => items.map((item) => Number(item.getAttribute('data-work-id')))))
+      .toEqual(expectedIds)
+    await page.getByRole('button', { name: '上移' + catalog[0].title, exact: true }).click()
+    await page.getByRole('button', { name: '撤销排序', exact: true }).click()
+    await expect(page.getByRole('button', { name: '保存排序', exact: true })).toBeDisabled()
+    await page.goto('/works')
+    await expect(page.locator('.work-card').first()).toHaveAttribute('href', '/works/' + expectedIds[0])
+    await page.getByLabel('按会社查找', { exact: true }).selectOption('nitroplus')
+    const expectedNitro = catalog.filter((work: { studio?: string; bangumi?: { studio?: string } }) =>
+      (work.studio || work.bangumi?.studio || '')
+        .split(/[/／、;；]/)
+        .some((name) => name.trim().toLowerCase() === 'nitroplus'),
+    )
+    await expect(page.locator('.work-card')).toHaveCount(expectedNitro.length)
+    await page.getByLabel('搜索作品', { exact: true }).fill('没有匹配作品_测试')
+    await page.getByRole('button', { name: '查看全部作品', exact: true }).click()
+    await expect(page.getByLabel('按会社查找', { exact: true })).toHaveValue('')
+    await expect(page.locator('.work-card')).toHaveCount(catalog.length)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.getByLabel('按会社查找', { exact: true }).selectOption('nitroplus')
+    await page.locator('.library-toolbar').scrollIntoViewIfNeeded()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBeTruthy()
+    await page.screenshot({ path: test.info().outputPath('company-filter-mobile.png') })
+    await page.setViewportSize({ width: 1440, height: 1000 })
+    await page.goto('/admin/works')
     await page.getByRole('button', { name: '魔法使之夜', exact: true }).click()
     await page.getByLabel('书库简介', { exact: true }).fill('浏览器修改后的社团推荐语。')
     await page.getByLabel('更换作品封面', { exact: true }).setInputFiles({

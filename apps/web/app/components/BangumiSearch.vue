@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import type { Work } from '~/types/forum'
 import type { BangumiSubject } from '~/types/catalog'
+import { normalizeWorkTitle } from '~/utils/awards'
 const props = defineProps<{
   works: Work[]
   selectable?: boolean
   selecting?: boolean
   personal?: boolean
   selectionLabel?: string
+  contribution?: boolean
 }>()
 const emit = defineEmits<{
   imported: []
@@ -19,7 +21,18 @@ const query = ref(''),
   total = ref(0)
 const includeRestricted = ref(false)
 const completionOpen = ref(false),
-  collected = ref<Work | null>(null)
+  collected = ref<Work | null>(null),
+  alreadyCollected = ref(false)
+function showExisting(work: Work) {
+  collected.value = work
+  alreadyCollected.value = true
+  completionOpen.value = true
+}
+function chooseSubject(item: BangumiSubject) {
+  const existing = local(item)
+  if (props.contribution && existing) showExisting(existing)
+  else emit('selected', { subject: item })
+}
 async function continueSearching() {
   query.value = ''
   resetResults()
@@ -53,8 +66,15 @@ watch(
     resetResults()
   },
 )
-function local(id: number) {
-  return props.works.find((work) => work.bangumi?.id === id)
+function local(item: BangumiSubject) {
+  const keys = [item.title, item.originalTitle].map(normalizeWorkTitle).filter(Boolean)
+  return props.works.find(
+    (work) =>
+      work.bangumi?.id === item.id ||
+      [work.title, work.subtitle, work.bangumi?.title, work.bangumi?.originalTitle]
+        .filter(Boolean)
+        .some((name) => keys.includes(normalizeWorkTitle(name!))),
+  )
 }
 async function search(next = 1) {
   const keyword = (next === 1 ? query.value : submitted.value).trim()
@@ -97,10 +117,9 @@ async function collect(item: BangumiSubject) {
       ? `《${result.work.title}》已在书库中。`
       : `《${result.work.title}》已收录，作品资料可以在书库管理中编辑。`
     emit('imported')
-    if (!result.reused) {
-      collected.value = result.work
-      completionOpen.value = true
-    }
+    collected.value = result.work
+    alreadyCollected.value = result.reused
+    completionOpen.value = true
   } catch (cause) {
     error.value = (cause as Error).message
   } finally {
@@ -159,17 +178,17 @@ onBeforeUnmount(() => {
           <div class="catalog-actions">
             <a :href="`https://bgm.tv/subject/${item.id}`" target="_blank" rel="noopener noreferrer"
               >查看 Bangumi ↗</a
-            ><NuxtLink v-if="local(item.id)" :to="'/works/' + local(item.id)!.rank"
-              >已收录 · 查看作品</NuxtLink
-            >
+            ><button v-if="local(item)" type="button" class="text-link" @click="showExisting(local(item)!)">
+              已收录 · 查看作品
+            </button>
           </div>
-          <div v-if="manager && !personal && !selectable && !local(item.id)" class="catalog-actions">
+          <div v-if="manager && !personal && !selectable && !local(item)" class="catalog-actions">
             <button class="button secondary" :disabled="!!busy" @click="collect(item)">
               {{ busy === item.id ? '收录中…' : '收录到书库' }}
             </button>
           </div>
           <NuxtLink
-            v-if="auth.user.value && !manager && !personal && !selectable && !local(item.id)"
+            v-if="auth.user.value && !manager && !personal && !selectable && !local(item)"
             class="button secondary"
             :to="'/works/new?bangumi=' + item.id + (item.nsfw ? '&restricted=1' : '')"
             >添加到书库</NuxtLink
@@ -179,7 +198,7 @@ onBeforeUnmount(() => {
             type="button"
             class="button secondary"
             :disabled="selecting"
-            @click="emit('selected', { subject: item })"
+            @click="chooseSubject(item)"
           >
             {{ selectionLabel || '加入榜单作品池' }}
           </button>
@@ -193,10 +212,14 @@ onBeforeUnmount(() => {
     </div>
     <ActionDialog
       v-model="completionOpen"
-      title="作品添加成功"
-      :message="`《${collected?.title || ''}》已加入书库，要继续添加下一部作品吗？`"
+      :title="alreadyCollected ? '作品已收录' : '作品添加成功'"
+      :message="
+        alreadyCollected
+          ? `书库已收录《${collected?.title || ''}》，无需重复添加。可以查看已有作品，或继续查找其他作品。`
+          : `《${collected?.title || ''}》已加入书库，要继续添加下一部作品吗？`
+      "
       primary="继续添加"
-      secondary="查看作品"
+      :secondary="alreadyCollected ? '查看已有作品' : '查看作品'"
       @primary="continueSearching"
       @secondary="viewCollected"
     />

@@ -12,6 +12,7 @@ export interface CatalogWork {
   addedById?: string
   addedAt?: number
   coverAssetId?: string | null
+  displayOrder?: number
   rank: number
   title: string
   subtitle: string
@@ -60,6 +61,12 @@ export const workEditSchema = z
     version: z.number().int().min(0),
   })
   .strict()
+const orderedIds = z
+  .array(z.number().int().positive().max(2147483647))
+  .min(1)
+  .max(5000)
+  .refine((ids) => new Set(ids).size === ids.length, '排序中不能包含重复作品。')
+export const catalogOrderSchema = z.object({ workIds: orderedIds, previousWorkIds: orderedIds }).strict()
 export const tierSchema = z
   .object({
     title: z.string().trim().min(1).max(80),
@@ -153,10 +160,40 @@ export class Catalog {
         : null,
     }
   }
-  async publicWorks() {
-    return (await this.db.rows<PublicWorkRow>(publicWorkSelect + ' ORDER BY w.id'))
+  async publicWorks(tx?: PoolConnection) {
+    return (await this.db.rows<PublicWorkRow>(publicWorkSelect + ' ORDER BY w.id', [], tx))
       .map((row) => this.publicWork(row))
       .filter((work) => work.catalogVisible !== false)
+      .sort((a, b) => {
+        const position = (work: CatalogWork) =>
+          Number.isSafeInteger(work.displayOrder) && work.displayOrder! >= 0
+            ? work.displayOrder!
+            : Number.MAX_SAFE_INTEGER
+        return position(a) - position(b) || a.rank - b.rank
+      })
+  }
+  async reorder(actor: Actor, input: z.infer<typeof catalogOrderSchema>) {
+    return this.write(actor, async (tx, current) => {
+      const visible = await this.publicWorks(tx),
+        ids = visible.map((work) => work.rank)
+      if (JSON.stringify(ids) !== JSON.stringify(input.previousWorkIds))
+        throw reject('书库或排序已被更新，请重新加载后再排序。', 409)
+      const wanted = new Set(input.workIds)
+      if (
+        wanted.size !== ids.length ||
+        input.workIds.length !== ids.length ||
+        ids.some((id) => !wanted.has(id))
+      )
+        throw reject('排序必须包含全部公开书库作品，不能遗漏或添加其他作品。', 422)
+      for (const [index, id] of input.workIds.entries())
+        await this.db.execute(
+          "UPDATE works SET data=JSON_SET(data,'$.displayOrder',?) WHERE id=?",
+          [index, id],
+          tx,
+        )
+      await this.platform.audit(current, '调整公开书库顺序', null, tx)
+      return this.publicWorks(tx)
+    })
   }
   async detail(id: number) {
     const row = (await this.db.rows<PublicWorkRow>(publicWorkSelect + ' WHERE w.id=?', [id]))[0]

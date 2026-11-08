@@ -8,7 +8,7 @@ import { readConfig } from '../src/config'
 import { Database } from '../src/database'
 import { Platform, type Actor } from '../src/platform'
 import { Bangumi } from '../src/bangumi'
-import { Catalog, tierSchema, workEditSchema } from '../src/catalog'
+import { Catalog, tierSchema, workEditSchema, catalogOrderSchema } from '../src/catalog'
 import { catalogControllers } from '../src/catalog-api'
 import { Auth } from '../src/auth'
 import { Mailer } from '../src/mail'
@@ -31,6 +31,18 @@ test('Tier 校验拒绝重复作品、重复层编号、危险颜色、空榜发
     { admin: true },
   ])
     assert.equal(tierSchema.safeParse({ ...base, ...patch }).success, false)
+})
+test('书库排序输入拒绝重复、非法编号和额外字段', () => {
+  const valid = { workIds: [2, 1], previousWorkIds: [1, 2] }
+  assert.equal(catalogOrderSchema.safeParse(valid).success, true)
+  for (const input of [
+    { ...valid, workIds: [1, 1] },
+    { ...valid, previousWorkIds: [1, 1] },
+    { ...valid, workIds: [0, 2] },
+    { ...valid, workIds: [1.5, 2] },
+    { ...valid, admin: true },
+  ])
+    assert.equal(catalogOrderSchema.safeParse(input).success, false)
 })
 
 test(
@@ -182,6 +194,81 @@ test(
           },
           body: JSON.stringify(data),
         })
+      const beforeOrder = await catalog.publicWorks(),
+        ids = beforeOrder.map((work) => work.rank)
+      const reverse = { workIds: [...ids].reverse(), previousWorkIds: ids }
+      assert.equal(
+        (
+          await fetch(base + '/api/admin/works/order', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(reverse),
+          })
+        ).status,
+        401,
+      )
+      assert.equal((await request(memberSession, '/api/admin/works/order', reverse)).status, 403)
+      assert.equal((await request(adminSession, '/api/admin/works/order', reverse, false)).status, 403)
+      assert.equal(
+        (await request(adminSession, '/api/admin/works/order', { ...reverse, workIds: ids.slice(1) })).status,
+        422,
+      )
+      assert.equal(
+        (
+          await request(adminSession, '/api/admin/works/order', {
+            ...reverse,
+            workIds: [...ids.slice(1), 2147483647],
+          })
+        ).status,
+        422,
+      )
+      assert.equal(
+        (
+          await request(adminSession, '/api/admin/works/order', {
+            ...reverse,
+            workIds: [...ids.slice(1), ids[1]],
+          })
+        ).status,
+        422,
+      )
+      const responses = await Promise.all([
+        request(adminSession, '/api/admin/works/order', reverse),
+        request(adminSession, '/api/admin/works/order', {
+          workIds: [...ids.slice(1), ids[0]],
+          previousWorkIds: ids,
+        }),
+      ])
+      assert.deepEqual(
+        responses.map((response) => response.status).sort(),
+        [200, 409],
+        '并发旧排序不能互相覆盖',
+      )
+      const sorted = await catalog.publicWorks()
+      assert.notDeepEqual(
+        sorted.map((work) => work.rank),
+        ids,
+      )
+      for (const original of beforeOrder) {
+        const actual = sorted.find((work) => work.rank === original.rank)!
+        const { displayOrder: _position, ...data } = actual
+        const { displayOrder: _oldPosition, ...previous } = original
+        assert.deepEqual(data, previous, '调整顺序不改变作品编号、档案排名、文案、封面及编辑版本')
+      }
+      for (const original of beforeOrder) {
+        if (original.displayOrder === undefined)
+          await db.execute("UPDATE works SET data=JSON_REMOVE(data,'$.displayOrder') WHERE id=?", [
+            original.rank,
+          ])
+        else
+          await db.execute("UPDATE works SET data=JSON_SET(data,'$.displayOrder',?) WHERE id=?", [
+            original.displayOrder,
+            original.rank,
+          ])
+      }
+      assert.deepEqual(
+        (await catalog.publicWorks()).map((work) => work.rank),
+        ids,
+      )
       assert.equal(
         (await request(memberSession, '/api/admin/tier-lists/' + list.id, { ...input, version: 3 })).status,
         403,
@@ -205,6 +292,7 @@ test(
       assert.equal((await fetch(base + '/api/tier-lists/' + list.id)).status, 404)
       await db.execute("UPDATE users SET role='member' WHERE id=?", [admin.id])
       await assert.rejects(() => catalog.createTier(admin, '旧会话'), /管理员/)
+      await assert.rejects(() => catalog.reorder(admin, reverse), /管理员/)
     } finally {
       await app?.close()
       if (archive)
