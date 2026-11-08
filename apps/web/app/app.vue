@@ -6,13 +6,15 @@ const identity = usePreviewIdentity()
 const auth=useAuth()
 const route = useRoute()
 const mobileOpen = ref(false)
-const dark = ref(false)
+const themeCookie=useCookie<'light'|'dark'>('czx-theme',{sameSite:'lax',maxAge:31536000})
+const dark = ref(themeCookie.value==='dark')
+const booting=ref(true)
 const headerScrolled = ref(false)
 const searchInput = ref<HTMLInputElement | null>(null)
 const searchExpanded = ref(false)
 const { username, query, category, composerOpen, loginOpen, bookmarks, toast } = forum
 const activeSection = computed(() => route.path.startsWith('/account') ? 'account' : route.path.startsWith('/admin') ? 'admin' : route.path.startsWith('/tiers') ? 'tiers' : route.path.startsWith('/works') ? 'works' : route.path.startsWith('/ranking') || route.path.startsWith('/awards') ? 'ranking' : route.path.startsWith('/about') ? 'about' : 'home')
-useHead({ htmlAttrs: { 'data-theme': computed(() => dark.value ? 'dark' : 'light') } })
+if(import.meta.server)useHead({htmlAttrs:{'data-theme':dark.value?'dark':'light'}})
 
 function updateHeaderScroll() { headerScrolled.value = window.scrollY > 16 }
 onMounted(() => {
@@ -22,10 +24,9 @@ onMounted(() => {
 onBeforeUnmount(() => window.removeEventListener('scroll', updateHeaderScroll))
 
 onMounted(async () => {
-  await auth.initialize()
-  await forum.initialize()
-  await inbox.load().catch(()=>{})
-  try { dark.value = localStorage.getItem('chengzhixiang-theme') === 'dark' } catch {}
+  dark.value=document.documentElement.dataset.theme==='dark'
+  themeCookie.value=dark.value?'dark':'light'
+  try {await auth.initialize();await forum.initialize();await inbox.load().catch(()=>{})}catch(e){forum.notify((e as Error).message)}finally{booting.value=false}
 })
 watch(identity.selectedId,async()=>{await forum.syncMine();await forum.loadFeed()})
 watch(()=>auth.user.value?.id,async()=>{try{await forum.syncMine();await inbox.load()}catch(e){forum.notify((e as Error).message)}})
@@ -35,6 +36,8 @@ onMounted(()=>{notificationTimer=setInterval(()=>{if(document.visibilityState===
 onBeforeUnmount(()=>clearInterval(notificationTimer))
 function toggleTheme() {
   dark.value = !dark.value
+  document.documentElement.dataset.theme=dark.value?'dark':'light'
+  themeCookie.value=dark.value?'dark':'light'
   try { localStorage.setItem('chengzhixiang-theme', dark.value ? 'dark' : 'light') } catch {}
 }
 async function search() {
@@ -52,6 +55,8 @@ function resetFeed() { query.value = ''; category.value = '全部' }
 
 <template>
   <div class="site-wrap">
+    <NuxtLoadingIndicator color="var(--orange)" :throttle="200" />
+    <AppLoading v-if="booting" />
     <SiteBackground />
     <a class="skip-link" href="#main-content">跳转到正文</a>
     <LiquidGlass as="header" class="site-header" :class="{ 'is-scrolled': headerScrolled }" :radius="30" :scale="24" :bevel-depth="12" :aberration="1.2" :tint="0.64" :frost="0.6">

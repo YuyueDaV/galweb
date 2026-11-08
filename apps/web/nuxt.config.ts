@@ -46,6 +46,7 @@ export default defineNuxtConfig({
     head: {
       title: '澄之响 · 故事之外，总有回响',
       htmlAttrs: { lang: 'zh-CN' },
+      script: [{key:'theme-before-paint',innerHTML:"(function(){try{var t=localStorage.getItem('chengzhixiang-theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch(e){}})()",tagPosition:'head',tagPriority:'critical'}],
       meta: [
         {
           name: 'description',

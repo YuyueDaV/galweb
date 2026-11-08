@@ -41,7 +41,7 @@ test('社区完整流程：草稿隔离、公开资料、书单隐私、回复�
   const first=await forum.reply(other,post.id,'第一条回复');const reply=await forum.reply(member,post.id,'回复这位同好',first.id)
   const replyRows=await forum.replies(post.id);assert.equal((replyRows.find(r=>(r as {id:string}).id===reply.id) as unknown as {parentId:string}).parentId,first.id)
   assert.equal((await community.inbox(member,1)).unread,1);assert.equal((await community.inbox(other,1)).unread,1)
-  const message=(await community.inbox(other,1)).items[0] as {id:string};await community.read(member,message.id);assert.equal((await community.inbox(other,1)).unread,1,'不能标记他人的通知')
+  const message=(await community.inbox(other,1)).items[0] as {id:string,excerpt:string};assert.equal(message.excerpt,'回复这位同好');await community.read(member,message.id);assert.equal((await community.inbox(other,1)).unread,1,'不能标记他人的通知')
   await community.read(other,message.id);assert.equal((await community.inbox(other,1)).unread,0)
   const another=await forum.create(member,{title:'另一篇测试帖子',content:'用于检测跨帖回复绑定的内容。',category:'同好闲聊',spoiler:false})
   await assert.rejects(()=>forum.reply(other,another.id,'跨帖回复',first.id),/不存在/)
