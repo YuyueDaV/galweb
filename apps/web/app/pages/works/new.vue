@@ -17,6 +17,26 @@ const subject = ref<BangumiSubject | null>(null),
   uploading = ref(false),
   ready = ref(false),
   error = ref('')
+const created = ref<Work | null>(null),
+  completionOpen = ref(false),
+  searchVersion = ref(0)
+async function continueAdding() {
+  created.value = null
+  subject.value = null
+  title.value = ''
+  subtitle.value = ''
+  studio.value = ''
+  description.value = ''
+  cover.value = null
+  error.value = ''
+  searchVersion.value++
+  if (Object.keys(route.query).length) await navigateTo('/works/new', { replace: true })
+  await nextTick()
+  document.getElementById('bangumi-query')?.focus()
+}
+async function viewCreated() {
+  if (created.value) await navigateTo('/works/' + created.value.rank)
+}
 const duplicate = computed(() => {
   const keys = [title.value, subtitle.value, subject.value?.title, subject.value?.originalTitle]
     .filter(Boolean)
@@ -79,7 +99,7 @@ async function upload(event: Event) {
   }
 }
 async function save() {
-  if (busy.value || uploading.value || duplicate.value) return
+  if (busy.value || uploading.value || duplicate.value || created.value) return
   busy.value = true
   error.value = ''
   try {
@@ -91,7 +111,9 @@ async function save() {
       description: description.value,
       coverAssetId: cover.value?.id || null,
     })
-    await navigateTo('/works/' + work.rank)
+    works.value = [...(works.value || []).filter((item) => item.rank !== work.rank), work]
+    created.value = work
+    completionOpen.value = true
   } catch (e) {
     error.value = (e as Error).message
   } finally {
@@ -115,8 +137,22 @@ useSeoMeta({ title: '添加书库作品 · 澄之响', robots: 'noindex,nofollow
       <p>登录后即可添加作品和上传封面。</p>
       <button class="button primary" @click="loginOpen = true">登录后添加</button>
     </div>
+    <section v-else-if="created" class="experience-card" role="status">
+      <h2>作品已添加</h2>
+      <p>《{{ created.title }}》已加入书库，要继续添加吗？</p>
+      <div class="catalog-actions">
+        <button type="button" class="button primary" @click="continueAdding">继续添加</button>
+        <button type="button" class="button secondary" @click="viewCreated">查看作品</button>
+      </div>
+    </section>
     <template v-else
-      ><BangumiSearch :works="works || []" selectable selection-label="使用这部作品资料" @selected="select" />
+      ><BangumiSearch
+        :key="searchVersion"
+        :works="works || []"
+        selectable
+        selection-label="使用这部作品资料"
+        @selected="select"
+      />
       <form class="experience-card" @submit.prevent="save">
         <fieldset class="plain-fieldset" :disabled="busy || uploading">
           <p v-if="subject" class="catalog-help">
@@ -150,6 +186,15 @@ useSeoMeta({ title: '添加书库作品 · 澄之响', robots: 'noindex,nofollow
         </fieldset>
       </form></template
     >
+    <ActionDialog
+      v-model="completionOpen"
+      title="作品添加成功"
+      :message="`《${created?.title || ''}》已加入书库，要继续添加下一部作品吗？`"
+      primary="继续添加"
+      secondary="查看作品"
+      @primary="continueAdding"
+      @secondary="viewCreated"
+    />
   </div>
 </template>
 <style scoped>

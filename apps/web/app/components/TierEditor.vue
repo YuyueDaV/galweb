@@ -4,6 +4,7 @@ import type { Work } from '~/types/forum'
 import type { BangumiSubject } from '~/types/catalog'
 const props = withDefaults(defineProps<{ personal?: boolean }>(), { personal: false })
 const endpoint = computed(() => (props.personal ? '/my/tier-lists' : '/admin/tier-lists'))
+const unpublishOpen = ref(false)
 import { tierTextColor } from '~/utils/tier-colors'
 const auth = useAuth(),
   { loginOpen } = useForum()
@@ -367,7 +368,7 @@ useSeoMeta({
               type="button"
               class="button secondary"
               :disabled="busy"
-              @click="save('unpublish')"
+              @click="unpublishOpen = true"
             >
               下架公开榜单</button
             ><NuxtLink v-if="form.isPublished" :to="'/tiers/' + form.id">查看公开版本 ↗</NuxtLink>
@@ -377,6 +378,15 @@ useSeoMeta({
       <p v-else class="empty-state">选择已有榜单，或创建一份新的 Tier 榜单。</p>
       <p v-if="form?.blocked" class="form-error" role="alert">该个人榜单已被管理员下架，目前仅可保存草稿。</p>
       <TierModeration v-if="!personal" />
+      <ActionDialog
+        v-model="unpublishOpen"
+        title="下架公开榜单？"
+        :message="`下架《${form?.title || ''}》后，访客将无法查看公开版本，草稿仍会保留。`"
+        primary="确认下架"
+        secondary="暂不下架"
+        tone="confirm"
+        @primary="save('unpublish')"
+      />
     </template>
     <div v-else class="empty-state">
       <p>{{ personal ? '登录后即可制作自己的个人 Tier 榜。' : '需要管理员账号。' }}</p>

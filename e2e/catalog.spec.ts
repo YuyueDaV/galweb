@@ -105,6 +105,12 @@ test('访客开放 Bangumi 搜索；管理员编辑 Tier、草稿发布隔离和
     await page.goto('/admin/tiers')
     await page.getByRole('button', { name: title + ' 草稿 · 有公开版本', exact: true }).click()
     await page.getByRole('button', { name: '下架公开榜单', exact: true }).click()
+    const unpublishDialog = page.getByRole('dialog', { name: '下架公开榜单？', exact: true })
+    await expect(unpublishDialog).toBeVisible()
+    await unpublishDialog.getByRole('button', { name: '暂不下架', exact: true }).click()
+    expect((await anonymous.get('/api/tier-lists/' + id)).status()).toBe(200)
+    await page.getByRole('button', { name: '下架公开榜单', exact: true }).click()
+    await unpublishDialog.getByRole('button', { name: '确认下架', exact: true }).click()
     await expect(page.getByRole('status').filter({ hasText: '榜单已下架' })).toBeVisible()
     expect((await anonymous.get('/api/tier-lists/' + id)).status()).toBe(404)
     await page.goto('/admin/works')
@@ -144,6 +150,14 @@ test('访客开放 Bangumi 搜索；管理员编辑 Tier、草稿发布隔离和
     await page.goto('/admin/works')
     await page.getByRole('button', { name: '魔法使之夜', exact: true }).click()
     await page.getByRole('button', { name: '恢复默认封面', exact: true }).click()
+    const resetDialog = page.getByRole('dialog', { name: '恢复作品封面？', exact: true })
+    await resetDialog.getByRole('button', { name: '保留当前封面', exact: true }).click()
+    await expect(page.getByRole('img', { name: '魔法使之夜当前封面', exact: true })).toHaveAttribute(
+      'src',
+      customCover!,
+    )
+    await page.getByRole('button', { name: '恢复默认封面', exact: true }).click()
+    await resetDialog.getByRole('button', { name: '确认恢复', exact: true }).click()
     await expect(page.getByRole('status').filter({ hasText: '作品封面已更新' })).toBeVisible()
     await expect(page.getByRole('img', { name: '魔法使之夜当前封面', exact: true })).not.toHaveAttribute(
       'src',

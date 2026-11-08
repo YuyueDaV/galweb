@@ -7,6 +7,7 @@ const auth = useAuth(),
   error = ref(''),
   success = ref('')
 watch(busy, (value) => emit('busy', value), { flush: 'sync' })
+const resetOpen = ref(false)
 async function change(id: string | null) {
   const work = await auth.request<Work>(
     '/works/' + props.work.rank + '/cover',
@@ -82,7 +83,7 @@ async function reset() {
           type="button"
           class="button secondary"
           :disabled="busy || disabled"
-          @click="reset"
+          @click="resetOpen = true"
         >
           {{ work.rank <= 12 ? '恢复默认封面' : work.bangumi ? '恢复 Bangumi 封面' : '清除自选封面' }}
         </button>
@@ -92,6 +93,15 @@ async function reset() {
     <p v-if="error" class="form-error" role="alert">{{ error }}</p>
     <p v-if="success" class="form-success" role="status">{{ success }}</p>
     <p v-else-if="embedded && !busy" class="catalog-help">选择图片后立即更新封面。</p>
+    <ActionDialog
+      v-model="resetOpen"
+      title="恢复作品封面？"
+      :message="`将移除《${work.title}》的自选封面，恢复默认图片。作品资料不会改变。`"
+      primary="确认恢复"
+      secondary="保留当前封面"
+      tone="confirm"
+      @primary="reset"
+    />
   </section>
 </template>
 <style scoped>

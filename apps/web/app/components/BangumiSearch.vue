@@ -18,6 +18,17 @@ const query = ref(''),
   page = ref(1),
   total = ref(0)
 const includeRestricted = ref(false)
+const completionOpen = ref(false),
+  collected = ref<Work | null>(null)
+async function continueSearching() {
+  query.value = ''
+  resetResults()
+  await nextTick()
+  document.getElementById('bangumi-query')?.focus()
+}
+async function viewCollected() {
+  if (collected.value) await navigateTo('/works/' + collected.value.rank)
+}
 const results = ref<BangumiSubject[]>([]),
   loading = ref(false),
   busy = ref(0),
@@ -86,6 +97,10 @@ async function collect(item: BangumiSubject) {
       ? `《${result.work.title}》已在书库中。`
       : `《${result.work.title}》已收录，作品资料可以在书库管理中编辑。`
     emit('imported')
+    if (!result.reused) {
+      collected.value = result.work
+      completionOpen.value = true
+    }
   } catch (cause) {
     error.value = (cause as Error).message
   } finally {
@@ -176,6 +191,15 @@ onBeforeUnmount(() => {
       ><span>第 {{ page }} 页 · {{ total }} 个结果</span
       ><button :disabled="page * 10 >= total || loading" @click="search(page + 1)">下一页</button>
     </div>
+    <ActionDialog
+      v-model="completionOpen"
+      title="作品添加成功"
+      :message="`《${collected?.title || ''}》已加入书库，要继续添加下一部作品吗？`"
+      primary="继续添加"
+      secondary="查看作品"
+      @primary="continueSearching"
+      @secondary="viewCollected"
+    />
   </section>
 </template>
 <style scoped>
