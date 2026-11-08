@@ -4,11 +4,12 @@ import {Database} from './database'
 import {Platform,staff,reject,type Actor} from './platform'
 import {decode} from './forum'
 import type {PoolConnection} from 'mysql2/promise'
+import {topicsSchema} from './topic-schema'
 
 const text=(max:number)=>z.string().trim().max(max)
 const webUrl=z.string().url().max(500).refine(url=>/^https?:\/\//i.test(url),'链接必须使用 http 或 https。')
 export const settingsSchema=z.object({title:text(60).min(1),description:text(300),announcement:text(500),joinInfo:text(1000),contact:text(200),links:z.array(z.object({name:text(40).min(1),url:webUrl}).strict()).max(20),version:z.number().int().min(0)}).strict()
-export const draftSchema=z.object({title:text(80),content:z.string().max(10000),category:z.enum(['作品讨论','阅读手记','同好闲聊','社团活动']),spoiler:z.boolean(),workId:z.number().int().positive().nullable(),assetIds:z.array(z.uuid()).max(12)}).strict()
+export const draftSchema=z.object({title:text(80),content:z.string().max(10000),category:z.enum(['作品讨论','阅读手记','同好闲聊','社团活动']),spoiler:z.boolean(),tags:topicsSchema.default([]),workId:z.number().int().positive().nullable(),assetIds:z.array(z.uuid()).max(12)}).strict()
 export const entrySchema=z.object({title:text(80).min(2),content:text(4000).min(1),date:z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(d=>!Number.isNaN(Date.parse(d))&&new Date(d).toISOString().slice(0,10)===d,'请输入有效日期。'),kind:z.enum(['moment','activity']),assetIds:z.array(z.uuid()).max(12),status:z.enum(['published','hidden']).default('published')}).strict()
 export const librarySchema=z.object({state:z.enum(['wish','reading','finished']),note:text(500),isPublic:z.boolean()}).strict()
 export const defaultSettings={title:'南京工程学院澄之响视觉小说同好会',description:'让读完后的心情，遇见另一个懂你的人。',announcement:'',joinInfo:'入社方式与活动安排待管理员公布。',contact:'',links:[],version:0}

@@ -27,6 +27,23 @@ test('社区 HTTP：认证、CSRF、字段白名单、草稿、书单及管理�
   const created=await request('/posts',{title:'HTTP 编辑器测试帖子',content:'## 公开标题\n\n:::spoiler\n秘密结局\n:::',category:'作品讨论',spoiler:false,format:'markdown',assetIds:[]},true,'POST');assert.equal(created.status,201)
   const postId=(await created.json() as {id:string}).id,post=await (await fetch(base+'/api/posts/'+postId)).json() as {body:string,excerpt:string,format:string};assert.equal(post.format,'markdown');assert.match(post.body,/秘密结局/);assert.doesNotMatch(post.excerpt,/秘密结局/)
   assert.deepEqual(await (await fetch(base+'/api/forum/draft',{headers:{Cookie:cookie}})).json(),{draft:null})
-  assert.equal((await request('/posts/'+postId+'/replies',{content:'跨帖回复',parentId:randomUUID()},true,'POST')).status,422)
+
+  const topic='http'+randomUUID().slice(0,8)
+  assert.equal((await request('/posts/'+postId,{tags:[' ＃'+topic,'#'+topic.toUpperCase()]},true,'PATCH')).status,200)
+  const topicList=await (await fetch(base+'/api/topics')).json() as {name:string,count:number}[]
+  assert.equal(topicList.find(item=>item.name===topic)?.count,1)
+  const filtered=await (await fetch(base+'/api/posts?tag='+encodeURIComponent('#'+topic))).json() as {items:{id:string}[]}
+  assert.deepEqual(filtered.items.map(item=>item.id),[postId])
+  assert.equal((await request('/posts/'+postId,{tags:['a'.repeat(25)]},true,'PATCH')).status,422)
+  assert.equal((await request('/posts',{title:'无效话题测试帖子',content:'这是一段满足长度要求的测试正文。',category:'作品讨论',tags:['a','b','c','d','e','f']},true,'POST')).status,422)
+  const draftWithTopic={title:'带话题的草稿',content:'保留所选话题的草稿正文。',category:'作品讨论',spoiler:false,workId:null,assetIds:[],tags:['#'+topic]}
+  assert.equal((await request('/forum/draft',draftWithTopic)).status,200)
+  const topicDraft=await (await fetch(base+'/api/forum/draft',{headers:{Cookie:cookie}})).json() as {draft:{data:{tags:string[]}}}
+  assert.deepEqual(topicDraft.draft.data.tags,[topic])
+  assert.equal((await request('/posts/'+postId,{},false,'DELETE')).status,403)
+  assert.equal((await request('/posts/'+postId,{},true,'DELETE')).status,200)
+  assert.equal((await fetch(base+'/api/posts/'+postId)).status,404)
+  assert.equal((await (await fetch(base+'/api/topics')).json() as {name:string}[]).some(item=>item.name===topic),false)
+  assert.equal((await request('/posts/'+postId+'/replies',{content:'跨帖回复',parentId:randomUUID()},true,'POST')).status,404)
  }finally{child.kill();await new Promise<void>(resolve=>child.once('exit',()=>resolve()));await db.pool.end()}
 })

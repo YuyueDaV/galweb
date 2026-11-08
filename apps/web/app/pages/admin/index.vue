@@ -1,6 +1,8 @@
 <script setup lang="ts">
 const auth = useAuth(),
-  { notify, loginOpen } = useForum()
+  { notify, loginOpen,forgetPost } = useForum()
+const {load:refreshTopics}=useTopics()
+const postBusy=ref(''),deletePostId=ref('')
 const statusNames: Record<string, string> = {
   published: '已发布',
   hidden: '已隐藏',
@@ -84,13 +86,21 @@ async function load() {
   }
 }
 async function editPost(id: string, patch: Record<string, unknown>) {
+  if(postBusy.value||!allowed.value)return
+  postBusy.value=id;error.value=''
   try {
     await auth.request('/posts/' + id, patch, 'PATCH')
-    await load()
+    if(patch.status==='hidden')forgetPost(id)
+    await load();await refreshTopics()
     notify('内容状态已更新。')
   } catch (e) {
     error.value = (e as Error).message
-  }
+  }finally{postBusy.value=''}
+}
+async function removePost(id:string){
+ if(postBusy.value||!allowed.value)return
+ postBusy.value=id;error.value=''
+ try{await auth.request('/posts/'+id,{},'DELETE');forgetPost(id);deletePostId.value='';await load();await refreshTopics();notify('帖子已删除。')}catch(e){error.value=(e as Error).message}finally{postBusy.value=''}
 }
 async function moderateAsset(asset: AdminAsset) {
   if (assetBusy.value || !assetApiReady.value || !allowed.value) return
@@ -172,18 +182,18 @@ onBeforeUnmount(() => {
       </div>
       <section class="award-admin-card">
         <h2>帖子管理</h2>
-        <article v-for="post in posts" :key="post.id" class="admin-content-row">
+        <article v-for="post in posts" :key="post.id" :data-post-id="post.id" class="admin-content-row">
           <NuxtLink :to="'/post/' + post.id">{{ post.title }}</NuxtLink
           ><span>{{ statusNames[post.status] }}</span
-          ><button
+          ><template v-if="post.status!=='deleted'"><button :disabled="!!postBusy"
             @click="editPost(post.id, { status: post.status === 'published' ? 'hidden' : 'published' })"
           >
             {{ post.status === 'published' ? '隐藏' : '恢复' }}</button
-          ><button @click="editPost(post.id, { pinned: !post.pinned })">
+          ><button :disabled="!!postBusy" @click="editPost(post.id, { pinned: !post.pinned })">
             {{ post.pinned ? '取消置顶' : '置顶' }}</button
-          ><button @click="editPost(post.id, { featured: !post.featured })">
+          ><button :disabled="!!postBusy" @click="editPost(post.id, { featured: !post.featured })">
             {{ post.featured ? '取消精选' : '精选' }}
-          </button>
+          </button><button v-if="deletePostId!==post.id" :disabled="!!postBusy" @click="deletePostId=post.id">删除帖子</button><template v-else><span>删除后将从社区移除，无法恢复。</span><button :disabled="!!postBusy" @click="removePost(post.id)">{{ postBusy===post.id?'删除中…':'确认删除帖子' }}</button><button :disabled="!!postBusy" @click="deletePostId=''">取消删除帖子</button></template></template>
         </article>
       </section>
       <section class="award-admin-card">

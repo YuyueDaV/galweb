@@ -26,7 +26,7 @@ test('社区完整流程：草稿隔离、公开资料、书单隐私、回复�
   for(const role of ['admin','member','member']){const id=randomUUID();await db.execute('INSERT INTO users(id,email,email_key,nickname,signature,password_hash,role,email_verified_at,created_at) VALUES (?,?,?,?,?,?,?,?,?)',[id,id+'@example.com',id+'@example.com','同好'+id.slice(0,4),'公开签名','not-used',role,Date.now(),Date.now()]);actors.push({id,nickname:'同好',role,status:'active'})}
   const [admin,member,other]=actors as [Actor,Actor,Actor]
   const workId=98531;await db.execute('INSERT IGNORE INTO works(id,data) VALUES (?,?)',[workId,JSON.stringify({rank:workId,title:'测试作品'})])
-  const draft={title:'测试草稿',content:'这是一篇暂未公开的草稿。',category:'作品讨论' as const,spoiler:false,workId:null,assetIds:[]}
+  const draft={title:'测试草稿',content:'这是一篇暂未公开的草稿。',category:'作品讨论' as const,spoiler:false,tags:[],workId:null,assetIds:[]}
   await community.saveDraft(member,draft);assert.equal((await community.draft(other)),null);assert.deepEqual((await community.draft(member))!.data,draft)
   const assetId=randomUUID();await db.execute('INSERT INTO assets(id,user_id,width,height,bytes,created_at) VALUES (?,?,?,?,?,?)',[assetId,other.id,10,10,10,Date.now()])
   await assert.rejects(()=>community.saveDraft(member,{...draft,assetIds:[assetId]}),/不属于/)

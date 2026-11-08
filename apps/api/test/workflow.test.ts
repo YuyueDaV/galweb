@@ -19,6 +19,7 @@ test('步骤 1–2：服务端角色保护、论坛发布回复、跨用户收�
   await assert.rejects(()=>platform.accounts(member),/管理员/)
   await assert.rejects(()=>platform.updateAccount(admin,member.id,{role:'admin'}),/超级管理员/)
   await platform.updateAccount(owner,other.id,{role:'admin'});assert.equal((await db.rows<{role:string}>('SELECT role FROM users WHERE id=?',[other.id]))[0]!.role,'admin')
+  await platform.updateAccount(owner,other.id,{role:'member'})
   const post=await forum.create(member,{title:'这是一篇真实测试帖子',content:'在不同账号之间测试数据库持久化与权限。',category:'作品讨论',spoiler:false})
   assert.equal((await forum.detail(post.id)).author,'member')
   await forum.reply(other,post.id,'另一位用户的回复。');assert.equal((await forum.replies(post.id)).length,1)

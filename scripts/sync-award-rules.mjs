@@ -2,6 +2,8 @@ import { readFile, writeFile } from 'node:fs/promises'
 const root = new URL('../', import.meta.url)
 const header = '// Generated from packages/domain by scripts/sync-award-rules.mjs. Do not edit.\n'
 const outputs = {
+  'apps/api/src/post-topics.ts': header + await readFile(new URL('packages/domain/post-topics.ts', root), 'utf8'),
+  'apps/web/app/utils/topics.ts': header + "export * from '../../../../packages/domain/post-topics.ts'\n",
   'apps/api/src/award-types.ts': header + await readFile(new URL('packages/domain/award-types.ts', root), 'utf8'),
   'apps/api/src/award-rules.ts': header + await readFile(new URL('packages/domain/award-rules.ts', root), 'utf8'),
   'apps/web/app/types/awards.ts': header + "export type * from '../../../../packages/domain/award-types'\n",

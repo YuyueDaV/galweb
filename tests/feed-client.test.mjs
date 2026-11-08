@@ -60,3 +60,22 @@ test('浏览数更新、收藏重复点击保护、失败保留状态、登录�
  const removing=forum.toggleBookmark('restored');requests.shift().resolve({active:false});await removing;assert.deepEqual([...forum.bookmarks.value],[])
  auth.user.value=null;await forum.syncMine();await forum.toggleBookmark('post');assert.equal(forum.loginOpen.value,true);assert.equal(requests.length,0)
 })
+
+
+test('话题刷新：隐藏后的新结果不被旧请求覆盖，失败显示错误并可重试',async()=>{
+ const source=await readFile(new URL('../apps/web/app/composables/useTopics.ts',import.meta.url),'utf8')
+ const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText
+ const state=new Map(),requests=[],module={exports:{}}
+ const useState=(key,initial)=>{if(!state.has(key))state.set(key,ref(initial()));return state.get(key)}
+ const auth={request:()=>new Promise((resolve,reject)=>requests.push({resolve,reject}))}
+ new Function('module','exports','useState','useAuth',code)(module,module.exports,useState,()=>auth)
+ const topics=module.exports.useTopics()
+ const old=topics.load(),oldRequest=requests.shift(),fresh=topics.load(),freshRequest=requests.shift()
+ freshRequest.resolve([]);await fresh
+ oldRequest.resolve([{name:'已隐藏的话题',count:1,latestAt:1}]);await old
+ assert.deepEqual([...topics.topics.value],[]);assert.equal(topics.loading.value,false)
+ const failure=topics.load();requests.shift().reject(new Error('话题连接失败'));await failure
+ assert.equal(topics.error.value,'话题连接失败');assert.deepEqual([...topics.topics.value],[])
+ const retry=topics.load();requests.shift().resolve([{name:'重新公开的话题',count:2,latestAt:2}]);await retry
+ assert.equal(topics.error.value,'');assert.equal(topics.topics.value[0].count,2)
+})
