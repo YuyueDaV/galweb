@@ -6,6 +6,7 @@ export type AwardPermission =
   | 'nomination.review'
   | 'campaign.create'
   | 'campaign.archive'
+  | 'campaign.delete'
   | 'account.view'
   | 'account.status'
   | 'account.manage'
@@ -22,7 +23,24 @@ export interface PreviewAccount {
   isLastSuperAdmin?: boolean
 }
 
+export type AwardVotingRule = 'legacy' | 'weighted-v1'
+export interface AwardBallotRules {
+  loveLimit: number
+  likeLimit: number
+  lovePoints: number
+  likePoints: number
+  recommendationPoints: number
+  recommendationLimit: number
+}
+export interface WeightedBallotInput {
+  loveIds?: string[]
+  loveId: string | null
+  likeIds: string[]
+  recommendations: { candidateId: string; text: string }[]
+}
 export interface AwardCampaign {
+  ballotRules?: AwardBallotRules
+  votingRule?: AwardVotingRule
   version?: number
   id: string
   edition: number
@@ -63,6 +81,10 @@ export interface AwardCandidate {
 }
 
 export interface AwardBallot {
+  loveIds?: string[]
+  loveId?: string | null
+  likeIds?: string[]
+  recommendations?: { candidateId: string; text: string }[]
   id: string
   campaignId: string
   accountId: string
@@ -71,6 +93,9 @@ export interface AwardBallot {
 }
 
 export interface AwardResult extends AwardCandidate {
+  loveVotes?: number
+  likeVotes?: number
+  recommendationCount?: number
   votes: number
   rank: number
 }

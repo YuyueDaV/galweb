@@ -17,7 +17,7 @@ test('步骤 3：提名审核、并发配额、投票版本、私密性、结果
   await assert.rejects(()=>awards.create(member),/管理员/)
   const c=await awards.create(admin),id=c.id
   await assert.rejects(()=>awards.settings(member,id,c),/管理员/)
-  await awards.settings(admin,id,{...c,nominationLimit:1,voteLimit:1});let current=await awards.campaign(id)
+  await awards.settings(admin,id,{...c,votingRule:'legacy',nominationLimit:1,voteLimit:1});let current=await awards.campaign(id)
   await assert.rejects(()=>awards.phase(admin,id,'voting',current.version!),/顺序/)
   await awards.phase(admin,id,'nomination',current.version!)
   const attempts=await Promise.allSettled([awards.nominate(member,id,'命运石之门','','这是值得同好阅读与交流的精彩故事。'),awards.nominate(member,id,'魔法使之夜','','我想把这个故事推荐给所有同好阅读。')]);assert.equal(attempts.filter(r=>r.status==='fulfilled').length,1)

@@ -48,7 +48,7 @@ test('注销完整流程：撤销会话、匿名讨论与榜单、删除图片�
   let nomination=(await awards.nominations(active.id))[0]!
   await awards.nominationAction(owner,active.id,nomination.id,'approved')
   await awards.phase(owner,active.id,'voting',(await awards.campaign(active.id)).version!)
-  await awards.vote(member,active.id,[nomination.candidateId],0);await awards.vote(other,active.id,[nomination.candidateId],0)
+  await awards.vote(member,active.id,[nomination.candidateId],0,{loveId:nomination.candidateId,likeIds:[],recommendations:[]});await awards.vote(other,active.id,[nomination.candidateId],0,{loveId:nomination.candidateId,likeIds:[],recommendations:[]})
   const pending=await awards.create(owner)
   await awards.phase(owner,pending.id,'nomination',(await awards.campaign(pending.id)).version!)
   await awards.nominate(member,pending.id,'尚未审核的作品','测试制作组','这条尚未审核的提名应在注销后自动撤回。')
@@ -58,7 +58,7 @@ test('注销完整流程：撤销会话、匿名讨论与榜单、删除图片�
   const historicalNomination=(await awards.nominations(ended.id))[0]!
   await awards.nominationAction(owner,ended.id,historicalNomination.id,'approved')
   await awards.phase(owner,ended.id,'voting',(await awards.campaign(ended.id)).version!)
-  await awards.vote(member,ended.id,[historicalNomination.candidateId],0);await awards.vote(other,ended.id,[historicalNomination.candidateId],0)
+  await awards.vote(member,ended.id,[historicalNomination.candidateId],0,{loveId:historicalNomination.candidateId,likeIds:[],recommendations:[]});await awards.vote(other,ended.id,[historicalNomination.candidateId],0,{loveId:historicalNomination.candidateId,likeIds:[],recommendations:[]})
   await awards.phase(owner,ended.id,'results',(await awards.campaign(ended.id)).version!)
   const before=await awards.state(ended.id,owner)
   await db.execute('INSERT INTO forum_drafts(user_id,data,updated_at) VALUES (?,?,?)',[member.id,JSON.stringify({content:'私密草稿'}),Date.now()])
@@ -90,7 +90,7 @@ test('注销完整流程：撤销会话、匿名讨论与榜单、删除图片�
   await assert.rejects(()=>forum.create(member,{title:'过期请求不能发帖',content:'已注销账号的旧请求不能再写入新的内容。',category:'作品讨论',spoiler:false}),/不可用/)
   await assert.rejects(()=>forum.reply(member,post.id,'旧请求'),/不可用/)
   await assert.rejects(()=>forum.reaction(member,post.id,'like',true),/不可用/)
-  await assert.rejects(()=>awards.vote(member,active.id,[nomination.candidateId],0),/不可用/)
+  await assert.rejects(()=>awards.vote(member,active.id,[nomination.candidateId],0,{loveId:nomination.candidateId,likeIds:[],recommendations:[]}),/不可用/)
   await assert.rejects(async()=>assets.create(member,await sharp({create:{width:16,height:16,channels:3,background:'blue'}}).png().toBuffer()),/不可用/)
   await assert.rejects(()=>auth.requestCode(member.email,'registration','delete-reregister-ip'),/60/)
   await db.execute('UPDATE email_verification_challenges SET created_at=created_at-61000 WHERE email_key=?',[member.email])
