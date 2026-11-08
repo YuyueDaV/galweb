@@ -1,10 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import nodemailer from 'nodemailer'
-import {readConfig} from '../src/config'
+import type {Config} from '../src/config'
 import {Mailer,smtpDiagnostic} from '../src/mail'
 
-const config=()=>({...readConfig(),MAIL_TRANSPORT:'smtp' as const,SMTP_HOST:'smtp.example.com',SMTP_PORT:465,SMTP_SECURE:'true' as const,SMTP_USER:'sender@example.com',SMTP_PASSWORD:'test-only-authorization',MAIL_FROM:'sender@example.com'})
+const config=():Config=>({NODE_ENV:'test',API_HOST:'127.0.0.1',API_PORT:3200,WEB_ORIGIN:'http://127.0.0.1:3100',DB_HOST:'127.0.0.1',DB_PORT:3306,DB_USER:'mail_fixture',DB_PASSWORD:'',DB_NAME:'mail_fixture_test',AUTH_SECRET:'mail-fixture-only-'.repeat(4),TRUST_PROXY:'loopback',MAIL_TRANSPORT:'smtp' as const,SMTP_HOST:'smtp.example.com',SMTP_PORT:465,SMTP_SECURE:'true' as const,SMTP_USER:'sender@example.com',SMTP_PASSWORD:'test-only-authorization',MAIL_FROM:'sender@example.com'})
 
 test('SMTP：465 使用直接 TLS，检查认证不发信并关闭连接',async t=>{
  let checked=0,closed=0

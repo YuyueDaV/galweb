@@ -20,7 +20,8 @@
     "format:check": "prettier --check packages/domain scripts/quality e2e playwright.config.ts eslint.config.mjs .prettierrc.json apps/web/app/components/SafeImage.vue apps/web/app/components/BookShelf.vue apps/web/app/utils/award-time.ts apps/web/app/assets/css/tokens.css apps/web/app/assets/css/foundations.css apps/web/app/assets/css/tailwind.css",
     "build:check": "node scripts/quality/build.mjs",
     "test:e2e": "playwright test",
-    "check": "node scripts/quality/check.mjs"
+    "check": "node scripts/quality/check.mjs",
+    "release:pack": "node scripts/release/pack.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
