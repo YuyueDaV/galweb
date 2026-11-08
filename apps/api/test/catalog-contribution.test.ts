@@ -13,7 +13,16 @@ import { hashPassword } from '../src/security'
 test('书库贡献拒绝伪造添加人、审核及角色字段', () => {
   const input = { title: '作品名称', subjectId: null }
   assert.equal(workContributionSchema.safeParse(input).success, true)
-  for (const field of ['addedById', 'addedAt', 'nominator', 'role', 'catalogVisible'])
+  for (const field of [
+    'addedById',
+    'addedAt',
+    'nominator',
+    'role',
+    'catalogVisible',
+    'catalogDeleted',
+    'removedAt',
+    'displayOrder',
+  ])
     assert.equal(workContributionSchema.safeParse({ ...input, [field]: 'forged' }).success, false)
 })
 

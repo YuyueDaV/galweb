@@ -31,6 +31,7 @@ export interface ForumPost {
 }
 
 export interface Work {
+  catalogDeleted?:boolean
   coverUrl?:string
   addedBy?:{id:string|null;name:string}|null
   addedAt?:number

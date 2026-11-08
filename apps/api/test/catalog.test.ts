@@ -8,7 +8,14 @@ import { readConfig } from '../src/config'
 import { Database } from '../src/database'
 import { Platform, type Actor } from '../src/platform'
 import { Bangumi } from '../src/bangumi'
-import { Catalog, tierSchema, workEditSchema, catalogOrderSchema } from '../src/catalog'
+import {
+  Catalog,
+  tierSchema,
+  workEditSchema,
+  catalogOrderSchema,
+  workContributionSchema,
+} from '../src/catalog'
+import { Forum } from '../src/forum'
 import { catalogControllers } from '../src/catalog-api'
 import { Auth } from '../src/auth'
 import { Mailer } from '../src/mail'
@@ -288,11 +295,85 @@ test(
         ).status,
         422,
       )
+      const deleting = await catalog.detail(work.rank)
+      const forum = new Forum(db, platform)
+      const post = await forum.create(member, {
+        title: '删除作品后保留讨论',
+        content: '历史关联内容',
+        category: '作品讨论',
+        spoiler: false,
+        workId: work.rank,
+      })
+      await db.execute(
+        'INSERT INTO user_library(user_id,work_id,state,note,is_public,updated_at) VALUES (?,?,?,?,?,?)',
+        [member.id, work.rank, 'finished', '历史书单', true, Date.now()],
+      )
+      const remove = (session: typeof adminSession | null, body: object, csrf = true) =>
+        fetch(base + '/api/admin/works/' + work.rank, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(session ? { Cookie: 'catalog_test_session=' + session.session } : {}),
+            ...(session && csrf ? { 'X-CSRF-Token': session.csrf } : {}),
+          },
+          body: JSON.stringify(body),
+        })
+      assert.equal((await remove(null, { version: deleting.version })).status, 401)
+      assert.equal((await remove(memberSession, { version: deleting.version })).status, 403)
+      assert.equal((await remove(adminSession, { version: deleting.version }, false)).status, 403)
+      assert.equal(
+        (await remove(adminSession, { version: deleting.version, role: 'super_admin' })).status,
+        422,
+      )
+      assert.equal((await remove(adminSession, { version: deleting.version - 1 })).status, 409)
+      assert.equal((await remove(adminSession, { version: deleting.version })).status, 200)
+      assert.equal((await remove(adminSession, { version: deleting.version })).status, 404)
+      assert.ok(!(await catalog.publicWorks()).some((item) => item.rank === work.rank))
+      const historical = await catalog.detail(work.rank)
+      assert.equal(historical.catalogDeleted, true)
+      assert.equal(historical.title, deleting.title)
+      assert.equal((await forum.detail(post.id)).workId, work.rank)
+      assert.equal(
+        (await db.rows('SELECT * FROM user_library WHERE user_id=? AND work_id=?', [member.id, work.rank]))
+          .length,
+        1,
+      )
+      assert.ok((await catalog.tierDetail(list.id)).works.some((item) => item.rank === work.rank))
+      assert.equal(
+        (
+          await db.rows('SELECT id FROM audit_logs WHERE actor_id=? AND action LIKE ?', [
+            admin.id,
+            '删除书库作品 ' + work.rank + ' · %',
+          ])
+        ).length,
+        1,
+      )
+      await assert.rejects(
+        () => catalog.contribute(member, workContributionSchema.parse({ title: deleting.title })),
+        /需要管理员重新收录/,
+      )
+      await assert.rejects(
+        () =>
+          catalog.contribute(
+            member,
+            workContributionSchema.parse({ title: '更换标题尝试恢复', subjectId: 900031 }),
+          ),
+        /需要管理员重新收录/,
+      )
+      await assert.rejects(
+        () => catalog.changeCover(member, work.rank, null, historical.version),
+        /已移出书库/,
+      )
+      const restored = await catalog.import(admin, 900031)
+      assert.equal(restored.work.rank, work.rank)
+      assert.equal(restored.work.catalogDeleted, false)
+      assert.ok((await catalog.publicWorks()).some((item) => item.rank === work.rank))
       await catalog.saveTier(admin, list.id, { ...input, version: 3, action: 'unpublish' })
       assert.equal((await fetch(base + '/api/tier-lists/' + list.id)).status, 404)
       await db.execute("UPDATE users SET role='member' WHERE id=?", [admin.id])
       await assert.rejects(() => catalog.createTier(admin, '旧会话'), /管理员/)
       await assert.rejects(() => catalog.reorder(admin, reverse), /管理员/)
+      await assert.rejects(() => catalog.remove(admin, work.rank, restored.work.version), /管理员/)
     } finally {
       await app?.close()
       if (archive)

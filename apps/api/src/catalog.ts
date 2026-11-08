@@ -24,6 +24,8 @@ export interface CatalogWork {
   version: number
   bangumi?: BangumiSubject
   catalogVisible?: boolean
+  catalogDeleted?: boolean
+  removedAt?: number
 }
 export const workContributionSchema = z
   .object({
@@ -163,7 +165,7 @@ export class Catalog {
   async publicWorks(tx?: PoolConnection) {
     return (await this.db.rows<PublicWorkRow>(publicWorkSelect + ' ORDER BY w.id', [], tx))
       .map((row) => this.publicWork(row))
-      .filter((work) => work.catalogVisible !== false)
+      .filter((work) => work.catalogVisible !== false && !work.catalogDeleted)
       .sort((a, b) => {
         const position = (work: CatalogWork) =>
           Number.isSafeInteger(work.displayOrder) && work.displayOrder! >= 0
@@ -200,6 +202,31 @@ export class Catalog {
     if (!row) throw reject('作品不存在。', 404)
     return this.publicWork(row)
   }
+  async remove(actor: Actor, id: number, version: number) {
+    return this.write(actor, async (tx, current) => {
+      const work = (await this.works(tx)).find((work) => work.rank === id)
+      if (!work || work.catalogVisible === false || work.catalogDeleted)
+        throw reject('作品不存在或已移出书库。', 404)
+      if (work.version !== version) throw reject('作品已更新，请刷新后再删除。', 409)
+      await this.db.execute(
+        'UPDATE works SET data=? WHERE id=?',
+        [
+          JSON.stringify({
+            ...work,
+            catalogVisible: false,
+            catalogDeleted: true,
+            removedAt: Date.now(),
+            displayOrder: undefined,
+            version: version + 1,
+          }),
+          id,
+        ],
+        tx,
+      )
+      await this.platform.audit(current, '删除书库作品 ' + id + ' · ' + work.title, null, tx)
+      return { message: '作品已从书库删除，关联历史记录已保留。' }
+    })
+  }
   async contribute(actor: Actor, input: z.infer<typeof workContributionSchema>) {
     await this.platform.actor(actor.id)
     const subject = input.subjectId ? await this.bangumi.detail(input.subjectId, true) : undefined
@@ -217,7 +244,9 @@ export class Catalog {
         const existing =
           all.find((work) => subject && work.bangumi?.id === subject.id) ||
           all.find((work) => workKeys(work).some((key) => keys.includes(key)))
-        if (existing && existing.catalogVisible !== false)
+        if (existing?.catalogDeleted && current.role === 'member')
+          throw reject('此作品已被管理员移出书库，需要管理员重新收录。', 403)
+        if (existing && existing.catalogVisible !== false && !existing.catalogDeleted)
           throw reject('书库已存在《' + existing.title + '》，请直接查看已有作品。', 409)
         if (existing?.bangumi && subject && existing.bangumi.id !== subject.id)
           throw reject('已有同名作品，请核对作品及 Bangumi 编号。', 409)
@@ -236,6 +265,8 @@ export class Catalog {
           version: (existing?.version || 0) + 1,
           ...(subject ? { bangumi: subject } : {}),
           catalogVisible: true,
+          catalogDeleted: false,
+          removedAt: undefined,
           coverAssetId: input.coverAssetId,
           addedById: current.id,
           addedAt: Date.now(),
@@ -268,6 +299,7 @@ export class Catalog {
       async (tx, current) => {
         const work = (await this.works(tx)).find((work) => work.rank === id)
         if (!work) throw reject('作品不存在。', 404)
+        if (work.catalogDeleted) throw reject('作品已移出书库，请刷新后重试。', 409)
         if (current.role === 'member' && work.addedById !== current.id)
           throw reject('只能修改自己添加作品的封面。', 403)
         if (work.version !== version) throw reject('作品已更新，请刷新后重试。', 409)
@@ -298,10 +330,12 @@ export class Catalog {
                 ),
               )
             : undefined)
-      if (duplicate?.catalogVisible === false && !existingWorkId) {
+      if (duplicate && (duplicate.catalogVisible === false || duplicate.catalogDeleted) && !existingWorkId) {
         const work = {
           ...duplicate,
           catalogVisible: true,
+          catalogDeleted: false,
+          removedAt: undefined,
           addedById: current.id,
           addedAt: Date.now(),
           version: duplicate.version + 1,

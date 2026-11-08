@@ -207,6 +207,34 @@ test('访客开放 Bangumi 搜索；管理员编辑 Tier、草稿发布隔离和
       'src',
       customCover!,
     )
+    const identity = await (await page.request.get('/api/auth/me')).json()
+    const deleteTitle = '待删除的书库作品 ' + Date.now()
+    const added = await page.request.post('/api/works', {
+      headers: { Origin: origin, 'X-CSRF-Token': identity.csrfToken },
+      data: { title: deleteTitle },
+    })
+    expect(added.ok()).toBeTruthy()
+    const deleteWork = await added.json()
+    await page.reload()
+    await page.getByRole('button', { name: deleteTitle, exact: true }).click()
+    await page.getByRole('button', { name: '删除书库作品', exact: true }).click()
+    const deleteDialog = page.getByRole('dialog', { name: '删除书库作品？', exact: true })
+    await expect(deleteDialog).toContainText(deleteTitle)
+    await expect(deleteDialog.getByRole('button', { name: '保留作品', exact: true })).toBeFocused()
+    await deleteDialog.getByRole('button', { name: '保留作品', exact: true }).click()
+    await expect(page.getByRole('button', { name: deleteTitle, exact: true })).toBeVisible()
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.getByRole('button', { name: '切换深色模式', exact: true }).click()
+    await page.getByRole('button', { name: '删除书库作品', exact: true }).click()
+    await deleteDialog.screenshot({ path: test.info().outputPath('delete-work-dark-mobile.png') })
+    await deleteDialog.getByRole('button', { name: '确认删除', exact: true }).click()
+    await expect(page.getByRole('status').filter({ hasText: '已从书库删除' })).toContainText(deleteTitle)
+    await expect(page.getByRole('button', { name: deleteTitle, exact: true })).toHaveCount(0)
+    const remaining = await (await page.request.get('/api/works')).json()
+    expect(remaining.some((item: { rank: number }) => item.rank === deleteWork.rank)).toBe(false)
+    await page.goto('/works/' + deleteWork.rank)
+    await expect(page.getByRole('status').filter({ hasText: '已移出公共书库' })).toBeVisible()
+    await expect(page.getByLabel('更换作品封面', { exact: true })).toHaveCount(0)
   } finally {
     await anonymous.dispose()
   }

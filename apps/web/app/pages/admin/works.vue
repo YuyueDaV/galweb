@@ -13,6 +13,35 @@ const works = ref<Work[]>([]),
 const originalOrder = ref<number[]>([]),
   dragged = ref<number | null>(null),
   orderNotice = ref('')
+const deleteOpen = ref(false),
+  deleteTarget = ref<Work | null>(null)
+function confirmDelete() {
+  if (locked.value || !selected.value) return
+  deleteTarget.value = { ...selected.value }
+  deleteOpen.value = true
+}
+async function removeWork() {
+  const target = deleteTarget.value
+  if (!target || locked.value) return
+  busy.value = true
+  error.value = ''
+  success.value = ''
+  try {
+    await auth.request('/admin/works/' + target.rank, { version: target.version || 0 }, 'DELETE')
+    works.value = works.value.filter((work) => work.rank !== target.rank)
+    originalOrder.value = originalOrder.value.filter((id) => id !== target.rank)
+    if (selected.value?.rank === target.rank) {
+      selected.value = null
+      if (works.value[0]) select(works.value[0])
+    }
+    orderNotice.value = orderDirty.value ? '还有尚未保存的排序。' : ''
+    success.value = `《${target.title}》已从书库删除，关联历史记录已保留。`
+  } catch (cause) {
+    error.value = (cause as Error).message
+  } finally {
+    busy.value = false
+  }
+}
 const orderDirty = computed(() => works.value.some((work, index) => originalOrder.value[index] !== work.rank))
 const canReorder = computed(() => !locked.value && !query.value.trim())
 function moveWork(id: number, step: number) {
@@ -287,6 +316,12 @@ useSeoMeta({ title: '书库管理 · 澄之响', robots: 'noindex,nofollow' })
                 selected.bangumi.id
               }}。封面、评分、标签和原站简介单独保存；更新外部资料不会覆盖上方编辑的文案。
             </p>
+            <div class="catalog-delete-zone">
+              <button type="button" class="button secondary" :disabled="locked" @click="confirmDelete">
+                <AppIcon name="close" :size="16" />删除书库作品
+              </button>
+              <p class="catalog-help">从公共书架移除；关联帖子、个人书单、Tier 榜与活动历史保留。</p>
+            </div>
           </fieldset>
         </form>
         <div v-else class="experience-card empty-state">从左侧选择作品，编辑书库资料。</div>
@@ -296,9 +331,26 @@ useSeoMeta({ title: '书库管理 · 澄之响', robots: 'noindex,nofollow' })
       <p>需要管理员账号。</p>
       <button class="button primary" @click="loginOpen = true">登录</button>
     </div>
+    <ActionDialog
+      v-model="deleteOpen"
+      title="删除书库作品？"
+      :message="`确认将《${deleteTarget?.title || ''}》从公共书架删除？关联帖子、书单、Tier 榜和活动历史会保留，管理员可重新收录恢复。`"
+      primary="确认删除"
+      secondary="保留作品"
+      tone="confirm"
+      @primary="removeWork"
+    />
   </div>
 </template>
 <style scoped>
+.catalog-delete-zone {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+.catalog-delete-zone .button {
+  color: var(--orange);
+}
 .catalog-order-row {
   display: flex;
   align-items: center;

@@ -4,6 +4,7 @@ import {
   Post,
   Put,
   Patch,
+  Delete,
   Body,
   Query,
   Param,
@@ -152,6 +153,15 @@ export function catalogControllers(
       @Body() body: unknown,
     ) {
       return catalog.edit(await actor(req, true), id(value), parse(workEditSchema, body))
+    }
+    @Delete('admin/works/:id') async remove(
+      @Req() req: Request,
+      @Param('id') value: string,
+      @Body() body: unknown,
+    ) {
+      const user = await actor(req, true)
+      const input = parse(z.object({ version: z.number().int().min(0) }).strict(), body)
+      return catalog.remove(user, id(value), input.version)
     }
     @Get('tier-lists') tiers() {
       return catalog.tiers()
