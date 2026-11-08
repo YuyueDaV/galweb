@@ -17,6 +17,45 @@ select,
 textarea {
   font-weight: 400;
 }
+.community-field input[type='file'] {
+  min-height: 2.75rem;
+  padding: 0.4rem;
+  border-style: dashed;
+  background: var(--surface);
+  color: var(--subtle);
+  font-size: 0.7rem;
+  line-height: 1.6;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.community-field input[type='file']::file-selector-button {
+  appearance: none;
+  min-height: 2.2rem;
+  margin-inline-end: 0.75rem;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--orange-soft);
+  color: var(--orange);
+  font: inherit;
+  cursor: inherit;
+  transition:
+    background var(--motion-fast) var(--motion-ease),
+    border-color var(--motion-fast) var(--motion-ease);
+}
+.community-field input[type='file']:not(:disabled):hover::file-selector-button {
+  background: var(--surface);
+  border-color: var(--orange);
+}
+.community-field input[type='file']:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 3px;
+}
+.community-field input[type='file']:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
 input::placeholder,
 textarea::placeholder {
   font-family: inherit;
