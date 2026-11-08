@@ -102,6 +102,7 @@ function resetFeed() { query.value = ''; category.value = '全部' }
         <div v-if="identity.can('campaign.manage')" class="sidebar-section staff-nav">
           <p class="sidebar-label">{{ identity.roleNames[identity.role.value] }}</p><NuxtLink to="/admin" class="sidebar-link"><AppIcon name="filter" /><span>社区内容管理</span></NuxtLink>
           <NuxtLink to="/admin/awards" class="sidebar-link" :class="{ selected: route.path === '/admin/awards' }"><AppIcon name="filter" /><span>活动管理</span></NuxtLink>
+          <NuxtLink to="/admin/notifications" class="sidebar-link" :class="{ selected: route.path === '/admin/notifications' }"><AppIcon name="bell" /><span>站点通知</span></NuxtLink>
           <NuxtLink to="/admin/works" class="sidebar-link" :class="{ selected: route.path === '/admin/works' }"><AppIcon name="library" /><span>书库管理</span></NuxtLink><NuxtLink to="/admin/tiers" class="sidebar-link" :class="{ selected: route.path === '/admin/tiers' }"><AppIcon name="star" /><span>共同 Tier 榜设置</span></NuxtLink><NuxtLink v-if="identity.can('account.view')" to="/admin/accounts" class="sidebar-link" :class="{ selected: route.path === '/admin/accounts' }"><AppIcon name="users" /><span>账号权限</span></NuxtLink>
         </div>
         <NuxtLink to="/community" class="sidebar-link"><AppIcon name="calendar" /><span>社团动态与相册</span></NuxtLink><div class="sidebar-bottom">

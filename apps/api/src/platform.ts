@@ -9,7 +9,9 @@ export function staff(actor:Actor){if(!isStaffRole(actor.role))throw reject('需
 export function owner(actor:Actor){if(!isOwnerRole(actor.role))throw reject('需要超级管理员权限。',403)}
 export class Platform {
  constructor(readonly db:Database){}
- async lock(name:string,tx:PoolConnection){await this.db.execute('INSERT IGNORE INTO system_locks(id) VALUES (?)',[name],tx);await this.db.rows('SELECT id FROM system_locks WHERE id=? FOR UPDATE',[name],tx)}
+ // Acquire the exclusive row lock in one statement. INSERT IGNORE followed by
+ // FOR UPDATE can deadlock when concurrent transactions upgrade shared locks.
+ async lock(name:string,tx:PoolConnection){await this.db.execute('INSERT INTO system_locks(id) VALUES (?) ON DUPLICATE KEY UPDATE id=VALUES(id)',[name],tx)}
  async actor(id:string,tx?:PoolConnection){const user=(await this.db.rows<Actor>('SELECT id,nickname,role,status FROM users WHERE id=? FOR UPDATE',[id],tx))[0];if(!user||user.status!=='active')throw reject('账号不可用。',403);return user}
  async audit(actor:Actor,action:string,campaignId:string|null=null,tx?:PoolConnection){await this.db.execute('INSERT INTO audit_logs(id,actor_id,actor,campaign_id,action,created_at) VALUES (?,?,?,?,?,?)',[randomUUID(),actor.id,actor.nickname,campaignId,action,Date.now()],tx)}
  async accounts(actor:Actor){

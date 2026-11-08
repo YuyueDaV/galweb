@@ -56,3 +56,9 @@ schema.push(
 
 schema.push(`CREATE TABLE IF NOT EXISTS tier_ballots (tier_id CHAR(36) NOT NULL,user_id CHAR(36) NOT NULL,data JSON NOT NULL,version INT NOT NULL DEFAULT 1,updated_at BIGINT NOT NULL,PRIMARY KEY(tier_id,user_id),FOREIGN KEY(tier_id) REFERENCES tier_lists(id),FOREIGN KEY(user_id) REFERENCES users(id),INDEX tier_ballot_user(user_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`)
 schema.push(`CREATE TABLE IF NOT EXISTS tier_owners (tier_id CHAR(36) PRIMARY KEY,user_id CHAR(36) NOT NULL,blocked BOOLEAN NOT NULL DEFAULT FALSE,FOREIGN KEY(tier_id) REFERENCES tier_lists(id),FOREIGN KEY(user_id) REFERENCES users(id),INDEX personal_tier_user(user_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`)
+schema.push(
+`CREATE TABLE IF NOT EXISTS notification_broadcasts (id CHAR(36) PRIMARY KEY,actor_id CHAR(36) NOT NULL,event_key VARCHAR(128) NOT NULL UNIQUE,kind VARCHAR(24) NOT NULL,title VARCHAR(160) NOT NULL,content TEXT NOT NULL,link VARCHAR(200) NOT NULL,recipient_count INT UNSIGNED NOT NULL DEFAULT 0,created_at BIGINT NOT NULL,INDEX broadcast_order(created_at),FOREIGN KEY(actor_id) REFERENCES users(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+// User IDs are a delivery snapshot, not cascading ownership. Account deletion
+// explicitly clears receipts; omitting a user FK avoids locking all users on fanout.
+`CREATE TABLE IF NOT EXISTS notification_broadcast_recipients (broadcast_id CHAR(36) NOT NULL,user_id CHAR(36) NOT NULL,read_at BIGINT NULL,PRIMARY KEY(broadcast_id,user_id),INDEX broadcast_inbox(user_id,read_at,broadcast_id),FOREIGN KEY(broadcast_id) REFERENCES notification_broadcasts(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+)

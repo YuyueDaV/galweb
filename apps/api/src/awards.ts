@@ -1,4 +1,5 @@
 import { notifyUser } from './notifications'
+import { Broadcasts } from './broadcasts'
 import { randomUUID } from 'node:crypto'
 import type { PoolConnection } from 'mysql2/promise'
 import { Database } from './database'
@@ -226,7 +227,7 @@ export class Awards {
     })
   }
   async phase(actor: Actor, id: string, to: CampaignPhase, version: number) {
-    return this.mutate(actor, id, 'admin', async (c, tx) => {
+    return this.mutate(actor, id, 'admin', async (c, tx, current) => {
       if (version !== c.version) throw reject('活动状态已更新，请刷新。')
       const nominations = await this.nominations(id, tx),
         candidates = collectAwardCandidates(nominations, id)
@@ -255,6 +256,14 @@ export class Awards {
         tx,
       )
       await this.platform.audit(actor, `推进阶段：${phaseNames[to]}`, id, tx)
+      if (to === 'nomination' || to === 'voting') {
+        const action = to === 'nomination' ? '开放提名' : '开放投票'
+        await new Broadcasts(this.db, this.platform).deliver(
+          current, `award:${id}:${to}`, 'activity', `${c.title} · ${action}`,
+          `${c.title}已进入${phaseNames[to]}，欢迎参与！\n具体开放时间和参与规则请查看活动页。`,
+          '/awards?campaign=' + encodeURIComponent(id), tx,
+        )
+      }
     })
   }
   window(c: AwardCampaign, phase: 'nomination' | 'voting') {

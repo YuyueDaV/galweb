@@ -35,6 +35,16 @@ let closing = false
 async function close() {
   if (closing) return
   closing = true
+  if (connection && process.env.CZX_E2E_EXTERNAL_DB !== '1') {
+    await Promise.race([
+      (async () => {
+        const [rows] = await connection.query('SELECT @@datadir AS directory')
+        if (path.resolve(rows[0].directory).toLowerCase() === path.resolve(workspace, 'mysql').toLowerCase())
+          await connection.query('SHUTDOWN')
+      })().catch(() => {}),
+      new Promise((resolve) => setTimeout(resolve, 1000)),
+    ])
+  }
   if (connection)
     await Promise.race([
       connection.end().catch(() => {}),

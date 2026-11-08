@@ -36,6 +36,7 @@ export class AccountDeletion {
    await this.db.execute('DELETE FROM forum_reactions WHERE user_id=?',[actor.id],tx)
    await this.db.execute('DELETE FROM forum_drafts WHERE user_id=?',[actor.id],tx)
    await this.db.execute('DELETE FROM notifications WHERE user_id=?',[actor.id],tx)
+   await this.db.execute('DELETE FROM notification_broadcast_recipients WHERE user_id=?',[actor.id],tx)
    await this.db.execute("UPDATE notifications n JOIN forum_replies r ON r.id=n.reply_id SET n.title='一位已注销的同好回复了你的讨论。' WHERE r.user_id=?",[actor.id],tx)
    await this.db.execute('DELETE FROM user_library WHERE user_id=?',[actor.id],tx)
    await this.db.execute('DELETE FROM tier_ballots WHERE user_id=?',[actor.id],tx)
