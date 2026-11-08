@@ -8,6 +8,13 @@ import { Readable } from 'node:stream'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
+// Nitro and adapter dependencies can retain background timers on Linux even
+// after every assertion passes. Bound this standalone CLI, including cleanup.
+const deadline = setTimeout(() => {
+  console.error('EdgeOne smoke timed out before completing assertions and cleanup.')
+  process.exit(1)
+}, 60_000)
+deadline.unref()
 const deployment = JSON.parse(await readFile(join(root, 'edgeone.json'), 'utf8'))
 const output = resolve(root, deployment.outputDirectory)
 // Match the CLI's fixed SSR discovery path, not only a locally importable file.
@@ -179,3 +186,7 @@ try {
   backend.closeAllConnections()
   backend.close()
 }
+clearTimeout(deadline)
+// All awaited checks and mock-server cleanup above have completed. This CLI
+// must not wait indefinitely for third-party runtime maintenance timers.
+process.exit(0)
