@@ -168,7 +168,7 @@ useSeoMeta({ title: '书库管理 · 澄之响', robots: 'noindex,nofollow' })
       </div>
       <div class="catalog-actions">
         <NuxtLink v-if="allowed" to="/works/new" class="button primary">
-          <AppIcon name="plus" :size="16" />添加作品
+          <AppIcon name="plus" :size="16" />手动添加
         </NuxtLink>
         <NuxtLink to="/admin/tiers" class="text-link">管理 Tier 榜单 ↗</NuxtLink>
       </div>

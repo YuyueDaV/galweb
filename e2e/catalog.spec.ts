@@ -120,7 +120,7 @@ test('访客开放 Bangumi 搜索；管理员编辑 Tier、草稿发布隔离和
     await expect(page.getByRole('status').filter({ hasText: '榜单已下架' })).toBeVisible()
     expect((await anonymous.get('/api/tier-lists/' + id)).status()).toBe(404)
     await page.goto('/admin/works')
-    await expect(page.getByRole('link', { name: '添加作品', exact: true })).toHaveAttribute(
+    await expect(page.getByRole('link', { name: '手动添加', exact: true })).toHaveAttribute(
       'href',
       '/works/new',
     )

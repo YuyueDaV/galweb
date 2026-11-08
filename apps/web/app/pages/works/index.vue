@@ -85,7 +85,7 @@ useSeoMeta({ title: '作品书架 · 澄之响' })
       </div>
     </header>
     <div class="catalog-actions">
-      <NuxtLink to="/works/new" class="button primary"><AppIcon name="plus" :size="16" />添加作品</NuxtLink
+      <NuxtLink to="/works/new" class="button primary"><AppIcon name="plus" :size="16" />手动添加</NuxtLink
       ><NuxtLink to="/tiers" class="button secondary">同好会 Tier 榜单 ↗</NuxtLink
       ><NuxtLink
         v-if="auth.user.value && auth.user.value.role !== 'member'"

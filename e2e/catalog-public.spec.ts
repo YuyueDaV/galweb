@@ -14,7 +14,7 @@ test('普通用户添加书库、上传及更换封面、自动署名和重复�
     .toBuffer()
   const title = '成员贡献的故事 ' + Date.now().toString(36)
   await page.goto('/works')
-  await page.getByRole('link', { name: '添加作品', exact: true }).click()
+  await page.getByRole('link', { name: '手动添加', exact: true }).click()
   await page.getByLabel('作品名称', { exact: true }).fill(title)
   await page.getByLabel('原文名／其他名称', { exact: true }).fill('Public story ' + title)
   await page.getByLabel('作品介绍', { exact: true }).fill('由普通注册用户添加的作品，封面来自本站上传。')
