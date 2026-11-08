@@ -45,7 +45,7 @@ test('Bangumi 搜索使用公开官方 v0 游戏搜索，携带标识并缓存�
   assert.deepEqual(JSON.parse(String(calls[0]!.options!.body)), {
     keyword: 'CLANNAD',
     sort: 'match',
-    filter: { type: [4] },
+    filter: { type: [4], nsfw: false },
   })
   assert.match(new Headers(calls[0]!.options!.headers).get('User-Agent')!, /YuyueDaV\/galweb/)
   assert.equal(calls[0]!.options!.redirect, 'error')
@@ -68,4 +68,52 @@ test('Bangumi 失败显示可读错误，不泄漏上游响应正文；拒绝错
   )
   await assert.rejects(() => new Bangumi(async () => new Response('not json')).detail(13), /无法读取/)
   await assert.rejects(() => new Bangumi(async () => Response.json(raw)).detail(14), /编号不匹配/)
+})
+
+test('Bangumi 个人令牌只用于授权请求，公开缓存隔离；授权失效不返回本站 401', async () => {
+  const calls: { url: string; options?: RequestInit }[] = []
+  const client = new Bangumi(async (url, options) => {
+    calls.push({ url: String(url), options })
+    const authorized = new Headers(options?.headers).has('Authorization')
+    if (String(url).includes('search/subjects'))
+      return Response.json({ total: 1, data: [{ ...raw, nsfw: authorized }] })
+    return Response.json({ ...raw, nsfw: authorized })
+  }, 'test-personal-bangumi-token')
+  assert.equal((await client.search('game', 1, true)).items[0]!.nsfw, true)
+  assert.equal(
+    new Headers(calls[0]!.options?.headers).get('Authorization'),
+    'Bearer test-personal-bangumi-token',
+  )
+  assert.equal(JSON.parse(String(calls[0]!.options?.body)).filter.nsfw, null)
+  assert.equal((await client.search('game', 1)).items[0]!.nsfw, false)
+  assert.equal(new Headers(calls[1]!.options?.headers).get('Authorization'), null)
+  await client.search('game', 1, true)
+  await client.search('game', 1)
+  assert.equal(calls.length, 2, '两种模式分别缓存，互不复用')
+  await client.detail(13, true)
+  await client.detail(13)
+  assert.equal(new Headers(calls[2]!.options?.headers).has('Authorization'), true)
+  assert.equal(new Headers(calls[3]!.options?.headers).has('Authorization'), false)
+  assert.ok(calls.every((call) => !call.url.includes('test-personal')))
+  for (const status of [401, 403]) {
+    const denied = new Bangumi(
+      async () => new Response('secret diagnostics', { status }),
+      'test-personal-token',
+    )
+    await assert.rejects(
+      () => denied.search('game', 1, true),
+      (error: unknown) => {
+        const e = error as { getStatus: () => number; message: string }
+        assert.equal(e.getStatus(), 503)
+        assert.match(e.message, /Bangumi 授权/)
+        assert.doesNotMatch(e.message, /secret diagnostics|test-personal/)
+        return true
+      },
+    )
+  }
+  await assert.rejects(
+    () => new Bangumi(async () => Response.json({}), '').search('game', 1, true),
+    /暂未开放/,
+  )
+  assert.throws(() => new Bangumi(fetch, 'Bearer contains spaces'), /格式无效/)
 })

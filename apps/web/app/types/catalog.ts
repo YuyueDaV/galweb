@@ -10,6 +10,7 @@ export interface BangumiSubject {
   ratingCount: number
   tags: string[]
   syncedAt: number
+  nsfw?: boolean
 }
 export interface TierLevel {
   id: string

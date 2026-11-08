@@ -4,6 +4,7 @@ import { reject } from './platform'
 const subject = z.object({
   id: z.number().int().positive(),
   type: z.number(),
+  nsfw: z.boolean().optional(),
   name: z.string(),
   name_cn: z.string().optional(),
   summary: z.string().optional(),
@@ -25,6 +26,7 @@ export interface BangumiSubject {
   ratingCount: number
   tags: string[]
   syncedAt: number
+  nsfw?: boolean
 }
 export function bangumiCover(value: string) {
   try {
@@ -33,7 +35,9 @@ export function bangumiCover(value: string) {
       url.hostname === 'lain.bgm.tv' &&
       !url.username &&
       !url.password &&
-      !url.port && !url.search && !url.hash &&
+      !url.port &&
+      !url.search &&
+      !url.hash &&
       /^\/(?:r\/\d+(?:x\d+)?\/)?pic\/cover\/[a-zA-Z0-9/_-]+\.(?:jpe?g|png|webp|gif)$/.test(url.pathname)
       ? url.href
       : ''
@@ -59,13 +63,21 @@ export function normalizeSubject(raw: unknown): BangumiSubject {
     ratingCount: item.rating?.total || 0,
     tags: [...new Set(item.tags?.map((tag) => tag.name.slice(0, 40)) || [])].slice(0, 16),
     syncedAt: Date.now(),
+    nsfw: item.nsfw || false,
   }
 }
 export class Bangumi {
   private cache = new Map<string, { until: number; value: unknown }>()
-  constructor(private request: typeof fetch = fetch) {}
-  private async json(path: string, body?: object) {
-    const key = path + JSON.stringify(body || {})
+  constructor(
+    private request: typeof fetch = fetch,
+    private accessToken = (process.env.BANGUMI_ACCESS_TOKEN || '').trim(),
+  ) {
+    if (accessToken && (!/^[\x21-\x7e]+$/.test(accessToken) || accessToken.length > 2048))
+      throw new Error('BANGUMI_ACCESS_TOKEN 格式无效，请只填写原始令牌，不加 Bearer 或空格。')
+  }
+  private async json(path: string, body?: object, authorized = false) {
+    const useToken = authorized && !!this.accessToken
+    const key = (useToken ? 'authorized:' : 'public:') + path + JSON.stringify(body || {})
     const cached = this.cache.get(key)
     if (cached && cached.until > Date.now()) return cached.value
     let response: Response
@@ -77,6 +89,7 @@ export class Bangumi {
         headers: {
           'User-Agent': 'YuyueDaV/galweb/1.0 (https://github.com/YuyueDaV/galweb)',
           Accept: 'application/json',
+          ...(useToken ? { Authorization: 'Bearer ' + this.accessToken } : {}),
           ...(body ? { 'Content-Type': 'application/json' } : {}),
         },
         ...(body ? { body: JSON.stringify(body) } : {}),
@@ -85,6 +98,8 @@ export class Bangumi {
       throw reject('暂时无法连接 Bangumi，请稍后重试；已导入的书库仍可浏览。', 502)
     }
     if (response.status === 404) throw reject('Bangumi 条目不存在或当前无法公开访问。', 404)
+    if (response.status === 401 || response.status === 403)
+      throw reject('Bangumi 授权暂不可用，请联系管理员检查令牌和账号权限；你的本站登录不受影响。', 503)
     if (response.status === 429) throw reject('Bangumi 请求过于频繁，请稍后再试。', 429)
     if (!response.ok) throw reject('Bangumi 暂时无法提供此数据，请稍后重试。', 502)
     let value: unknown
@@ -99,18 +114,30 @@ export class Bangumi {
     this.cache.set(key, { until: Date.now() + 300000, value })
     return value
   }
-  async search(keyword: string, page: number) {
-    const raw = await this.json('search/subjects?limit=10&offset=' + (page - 1) * 10, {
-      keyword,
-      sort: 'match',
-      filter: { type: [4] },
-    })
+  async search(keyword: string, page: number, includeRestricted = false) {
+    if (includeRestricted && !this.accessToken)
+      throw reject('暂未开放受限条目搜索，请使用公开搜索或手动添加作品。', 503)
+    const raw = await this.json(
+      'search/subjects?limit=10&offset=' + (page - 1) * 10,
+      {
+        keyword,
+        sort: 'match',
+        filter: { type: [4], nsfw: includeRestricted ? null : false },
+      },
+      includeRestricted,
+    )
     const result = z.object({ total: z.number(), data: z.array(z.unknown()) }).safeParse(raw)
     if (!result.success) throw reject('Bangumi 搜索结果格式暂不支持，请稍后重试。', 502)
-    return { items: result.data.data.map(normalizeSubject), total: result.data.total, page }
+    return {
+      items: result.data.data.map(normalizeSubject).filter((item) => includeRestricted || !item.nsfw),
+      total: result.data.total,
+      page,
+    }
   }
-  async detail(id: number) {
-    const item = normalizeSubject(await this.json('subjects/' + id))
+  async detail(id: number, authorized = false) {
+    const item = normalizeSubject(await this.json('subjects/' + id, undefined, authorized))
+    if (item.nsfw && (!authorized || !this.accessToken))
+      throw reject('此条目需要登录并启用受限条目查询。', 404)
     if (item.id !== id) throw reject('Bangumi 条目编号不匹配。', 502)
     return item
   }

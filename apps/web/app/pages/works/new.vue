@@ -43,7 +43,11 @@ onMounted(async () => {
   const id = Number(route.query.bangumi)
   if (Number.isSafeInteger(id) && id > 0)
     try {
-      select({ subject: await $fetch<BangumiSubject>('/api/bangumi/subjects/' + id) })
+      select({
+        subject: await $fetch<BangumiSubject>(
+          '/api/bangumi/subjects/' + id + (route.query.restricted === '1' ? '?includeRestricted=true' : ''),
+        ),
+      })
     } catch (e) {
       error.value =
         (e as { data?: { message?: string } }).data?.message ||

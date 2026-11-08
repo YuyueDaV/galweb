@@ -78,9 +78,18 @@ export function catalogControllers(
       )
       return catalog.changeCover(user, id(value), input.coverAssetId, input.version)
     }
-    @Get('bangumi/subjects/:id') async subject(@Req() req: Request, @Param('id') value: string) {
+    @Get('bangumi/subjects/:id') async subject(
+      @Req() req: Request,
+      @Param('id') value: string,
+      @Query() query: unknown,
+    ) {
+      const input = parse(
+        z.object({ includeRestricted: z.enum(['true', 'false']).default('false') }).strict(),
+        query,
+      )
+      if (input.includeRestricted === 'true') await actor(req, false, false)
       await auth.limit('bangumi-public-detail', req.ip || 'unknown', 30, 60000)
-      return catalog.bangumi.detail(id(value))
+      return catalog.bangumi.detail(id(value), input.includeRestricted === 'true')
     }
     @Get('works/:id') work(@Param('id') value: string) {
       return catalog.detail(id(value))
@@ -105,12 +114,14 @@ export function catalogControllers(
           .object({
             q: z.string().trim().min(1).max(100),
             page: z.coerce.number().int().min(1).max(100).default(1),
+            includeRestricted: z.enum(['true', 'false']).default('false'),
           })
           .strict(),
         query,
       )
+      if (input.includeRestricted === 'true') await actor(req, false, false)
       await auth.limit('bangumi-public-search', req.ip || 'unknown', 30, 60000)
-      return catalog.bangumi.search(input.q, input.page)
+      return catalog.bangumi.search(input.q, input.page, input.includeRestricted === 'true')
     }
     @Post('admin/works/import') async importWork(@Req() req: Request, @Body() body: unknown) {
       const user = await actor(req, true)

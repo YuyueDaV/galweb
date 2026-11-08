@@ -29,6 +29,7 @@ const env = {
   AUTH_SECRET: 'isolated-browser-tests-only-'.repeat(4),
   MAIL_TRANSPORT: 'capture',
   SMTP_PASSWORD: '',
+  BANGUMI_ACCESS_TOKEN: '',
 }
 let connection
 let closing = false

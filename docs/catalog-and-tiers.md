@@ -63,7 +63,27 @@ pnpm --filter @chengzhixiang/api build
 
 后端仅请求固定的 `https://api.bgm.tv/v0`，不接收用户输入的上游地址。使用官方建议的可识别 User-Agent，游戏类型筛选为 `4`，单次请求超时 8 秒，相同查询缓存 5 分钟，并限制每个访问 IP 每分钟最多 30 次搜索。封面接受 `lain.bgm.tv` 的 HTTPS 封面及其 `/r/` 缩略图路径，加载失败时显示占位提示。
 
-目前接入的是公开搜索和条目资料，不包含 Bangumi OAuth、用户收藏同步，也没有配置访问令牌。部分条目受 Bangumi 的公开可见范围限制。服务器需要能访问 `api.bgm.tv:443` 和 `lain.bgm.tv:443`；上游超时、限流或不可用会显示错误，已导入作品仍可浏览。外部评分不是本站投票结果。
+默认使用公开搜索和条目资料；后端可选配置个人访问令牌，尚不包含 Bangumi OAuth 或用户收藏同步。部分条目受 Bangumi 的账号权限和可见范围限制。服务器需要能访问 `api.bgm.tv:443` 和 `lain.bgm.tv:443`；上游超时、限流或不可用会显示错误，已导入作品仍可浏览。外部评分不是本站投票结果。
+
+### 配置个人访问令牌
+
+本机编辑 `D:\works\galweb\apps\api\.env`；宝塔编辑 `/www/wwwroot/galweb/apps/api/.env`，填入：
+
+```dotenv
+BANGUMI_ACCESS_TOKEN=你的原始令牌
+```
+
+只填写原始令牌，不加 `Bearer`、空格或换行。保存后重启 API：本机停止并重新运行 `pnpm.cmd dev:api`，宝塔在 Node 项目中重启 `galweb-api`。首次更新代码时先执行 `pnpm --filter @chengzhixiang/api build`，再重启。该配置不需要数据库迁移。
+
+令牌仅由后端读取，不填写到 EdgeOne、`NUXT_PUBLIC_*` 或前端代码，也不要提交 `.env` 或在聊天中发送令牌。留空时继续提供公开搜索；撤销或替换令牌后需要重启 API。
+
+本站用户登录后可在 Bangumi 搜索中勾选“包含受限条目”，再执行搜索。游客和未勾选的查询不携带令牌；授权查询与公开查询的缓存分开。勾选时按官方搜索规范发送 `nsfw: null`，同时包含公开与账号有权访问的受限条目。实际可见范围仍取决于 Bangumi 的账号权限和令牌有效期；无法保证所有条目都能返回。
+
+已登录用户提交 Bangumi 作品、管理员导入或更新外部资料、个人 Tier 榜添加作品时，服务端可使用令牌取得条目详情。令牌不会转发到封面 CDN。导入后的资料沿用本站现有书库和榜单发布规则：添加到公共书库的资料会公开展示，搜索选项不等同于公共书库的内容隐藏设置。
+
+上游返回 401/403 时，本站返回 Bangumi 授权不可用提示，不会将其当作本站登录过期。检查令牌是否过期或被撤销、账号是否具有条目访问权限；不要通过关闭证书校验解决授权问题。自动测试使用假令牌与隔离环境，不验证个人真实令牌。
+
+参考 [Bangumi 官方授权说明](https://github.com/bangumi/api/blob/master/open-api/api.yml) 与[搜索接口规范](https://github.com/bangumi/server/blob/master/openapi/v0.yaml)。
 
 Bangumi 封面经同源 `/api/bangumi/cover?image=…` 获取，用户浏览器无需直连图片站。接口只接受固定 CDN 的 HTTPS 封面路径，禁止重定向，限制大小、像素、并发与超时，并重新编码为 WebP。服务器缓存位于 `UPLOAD_DIR/.cache/bangumi-covers`，默认有效期 7 天，最多保留 256 张；上游暂时失败时可返回已有旧缓存。EdgeOne 仅为成功的无 Cookie 封面响应开启一天公共缓存，其他 API 继续禁止公共缓存。
 

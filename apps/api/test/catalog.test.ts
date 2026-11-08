@@ -43,11 +43,12 @@ test(
       platform = new Platform(db),
       actors: Actor[] = []
     const password = 'Isolated catalog password 123!'
-    const client = new Bangumi(async (url) => {
+    const client = new Bangumi(async (url, options) => {
       const id = String(url).includes('/search/') ? 900031 : Number(String(url).split('/').at(-1))
       const item = {
         id,
         type: 4,
+        nsfw: new Headers(options?.headers).has('Authorization'),
         name: 'TEST GAME ' + id,
         name_cn: '资料测试作品 ' + id,
         summary: '仅供隔离测试的 Bangumi 返回数据。',
@@ -55,7 +56,7 @@ test(
         images: { large: 'https://lain.bgm.tv/pic/cover/l/test.jpg' },
       }
       return Response.json(String(url).includes('/search/') ? { total: 1, data: [item] } : item)
-    })
+    }, 'test-only-catalog-token')
     const catalog = new Catalog(db, platform, client)
     const auth = new Auth(db, config, new Mailer(config))
     let app: Awaited<ReturnType<typeof NestFactory.create>> | undefined
@@ -147,6 +148,8 @@ test(
       const base = await app.getUrl()
       assert.equal((await fetch(base + '/api/bangumi/search?q=CLANNAD')).status, 200)
       assert.equal((await fetch(base + '/api/bangumi/search?q=')).status, 422)
+      assert.equal((await fetch(base + '/api/bangumi/search?q=CLANNAD&includeRestricted=true')).status, 401)
+      assert.equal((await fetch(base + '/api/bangumi/subjects/13?includeRestricted=true')).status, 401)
       assert.equal((await fetch(base + '/api/admin/works')).status, 401)
       const adminName = (
         await db.rows<{ username: string }>('SELECT username FROM users WHERE id=?', [admin.id])
@@ -156,6 +159,19 @@ test(
       )[0]!.username
       const adminSession = await auth.login(adminName, password, 'catalog-admin'),
         memberSession = await auth.login(memberName, password, 'catalog-member')
+      const memberHeaders = { Cookie: 'catalog_test_session=' + memberSession.session }
+      const restrictedSearch = await fetch(base + '/api/bangumi/search?q=CLANNAD&includeRestricted=true', {
+        headers: memberHeaders,
+      })
+      assert.equal(restrictedSearch.status, 200)
+      assert.equal((await restrictedSearch.json()).items[0].nsfw, true)
+      const publicSearch = await fetch(base + '/api/bangumi/search?q=CLANNAD')
+      assert.equal((await publicSearch.json()).items[0].nsfw, false)
+      const restrictedDetail = await fetch(base + '/api/bangumi/subjects/13?includeRestricted=true', {
+        headers: memberHeaders,
+      })
+      assert.equal(restrictedDetail.status, 200)
+      assert.equal((await restrictedDetail.json()).nsfw, true)
       const request = (session: typeof adminSession, path: string, data: object, csrf = true) =>
         fetch(base + path, {
           method: 'PUT',

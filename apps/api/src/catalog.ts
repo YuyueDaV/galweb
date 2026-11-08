@@ -165,7 +165,7 @@ export class Catalog {
   }
   async contribute(actor: Actor, input: z.infer<typeof workContributionSchema>) {
     await this.platform.actor(actor.id)
-    const subject = input.subjectId ? await this.bangumi.detail(input.subjectId) : undefined
+    const subject = input.subjectId ? await this.bangumi.detail(input.subjectId, true) : undefined
     const rank = await this.write(
       actor,
       async (tx, current) => {
@@ -248,7 +248,7 @@ export class Catalog {
   }
   async import(actor: Actor, subjectId: number, existingWorkId?: number, version?: number) {
     staff(await this.platform.actor(actor.id))
-    const subject = await this.bangumi.detail(subjectId)
+    const subject = await this.bangumi.detail(subjectId, true)
     return this.write(actor, async (tx, current) => {
       const all = await this.works(tx),
         duplicate =
@@ -310,7 +310,7 @@ export class Catalog {
   }
   async importTierWork(actor: Actor, subjectId: number) {
     await this.platform.actor(actor.id)
-    const subject = await this.bangumi.detail(subjectId)
+    const subject = await this.bangumi.detail(subjectId, true)
     return this.write(
       actor,
       async (tx) => {

@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import type { Work } from '~/types/forum'
 import type { BangumiSubject } from '~/types/catalog'
-const props = defineProps<{ works: Work[]; selectable?: boolean; selecting?: boolean; personal?: boolean;selectionLabel?:string }>()
+const props = defineProps<{
+  works: Work[]
+  selectable?: boolean
+  selecting?: boolean
+  personal?: boolean
+  selectionLabel?: string
+}>()
 const emit = defineEmits<{
   imported: []
   selected: [payload: { subject: BangumiSubject; existingWorkId?: number }]
@@ -11,6 +17,7 @@ const query = ref(''),
   submitted = ref(''),
   page = ref(1),
   total = ref(0)
+const includeRestricted = ref(false)
 const results = ref<BangumiSubject[]>([]),
   loading = ref(false),
   busy = ref(0),
@@ -19,6 +26,23 @@ const results = ref<BangumiSubject[]>([]),
 const target = reactive<Record<number, number>>({})
 const manager = computed(() => ['admin', 'super_admin'].includes(auth.user.value?.role || ''))
 let version = 0
+function resetResults() {
+  ++version
+  results.value = []
+  submitted.value = ''
+  total.value = 0
+  loading.value = false
+  error.value = ''
+  success.value = ''
+}
+watch(includeRestricted, resetResults)
+watch(
+  () => auth.user.value?.id,
+  () => {
+    includeRestricted.value = false
+    resetResults()
+  },
+)
 function local(id: number) {
   return props.works.find((work) => work.bangumi?.id === id)
 }
@@ -35,7 +59,7 @@ async function search(next = 1) {
   results.value = []
   try {
     const response = await $fetch<{ items: BangumiSubject[]; total: number }>(
-      `/api/bangumi/search?q=${encodeURIComponent(keyword)}&page=${next}`,
+      `/api/bangumi/search?q=${encodeURIComponent(keyword)}&page=${next}${includeRestricted.value ? '&includeRestricted=true' : ''}`,
     )
     if (request !== version) return
     submitted.value = keyword
@@ -93,11 +117,15 @@ onBeforeUnmount(() => {
         placeholder="搜索中文名、日文名或英文名，例如 CLANNAD"
       /><button class="button primary" :disabled="loading">{{ loading ? '搜索中…' : '搜索 Bangumi' }}</button>
     </form>
+    <label v-if="auth.user.value" class="bangumi-visibility"
+      ><input v-model="includeRestricted" type="checkbox" />包含受限条目</label
+    >
     <p v-if="error" class="form-error" role="alert">{{ error }}</p>
     <p v-if="success" class="form-success" role="status">{{ success }}</p>
     <p v-if="loading" role="status">正在查找故事…</p>
     <p v-else-if="submitted && !results.length && !error" class="catalog-help">
-      没有找到匹配的游戏条目，试试原文名或其他版本名称。
+      没有找到匹配的游戏条目，试试原文名或其他版本名称；部分条目可能受 Bangumi
+      访问权限限制，也可手动添加作品。
     </p>
     <div class="bangumi-results">
       <article v-for="item in results" :key="item.id" class="bangumi-result">
@@ -110,7 +138,7 @@ onBeforeUnmount(() => {
           referrerpolicy="no-referrer"
         />
         <div>
-          <h3>{{ item.title }}</h3>
+          <h3>{{ item.title }} <small v-if="item.nsfw" class="bangumi-restricted">受限条目</small></h3>
           <p class="catalog-help">{{ item.originalTitle }}</p>
           <p class="catalog-help">
             {{ item.date || '发售日期待补充' }} ·
@@ -137,7 +165,12 @@ onBeforeUnmount(() => {
               {{ busy === item.id ? '收录中…' : '收录到书库' }}
             </button>
           </div>
-          <NuxtLink v-if="auth.user.value && !manager && !personal && !selectable && !local(item.id)" class="button secondary" :to="'/works/new?bangumi='+item.id">添加到书库</NuxtLink>
+          <NuxtLink
+            v-if="auth.user.value && !manager && !personal && !selectable && !local(item.id)"
+            class="button secondary"
+            :to="'/works/new?bangumi=' + item.id + (item.nsfw ? '&restricted=1' : '')"
+            >添加到书库</NuxtLink
+          >
           <button
             v-if="selectable"
             type="button"
@@ -145,7 +178,7 @@ onBeforeUnmount(() => {
             :disabled="selecting"
             @click="emit('selected', { subject: item, existingWorkId: target[item.id] })"
           >
-            {{ selectionLabel||'加入榜单作品池' }}
+            {{ selectionLabel || '加入榜单作品池' }}
           </button>
         </div>
       </article>
@@ -157,3 +190,29 @@ onBeforeUnmount(() => {
     </div>
   </section>
 </template>
+<style scoped>
+.bangumi-visibility {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1rem 0;
+  font-size: 0.75rem;
+  color: var(--subtle);
+}
+.bangumi-visibility input {
+  accent-color: var(--orange);
+  width: 1rem;
+  height: 1rem;
+}
+.bangumi-restricted {
+  display: inline-block;
+  font-family: var(--sans);
+  font-size: 0.6rem;
+  font-weight: 400;
+  color: var(--purple);
+  border: 1px solid var(--line);
+  border-radius: 0.25rem;
+  padding: 0.1rem 0.35rem;
+  vertical-align: middle;
+}
+</style>

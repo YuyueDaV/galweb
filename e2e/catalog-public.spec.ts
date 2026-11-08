@@ -66,6 +66,14 @@ test('普通用户添加书库、上传及更换封面、自动署名和重复�
   )
   await page.getByLabel('Bangumi 作品名称', { exact: true }).fill('搜索示例')
   await page.getByRole('button', { name: '搜索 Bangumi', exact: true }).click()
+  await expect(page.getByRole('button', { name: '使用这部作品资料', exact: true })).toBeVisible()
+  await page.getByLabel('包含受限条目', { exact: true }).check()
+  const authorizedSearch = page.waitForRequest(
+    (request) =>
+      request.url().includes('/api/bangumi/search?') && request.url().includes('includeRestricted=true'),
+  )
+  await page.getByRole('button', { name: '搜索 Bangumi', exact: true }).click()
+  await authorizedSearch
   await page.getByRole('button', { name: '使用这部作品资料', exact: true }).click()
   await expect(page.getByLabel('作品名称', { exact: true })).toHaveValue(subject.title)
   await expect(page.getByLabel('作品介绍', { exact: true })).toHaveValue(subject.summary)
