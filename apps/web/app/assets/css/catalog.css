@@ -75,9 +75,14 @@
   max-width: 100%;
   font-size: 0.65rem;
 }
-.catalog-actions a,
+.catalog-actions a:not(.button),
 .catalog-actions > button:not(.button) {
   color: var(--orange);
+}
+.catalog-actions > .button.secondary[aria-pressed='true'] {
+  background: var(--orange-soft);
+  border-color: var(--orange);
+  color: var(--ink);
 }
 .tier-board {
   display: grid;
