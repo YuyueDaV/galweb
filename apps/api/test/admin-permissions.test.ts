@@ -38,19 +38,18 @@ function fixture(current:Actor,target=actor('member'),ownerCount=1){
 }
 const changes=(writes:{sql:string}[])=>writes.filter(write=>!write.sql.includes('system_locks'))
 
-test('账号列表：管理员及超管可查看真实头像地址，普通成员不能查看',async()=>{
- for(const role of ['admin','super_admin']){
+test('账号列表：仅超管可查看账号与头像，普通管理员及成员被拒绝',async()=>{
+ for(const role of ['super_admin']){
   const user=actor(role),{platform,avatarId}=fixture(user)
   const accounts=await platform.accounts(user)
   assert.equal(accounts[0]!.avatarUrl,'/api/assets/'+avatarId)
   assert.equal(accounts[1]!.avatarUrl,null)
  }
- const member=actor('member')
- await assert.rejects(()=>fixture(member).platform.accounts(member),/管理员/)
+ for(const role of ['admin','member']){const user=actor(role);await assert.rejects(()=>fixture(user).platform.accounts(user),/超级管理员/)}
 })
 
-test('管理员可禁用及启用账号，同时撤销会话并写入审计日志',async()=>{
- const admin=actor('admin'),member=actor('member'),f=fixture(admin,member)
+test('超级管理员可禁用及启用账号，同时撤销会话并写入审计日志',async()=>{
+ const admin=actor('super_admin'),member=actor('member'),f=fixture(admin,member)
  await f.platform.updateAccount(admin,member.id,{status:'disabled'})
  assert.equal(f.users.get(member.id)!.status,'disabled')
  assert.equal(f.users.get(member.id)!.role,'member')
@@ -76,11 +75,21 @@ test('只有超级管理员可以分配角色',async()=>{
  assert.equal(f.users.get(target.id)!.role,'admin')
 })
 
-test('管理员仍不能禁用最后一名有效超级管理员',async()=>{
- const admin=actor('admin'),owner=actor('super_admin'),f=fixture(admin,owner,1)
- await assert.rejects(()=>f.platform.updateAccount(admin,owner.id,{status:'disabled'}),/至少保留/)
+test('超级管理员仍不能禁用最后一名有效超级管理员',async()=>{
+ const owner=actor('super_admin'),f=fixture(owner,owner,1)
+ await assert.rejects(()=>f.platform.updateAccount(owner,owner.id,{status:'disabled'}),/至少保留/)
  assert.equal(f.users.get(owner.id)!.status,'active')
  assert.deepEqual(changes(f.writes),[])
+})
+
+test('普通管理员不能启停任何账号；旧超管身份在降级后不能查询或修改账号',async()=>{
+ const admin=actor('admin'),target=actor('member'),f=fixture(admin,target)
+ for(const status of ['active','disabled'])await assert.rejects(()=>f.platform.updateAccount(admin,target.id,{status}),/超级管理员/)
+ assert.deepEqual(changes(f.writes),[])
+ const stale=actor('super_admin'),degraded=fixture({...stale,role:'admin'})
+ await assert.rejects(()=>degraded.platform.accounts(stale),/超级管理员/)
+ await assert.rejects(()=>degraded.platform.updateAccount(stale,stale.id,{role:'super_admin'}),/超级管理员/)
+ assert.deepEqual(changes(degraded.writes),[])
 })
 
 test('有其他有效超管时允许自行降级，并撤销自己的全部会话',async()=>{

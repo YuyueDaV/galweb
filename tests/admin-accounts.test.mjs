@@ -48,17 +48,15 @@ test('账号列表实际渲染：显示上传头像，未设置头像时回退�
  assert.match(html,/aria-label="保存有头像的成员的角色"/)
 })
 
-test('管理员可查看头像及启停账号，但没有角色编辑控件',async()=>{
+test('普通管理员不能看到账号列表、角色权限矩阵或启停控件',async()=>{
  const html=await renderAccounts('admin')
- assert.match(html,/src="\/api\/assets\/fixture-image"/)
- assert.match(html,/aria-label="禁用账号image-member"/)
- assert.match(html,/aria-label="启用账号text-member"/)
- assert.doesNotMatch(html,/<select|保存角色|aria-label="保存/)
+ assert.match(html,/这里需要超级管理员身份/)
+ assert.doesNotMatch(html,/fixture-image|image-member|text-member|<select|保存角色|禁用账号|启用账号|角色权限边界/)
 })
 
 test('普通成员直接访问账号权限页时不呈现账号列表或头像',async()=>{
  const html=await renderAccounts('member')
- assert.match(html,/这里需要管理员身份/)
+ assert.match(html,/这里需要超级管理员身份/)
  assert.doesNotMatch(html,/fixture-image|image-member|text-member|<select/)
 })
 

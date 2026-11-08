@@ -13,7 +13,7 @@ test('成员、管理员和超级管理员的权限边界', () => {
   assert.equal(hasAwardPermission('admin', 'campaign.manage'), true)
   assert.equal(hasAwardPermission('admin', 'nomination.review'), true)
   for (const permission of Object.keys(permissionLabels)) {
-    assert.equal(hasAwardPermission('admin', permission), permission !== 'account.manage')
+    assert.equal(hasAwardPermission('admin', permission), !permission.startsWith('account.'))
     assert.equal(hasAwardPermission('super_admin', permission), true)
     assert.equal(hasAwardPermission('member', permission), ['nomination.submit', 'ballot.submit'].includes(permission))
   }

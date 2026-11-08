@@ -156,6 +156,39 @@ test('图片去重、隐藏恢复、永久删除及旧后端提示，超管降�
   await page.getByRole('button', { name: '保存browser_owner的角色', exact: true }).click()
   await expect(dialog).toBeVisible()
   expect((await page.request.get('/api/auth/me')).status()).toBe(401)
+  // Logging back in after self-demotion must hide every account-management entry
+  // and block direct page/API access, while ordinary content management remains.
+  await dialog.getByLabel('用户名', { exact: true }).fill('browser_owner')
+  await dialog.getByLabel('密码', { exact: true }).fill(password)
+  await dialog.getByRole('button', { name: '登录', exact: true }).last().click()
+  await expect(dialog).not.toBeVisible()
+  await expect(page.getByRole('heading', { name: '这里需要超级管理员身份。', exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: '账号权限', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('combobox')).toHaveCount(0)
+  expect((await page.request.get('/api/admin/users')).status()).toBe(403)
+  const ordinary = await (await page.request.get('/api/auth/me')).json()
+  const ordinaryCsrf = await (
+    await page.request.post('/api/auth/csrf', { headers: { Origin: origin }, data: {} })
+  ).json()
+  for (const patch of [{ role: 'super_admin' }, { status: 'disabled' }]) {
+    expect(
+      (
+        await page.request.patch('/api/admin/users/' + ordinary.user.id, {
+          headers: { Origin: origin, 'X-CSRF-Token': ordinaryCsrf.csrfToken },
+          data: patch,
+        })
+      ).status(),
+    ).toBe(403)
+  }
+  await page.goto('/admin')
+  await expect(page.getByRole('link', { name: '账号权限', exact: true })).toHaveCount(0)
+  expect((await page.request.get('/api/admin/works')).status()).toBe(200)
+  await page.request.post('/api/auth/logout', {
+    headers: { Origin: origin, 'X-CSRF-Token': ordinaryCsrf.csrfToken },
+    data: {},
+  })
+  await page.goto('/admin/accounts')
+  await page.getByRole('button', { name: '登录账号', exact: true }).click()
   await dialog.getByLabel('用户名', { exact: true }).fill('browser_owner_other')
   await dialog.getByLabel('密码', { exact: true }).fill(password)
   await dialog.getByRole('button', { name: '登录', exact: true }).last().click()

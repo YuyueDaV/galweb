@@ -13,7 +13,7 @@ export class Platform {
  async actor(id:string,tx?:PoolConnection){const user=(await this.db.rows<Actor>('SELECT id,nickname,role,status FROM users WHERE id=? FOR UPDATE',[id],tx))[0];if(!user||user.status!=='active')throw reject('账号不可用。',403);return user}
  async audit(actor:Actor,action:string,campaignId:string|null=null,tx?:PoolConnection){await this.db.execute('INSERT INTO audit_logs(id,actor_id,actor,campaign_id,action,created_at) VALUES (?,?,?,?,?,?)',[randomUUID(),actor.id,actor.nickname,campaignId,action,Date.now()],tx)}
  async accounts(actor:Actor){
-  staff(actor)
+  owner(await this.actor(actor.id))
   const [owners]=await this.db.rows<{n:number}>("SELECT COUNT(*) n FROM users WHERE role='super_admin' AND status='active'")
   const rows=await this.db.rows<{id:string,username:string|null,name:string,role:string,status:string,avatarAssetId:string|null}>("SELECT u.id,u.username,u.nickname AS name,u.role,u.status,a.id AS avatarAssetId FROM users u LEFT JOIN assets a ON a.id=u.avatar_asset_id AND a.user_id=u.id AND a.status='active' ORDER BY u.created_at LIMIT 500")
   return rows.map(row=>({...row,avatarUrl:row.avatarAssetId?'/api/assets/'+row.avatarAssetId:null,isLastSuperAdmin:row.role==='super_admin'&&row.status==='active'&&Number(owners?.n)<=1}))
@@ -21,8 +21,7 @@ export class Platform {
  async updateAccount(actor:Actor,id:string,patch:{role?:string,status?:string}){return this.db.transaction(async tx=>{
   await this.lock('account-roles',tx)
   const current=await this.actor(actor.id,tx)
-  staff(current)
-  if(patch.role!==undefined)owner(current)
+  owner(current)
   const target=(await this.db.rows<Actor>('SELECT id,nickname,role,status FROM users WHERE id=? FOR UPDATE',[id],tx))[0];if(!target)throw reject('账号不存在。',404)
   if(target.status==='deleted')throw reject('已注销的账号不能恢复或调整权限。')
   const role=patch.role||target.role,status=patch.status||target.status

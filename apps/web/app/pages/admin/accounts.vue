@@ -81,8 +81,8 @@ onBeforeUnmount(() => { ++requestVersion })
   <div v-else-if="!allowed" class="award-access-denied">
     <AppIcon name="users" :size="34" />
     <p class="eyebrow">ACCOUNT PERMISSIONS</p>
-    <h1>这里需要管理员身份。</h1>
-    <p>管理员可查看账号及管理启停状态，角色分配由超级管理员负责。</p>
+    <h1>这里需要超级管理员身份。</h1>
+    <p>账号查询、启停与角色分配仅限超级管理员。</p>
     <button v-if="!auth.user.value" class="button primary" @click="loginOpen = true">登录账号<AppIcon name="login" :size="17" /></button>
     <NuxtLink :to="identity.can('campaign.manage') ? '/admin/awards' : '/'" class="text-link">{{ identity.can('campaign.manage') ? '前往活动管理' : '回到社区首页' }}<AppIcon name="arrowRight" :size="15" /></NuxtLink>
   </div>
@@ -99,7 +99,7 @@ onBeforeUnmount(() => { ++requestVersion })
     <p v-if="error" class="award-admin-error" role="alert"><AppIcon name="info" :size="16" />{{ error }}</p>
 
     <section class="award-admin-card" aria-labelledby="account-list-heading" :aria-busy="loading">
-      <div class="award-admin-card-heading"><div><h2 id="account-list-heading">账号与角色</h2><p>管理员可启停账号，只有超级管理员可以分配角色。</p></div><span class="award-admin-role">角色分配仅限超级管理员</span></div>
+      <div class="award-admin-card-heading"><div><h2 id="account-list-heading">账号与角色</h2><p>超级管理员可查看账号、管理启停状态及分配角色。</p></div><span class="award-admin-role">角色分配仅限超级管理员</span></div>
       <div v-if="loading" class="empty-state" role="status">正在加载账号…</div>
       <div v-else-if="!accounts.length" class="empty-state"><p>{{ error ? '账号列表加载失败，请点击“刷新账号”重试。' : '暂无账号。' }}</p></div>
       <div v-else class="award-account-list">
@@ -124,7 +124,7 @@ onBeforeUnmount(() => { ++requestVersion })
     <section class="award-admin-card" aria-labelledby="permission-matrix-heading">
       <div class="award-admin-card-heading"><div><h2 id="permission-matrix-heading">角色权限边界</h2><p>普通成员、管理员与超级管理员的职责。</p></div></div>
       <div class="award-permission-table-wrap"><table class="award-permission-table" aria-labelledby="permission-matrix-heading"><thead><tr><th scope="col">权限</th><th v-for="role in matrixRoles" :key="role" scope="col">{{ roleNames[role] }}</th></tr></thead><tbody><tr v-for="(label, permission) in permissionLabels" :key="permission"><th scope="row">{{ label }}</th><td v-for="role in matrixRoles" :key="role"><span v-if="hasAwardPermission(role, permission)" aria-label="允许"><AppIcon name="check" :size="17" /></span><span v-else aria-label="不允许">—</span></td></tr></tbody></table></div>
-      <p class="award-small-note">管理员拥有除分配角色之外的全部管理权限，所有变更均记录操作日志。</p>
+      <p class="award-small-note">管理员负责社区内容与活动管理；账号管理仅限超级管理员，所有变更均记录操作日志。</p>
     </section>
   </div>
 </template>

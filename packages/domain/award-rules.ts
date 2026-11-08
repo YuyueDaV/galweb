@@ -39,8 +39,6 @@ const adminPermissions: AwardPermission[] = [
   'nomination.review',
   'campaign.create',
   'campaign.archive',
-  'account.view',
-  'account.status',
 ]
 export function hasAwardPermission(role: AccountRole, permission: AwardPermission) {
   return (
