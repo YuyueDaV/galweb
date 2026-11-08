@@ -10,7 +10,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
   imported: []
-  selected: [payload: { subject: BangumiSubject; existingWorkId?: number }]
+  selected: [payload: { subject: BangumiSubject }]
 }>()
 const auth = useAuth()
 const query = ref(''),
@@ -23,7 +23,6 @@ const results = ref<BangumiSubject[]>([]),
   busy = ref(0),
   error = ref(''),
   success = ref('')
-const target = reactive<Record<number, number>>({})
 const manager = computed(() => ['admin', 'super_admin'].includes(auth.user.value?.role || ''))
 let version = 0
 function resetResults() {
@@ -79,11 +78,9 @@ async function collect(item: BangumiSubject) {
   busy.value = item.id
   error.value = ''
   success.value = ''
-  const existing = props.works.find((work) => work.rank === target[item.id])
   try {
     const result = await auth.request<{ work: Work; reused: boolean }>('/admin/works/import', {
       subjectId: item.id,
-      ...(existing ? { existingWorkId: existing.rank, version: existing.version || 0 } : {}),
     })
     success.value = result.reused
       ? `《${result.work.title}》已在书库中。`
@@ -151,17 +148,8 @@ onBeforeUnmount(() => {
               >已收录 · 查看作品</NuxtLink
             >
           </div>
-          <div v-if="manager && !personal && !local(item.id)" class="catalog-actions">
-            <select v-model.number="target[item.id]" :aria-label="item.title + '收录方式'">
-              <option :value="undefined">作为新作品收录</option>
-              <option
-                v-for="work in works.filter((work) => !work.bangumi)"
-                :key="work.rank"
-                :value="work.rank"
-              >
-                关联已有：{{ work.title }}
-              </option></select
-            ><button v-if="!selectable" class="button secondary" :disabled="!!busy" @click="collect(item)">
+          <div v-if="manager && !personal && !selectable && !local(item.id)" class="catalog-actions">
+            <button class="button secondary" :disabled="!!busy" @click="collect(item)">
               {{ busy === item.id ? '收录中…' : '收录到书库' }}
             </button>
           </div>
@@ -176,7 +164,7 @@ onBeforeUnmount(() => {
             type="button"
             class="button secondary"
             :disabled="selecting"
-            @click="emit('selected', { subject: item, existingWorkId: target[item.id] })"
+            @click="emit('selected', { subject: item })"
           >
             {{ selectionLabel || '加入榜单作品池' }}
           </button>

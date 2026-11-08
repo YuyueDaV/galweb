@@ -135,20 +135,16 @@ function drop(row: TierLevel) {
   if (dragged.value !== null) moveWork(dragged.value, row.id)
   dragged.value = null
 }
-async function addBangumi(payload: { subject: BangumiSubject; existingWorkId?: number }) {
+async function addBangumi(payload: { subject: BangumiSubject }) {
   if (busy.value || !form.value) return
   busy.value = true
   error.value = ''
   success.value = ''
   try {
-    const existing = works.value.find((work) => work.rank === payload.existingWorkId)
     const imported = await auth.request<{ work: Work }>(
       props.personal ? '/my/tier-works/import' : '/admin/works/import',
       {
         subjectId: payload.subject.id,
-        ...(!props.personal && existing
-          ? { existingWorkId: existing.rank, version: existing.version || 0 }
-          : {}),
       },
     )
     works.value = [...new Map([...works.value, imported.work].map((work) => [work.rank, work])).values()]
@@ -293,7 +289,10 @@ useSeoMeta({
                   <WorkCover
                     :rank="id"
                     :src="
-                      byId.get(id)?.coverUrl || (id > 12 ? byId.get(id)?.bangumi?.coverUrl || '/images/work-placeholder.svg' : undefined)
+                      byId.get(id)?.coverUrl ||
+                      (id > 12
+                        ? byId.get(id)?.bangumi?.coverUrl || '/images/work-placeholder.svg'
+                        : undefined)
                     "
                     variant="cover"
                     :alt="(byId.get(id)?.title || '作品') + '封面'"
