@@ -61,7 +61,7 @@ function resetFeed() { query.value = ''; category.value = '全部' }
         <nav class="top-nav" aria-label="主导航">
           <NuxtLink to="/" :class="{ active: activeSection === 'home' }" @click="resetFeed">社区首页</NuxtLink>
           <NuxtLink to="/works" :class="{ active: activeSection === 'works' || activeSection === 'tiers' }">作品书架</NuxtLink>
-          <NuxtLink to="/awards" :class="{ active: activeSection === 'ranking' }">十二橙器 <span class="tiny-orange">✳</span></NuxtLink>
+          <NuxtLink to="/awards" :class="{ active: activeSection === 'ranking' }">十二橙器 <span class="tiny-orange"><DecorativeSpark /></span></NuxtLink>
         </nav>
         <div class="header-actions">
           <form class="header-search" :class="{ 'search-open': searchExpanded }" role="search" @submit.prevent="search"><button type="button" class="search-trigger" aria-label="打开搜索" @click="openSearch"><AppIcon name="search" :size="16" /></button><input ref="searchInput" v-model="query" aria-label="搜索帖子和作品" placeholder="寻找故事，也寻找同好" @keydown.esc="searchExpanded = false" /><kbd>↵</kbd><button v-if="searchExpanded" type="button" class="search-close" aria-label="关闭搜索" @click="searchExpanded = false"><AppIcon name="close" :size="14" /></button></form>
@@ -100,7 +100,7 @@ function resetFeed() { query.value = ''; category.value = '全部' }
           <NuxtLink to="/admin/works" class="sidebar-link" :class="{ selected: route.path === '/admin/works' }"><AppIcon name="library" /><span>书库管理</span></NuxtLink><NuxtLink to="/admin/tiers" class="sidebar-link" :class="{ selected: route.path === '/admin/tiers' }"><AppIcon name="star" /><span>共同 Tier 榜设置</span></NuxtLink><NuxtLink v-if="identity.can('account.view')" to="/admin/accounts" class="sidebar-link" :class="{ selected: route.path === '/admin/accounts' }"><AppIcon name="users" /><span>账号权限</span></NuxtLink>
         </div>
         <NuxtLink to="/community" class="sidebar-link"><AppIcon name="calendar" /><span>社团动态与相册</span></NuxtLink><div class="sidebar-bottom">
-          <div class="sidebar-flower" aria-hidden="true">✳</div>
+          <div class="sidebar-flower" aria-hidden="true"><DecorativeSpark /></div>
           <p>因为喜欢，<br>所以在这里相遇。</p>
           <NuxtLink to="/about">关于澄之响 <AppIcon name="arrowUpRight" :size="14" /></NuxtLink>
           <span class="preview-label">澄之响 · 同好社区</span>
@@ -110,7 +110,7 @@ function resetFeed() { query.value = ''; category.value = '全部' }
       <main id="main-content" class="page-content"><NuxtPage /></main>
     </div>
 
-    <footer class="site-footer shell"><span><span class="footer-mark">✳</span> 澄之响 <span class="footer-separator">/</span> 南京工程学院视觉小说同好会</span><span><NuxtLink to="/about#join-club" class="footer-club-link">加入 QQ 群<AppIcon name="arrowUpRight" :size="12" /></NuxtLink>故事有终章，热爱有回响。<span class="footer-year">© {{ new Date().getFullYear() }}</span></span></footer>
+    <footer class="site-footer shell"><span><span class="footer-mark"><DecorativeSpark /></span> 澄之响 <span class="footer-separator">/</span> 南京工程学院视觉小说同好会</span><span><NuxtLink to="/about#join-club" class="footer-club-link">加入 QQ 群<AppIcon name="arrowUpRight" :size="12" /></NuxtLink>故事有终章，热爱有回响。<span class="footer-year">© {{ new Date().getFullYear() }}</span></span></footer>
     <ForumDialogs />
     <Transition name="toast"><div v-if="toast" role="status" class="toast-message"><AppIcon name="check" :size="18" />{{ toast }}</div></Transition>
   </div>
