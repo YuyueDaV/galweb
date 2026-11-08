@@ -49,7 +49,7 @@ useSeoMeta({ title: '消息通知 · 澄之响', robots: 'noindex,nofollow' })
 </script>
 
 <template>
-  <div class="experience-page">
+  <div class="experience-page notification-page">
     <header class="experience-heading">
       <div>
         <p class="eyebrow">STORIES ANSWERED</p>
@@ -67,31 +67,50 @@ useSeoMeta({ title: '消息通知 · 澄之响', robots: 'noindex,nofollow' })
     </header>
     <p v-if="error" class="form-error" role="alert">{{ error }}</p>
     <template v-if="auth.user.value">
-      <div v-if="!inbox.items.value.length" class="empty-state">暂时没有新的通知。</div>
-      <article
-        v-for="item in inbox.items.value"
-        :key="item.id"
-        class="inbox-item"
-        :class="{ unread: !item.readAt }"
-      >
-        <span class="category-dot" :class="item.readAt ? 'green' : 'orange'"></span>
-        <div class="notification-copy">
-          <small v-if="item.kind === 'site' || item.kind === 'activity'" class="notification-kind">{{
-            item.kind === 'site' ? '站点通知' : '活动通知'
-          }}</small>
-          <button @click="open(item.id, item.link)">
-            <span>{{ item.title }}</span
-            ><small v-if="!item.content && item.excerpt" class="notification-excerpt">{{
-              item.excerpt
-            }}</small>
-          </button>
-          <p v-if="item.content" class="notification-body">{{ item.content }}</p>
-          <button v-if="item.content" class="text-link notification-read" @click="open(item.id, item.link)">
-            {{ item.link ? '查看详情 ↗' : item.readAt ? '已读' : '标为已读' }}
-          </button>
-        </div>
-        <time>{{ new Date(Number(item.createdAt)).toLocaleString('zh-CN') }}</time>
-      </article>
+      <div v-if="!inbox.items.value.length" class="empty-state notification-empty">暂时没有新的通知。</div>
+      <div v-else class="notification-list">
+        <article
+          v-for="item in inbox.items.value"
+          :key="item.id"
+          class="inbox-item"
+          :class="{ unread: !item.readAt }"
+        >
+          <header class="notification-meta">
+            <span class="notification-kind"
+              ><span class="category-dot" :class="item.readAt ? 'green' : 'orange'" aria-hidden="true"></span
+              >{{
+                { site: '站点通知', activity: '活动通知', reply: '回复消息', nomination: '提名审核' }[
+                  item.kind
+                ] || '消息通知'
+              }}</span
+            >
+            <span v-if="!item.readAt" class="notification-unread">未读</span>
+          </header>
+          <div class="notification-copy">
+            <button type="button" class="notification-title" @click="open(item.id, item.link)">
+              <span>{{ item.title }}</span
+              ><small v-if="!item.content && item.excerpt" class="notification-excerpt">{{
+                item.excerpt
+              }}</small>
+            </button>
+            <p v-if="item.content" class="notification-body">{{ item.content }}</p>
+          </div>
+          <footer class="notification-footer">
+            <time :datetime="new Date(Number(item.createdAt)).toISOString()">{{
+              new Date(Number(item.createdAt)).toLocaleString('zh-CN')
+            }}</time>
+            <button
+              v-if="item.content"
+              type="button"
+              class="notification-read"
+              :disabled="!!item.readAt && !item.link"
+              @click="open(item.id, item.link)"
+            >
+              {{ item.link ? '查看详情 ↗' : item.readAt ? '已读' : '标为已读' }}
+            </button>
+          </footer>
+        </article>
+      </div>
       <div class="page-controls">
         <button :disabled="page === 1" @click="page--">上一页</button><span>{{ page }}</span
         ><button :disabled="page * 20 >= inbox.total.value" @click="page++">下一页</button>
@@ -105,15 +124,49 @@ useSeoMeta({ title: '消息通知 · 澄之响', robots: 'noindex,nofollow' })
 </template>
 
 <style scoped>
+.notification-page {
+  max-width: 64rem;
+}
+.notification-list {
+  display: grid;
+  gap: 0.9rem;
+  margin: 1.5rem 0;
+}
+.inbox-item,
+.notification-empty {
+  min-width: 0;
+  display: block;
+  padding: 1.25rem 1.4rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  box-shadow: var(--shadow);
+}
+.inbox-item.unread {
+  border-color: color-mix(in srgb, var(--orange) 35%, var(--line));
+  border-left: 3px solid var(--orange);
+  padding-left: calc(1.4rem - 2px);
+}
+.notification-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
 .notification-copy {
-  flex: 1;
   min-width: 0;
 }
-.notification-copy > button {
+.inbox-item .notification-title {
   display: block;
   width: 100%;
   text-align: left;
   overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.7;
 }
 .notification-excerpt {
   display: block;
@@ -126,10 +179,18 @@ useSeoMeta({ title: '消息通知 · 澄之响', robots: 'noindex,nofollow' })
   margin-top: 0.3rem;
 }
 .notification-kind {
-  display: block;
-  color: var(--orange);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--subtle);
   font-size: 0.65rem;
-  margin-bottom: 0.45rem;
+}
+.notification-unread {
+  border-radius: var(--radius-control);
+  background: var(--orange-soft);
+  color: var(--orange);
+  padding: 0.15rem 0.55rem;
+  font-size: 0.6rem;
 }
 .notification-body {
   white-space: pre-wrap;
@@ -137,29 +198,61 @@ useSeoMeta({ title: '消息通知 · 澄之响', robots: 'noindex,nofollow' })
   color: var(--subtle);
   font-size: 0.8rem;
   line-height: 1.8;
-  margin: 0.65rem 0;
+  margin: 0.65rem 0 0;
 }
-.notification-copy > .notification-read {
+.notification-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--line);
+}
+.inbox-item .notification-read {
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  padding: 0.35rem 0.8rem;
+  min-height: 2.2rem;
   font-size: 0.7rem;
   font-weight: 400;
   color: var(--orange);
+  background: var(--orange-soft);
 }
-.inbox-item {
-  align-items: flex-start;
+.inbox-item .notification-read:disabled {
+  color: var(--muted);
+  background: transparent;
 }
-.inbox-item .category-dot {
-  margin-top: 0.5rem;
+.inbox-item .notification-footer time {
+  width: auto;
+  padding: 0;
+  margin: 0;
+  font-size: 0.65rem;
+  color: var(--subtle);
 }
-.inbox-item time {
-  flex-shrink: 0;
+.notification-empty {
+  margin: 1.5rem 0;
 }
 @media (max-width: 600px) {
   .inbox-item {
-    flex-wrap: wrap;
+    padding: 1rem;
   }
-  .inbox-item time {
-    margin-left: 1.4rem;
-    width: 100%;
+  .inbox-item.unread {
+    padding-left: calc(1rem - 2px);
+  }
+  .inbox-item .notification-title {
+    font-size: 0.9rem;
+  }
+  .inbox-item .notification-footer time {
+    font-size: 0.6rem;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .inbox-item,
+  .notification-empty {
+    background: var(--surface);
   }
 }
 </style>
