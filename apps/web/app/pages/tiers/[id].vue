@@ -3,7 +3,11 @@ import type { TierList } from '~/types/catalog'
 import type { Work } from '~/types/forum'
 const route = useRoute(),
   api = useRequestFetch()
-const { data: list, error } = await useAsyncData(
+const {
+  data: list,
+  error,
+  refresh,
+} = await useAsyncData(
   () => 'public-tier:' + route.params.id,
   () => api<TierList>('/api/tier-lists/' + encodeURIComponent(String(route.params.id))),
 )
@@ -20,14 +24,18 @@ useSeoMeta({ title: () => (list.value?.title || 'Tier 榜单') + ' · 澄之响'
     <NuxtLink to="/tiers" class="back-link">← 全部 Tier 榜单</NuxtLink>
     <header class="experience-heading">
       <div>
-        <p class="eyebrow">A SHARED RECOMMENDATION</p>
+        <p class="eyebrow">A TIER LIST WE BUILD TOGETHER</p>
         <h1>{{ list.title }}</h1>
         <p>{{ list.description }}</p>
+        <NuxtLink v-if="list.author" :to="'/user/' + list.author.id" class="tier-author"
+          ><UserAvatar :src="list.author.avatarUrl" :name="list.author.name" />{{
+            list.author.name
+          }}的个人榜单</NuxtLink
+        >
       </div>
     </header>
-    <TierBoard :list="list" :works="works || []" />
-    <p class="page-footnote">
-      同好会管理员整理发布。作品封面及外部资料归相应权利人所有，Bangumi 评分与本榜分层独立。
-    </p>
+    <TierBoard v-if="list.mode === 'personal'" :list="list" :works="list.works || works || []" />
+    <TierVotingPanel v-else :list="list" :works="list.works || works || []" @updated="refresh()" />
+    <p class="page-footnote">作品封面及外部资料归相应权利人所有。Bangumi 评分与本站分层人数统计独立。</p>
   </div>
 </template>

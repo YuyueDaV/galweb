@@ -84,6 +84,119 @@
   gap: 0.5rem;
   margin: 1rem 0;
 }
+.tier-author {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-block: 0.7rem;
+  font-size: 0.75rem;
+  color: var(--subtle);
+}
+.tier-author .user-avatar {
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.tier-vote-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.tier-vote-summary,
+.tier-ballot-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-block: 1rem;
+}
+.tier-vote-summary h2 {
+  font-family: var(--serif);
+  font-size: 1.4rem;
+  margin-top: 0.4rem;
+}
+.tier-vote-summary p,
+.tier-ballot-actions p {
+  font-size: 0.8rem;
+}
+.tier-vote-summary strong {
+  color: var(--orange);
+  font-size: 1.3rem;
+}
+.tier-vote-work {
+  display: flex;
+  gap: 1rem;
+  align-items: start;
+  margin-bottom: 1rem;
+}
+.tier-vote-work > a {
+  width: 4.5rem;
+  flex-shrink: 0;
+}
+.tier-vote-work img,
+.tier-vote-work .image-fallback {
+  width: 4.5rem;
+  height: 6rem;
+  object-fit: cover;
+  border-radius: 0.35rem;
+}
+.tier-vote-work h3 {
+  font-family: var(--serif);
+  font-size: 1rem;
+  line-height: 1.7;
+}
+.tier-vote-work .text-link {
+  font-size: 0.65rem;
+}
+.tier-vote-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(4.5rem, 1fr));
+  gap: 0.5rem;
+}
+.tier-vote-options button {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.75rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  font-size: 0.7rem;
+  background: var(--bg);
+}
+.tier-vote-options button > span:first-child {
+  position: relative;
+  z-index: 1;
+  padding: 0.15rem 0.3rem;
+  border-radius: 0.2rem;
+  background: var(--tier-color);
+  color: var(--tier-ink);
+  overflow-wrap: anywhere;
+}
+.tier-vote-options strong {
+  font-size: 0.625rem;
+  font-weight: 400;
+  position: relative;
+  z-index: 1;
+}
+.tier-vote-options button[aria-pressed='true'] {
+  outline: 2px solid var(--orange);
+  outline-offset: 1px;
+}
+.tier-vote-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 0.2rem;
+  background: var(--tier-color);
+}
+@media (max-width: 800px) {
+  .tier-vote-grid {
+    grid-template-columns: 1fr;
+  }
+}
 .tier-level {
   display: grid;
   grid-template-columns: 7rem 1fr;

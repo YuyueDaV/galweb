@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import type { Work } from '~/types/forum'
 import type { BangumiSubject } from '~/types/catalog'
-const props = defineProps<{ works: Work[] }>()
-const emit = defineEmits<{ imported: [] }>()
+const props = defineProps<{ works: Work[]; selectable?: boolean; selecting?: boolean; personal?: boolean }>()
+const emit = defineEmits<{
+  imported: []
+  selected: [payload: { subject: BangumiSubject; existingWorkId?: number }]
+}>()
 const auth = useAuth()
 const query = ref(''),
   submitted = ref(''),
@@ -120,7 +123,7 @@ onBeforeUnmount(() => {
               >已收录 · 查看作品</NuxtLink
             >
           </div>
-          <div v-if="manager && !local(item.id)" class="catalog-actions">
+          <div v-if="manager && !personal && !local(item.id)" class="catalog-actions">
             <select v-model.number="target[item.id]" :aria-label="item.title + '收录方式'">
               <option :value="undefined">作为新作品收录</option>
               <option
@@ -130,10 +133,19 @@ onBeforeUnmount(() => {
               >
                 关联已有：{{ work.title }}
               </option></select
-            ><button class="button secondary" :disabled="!!busy" @click="collect(item)">
+            ><button v-if="!selectable" class="button secondary" :disabled="!!busy" @click="collect(item)">
               {{ busy === item.id ? '收录中…' : '收录到书库' }}
             </button>
           </div>
+          <button
+            v-if="selectable"
+            type="button"
+            class="button secondary"
+            :disabled="selecting"
+            @click="emit('selected', { subject: item, existingWorkId: target[item.id] })"
+          >
+            加入榜单作品池
+          </button>
         </div>
       </article>
     </div>

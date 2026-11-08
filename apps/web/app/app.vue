@@ -78,7 +78,7 @@ function resetFeed() { query.value = ''; category.value = '全部' }
           <p class="sidebar-caption">一起，把故事继续。</p>
           <NuxtLink to="/" class="sidebar-link" :class="{ selected: activeSection === 'home' && !route.query.saved }" @click="resetFeed"><AppIcon name="home" /><span>社区广场</span><span class="nav-dot"></span></NuxtLink>
           <NuxtLink to="/works" class="sidebar-link" :class="{ selected: activeSection === 'works' }"><AppIcon name="library" /><span>作品书架</span></NuxtLink>
-          <NuxtLink to="/tiers" class="sidebar-link" :class="{ selected: route.path.startsWith('/tiers') }"><AppIcon name="star" /><span>Tier 榜单</span></NuxtLink><NuxtLink to="/awards" class="sidebar-link" :class="{ selected: activeSection === 'ranking' }"><AppIcon name="trophy" /><span>十二橙器</span><span class="sidebar-new">活动</span></NuxtLink>
+          <NuxtLink to="/tiers" class="sidebar-link" :class="{ selected: route.path.startsWith('/tiers') && route.path !== '/tiers/mine' }"><AppIcon name="star" /><span>Tier 榜单</span></NuxtLink><NuxtLink to="/awards" class="sidebar-link" :class="{ selected: activeSection === 'ranking' }"><AppIcon name="trophy" /><span>十二橙器</span><span class="sidebar-new">活动</span></NuxtLink>
           <NuxtLink to="/?category=社团活动#discussions" class="sidebar-link" @click="query = ''"><AppIcon name="calendar" /><span>社团活动</span></NuxtLink>
         </div>
         <div class="sidebar-section">
@@ -90,14 +90,14 @@ function resetFeed() { query.value = ''; category.value = '全部' }
         </div>
         <div class="sidebar-section personal-section">
           <p class="sidebar-label">我的小角落</p>
-          <NuxtLink to="/library" class="sidebar-link"><AppIcon name="book" /><span>我的书单</span></NuxtLink><NuxtLink to="/account" class="sidebar-link" :class="{ selected: activeSection === 'account' }"><AppIcon name="users" /><span>用户中心</span></NuxtLink>
+          <NuxtLink to="/tiers/mine" class="sidebar-link" :class="{ selected: route.path === '/tiers/mine' }"><AppIcon name="star" /><span>我的个人 Tier 榜</span></NuxtLink><NuxtLink to="/library" class="sidebar-link"><AppIcon name="book" /><span>我的书单</span></NuxtLink><NuxtLink to="/account" class="sidebar-link" :class="{ selected: activeSection === 'account' }"><AppIcon name="users" /><span>用户中心</span></NuxtLink>
           <NuxtLink to="/?saved=1#discussions" class="sidebar-link" :class="{ selected: !!route.query.saved }" @click="resetFeed"><AppIcon name="bookmark" /><span>我的收藏</span><span v-if="bookmarks.length" class="bookmark-count">{{ bookmarks.length }}</span></NuxtLink>
           <button class="sidebar-link" @click="composerOpen = true"><AppIcon name="pen" /><span>写点什么</span></button>
         </div>
         <div v-if="identity.can('campaign.manage')" class="sidebar-section staff-nav">
           <p class="sidebar-label">{{ identity.roleNames[identity.role.value] }}</p><NuxtLink to="/admin" class="sidebar-link"><AppIcon name="filter" /><span>社区内容管理</span></NuxtLink>
           <NuxtLink to="/admin/awards" class="sidebar-link" :class="{ selected: route.path === '/admin/awards' }"><AppIcon name="filter" /><span>活动管理</span></NuxtLink>
-          <NuxtLink to="/admin/works" class="sidebar-link" :class="{ selected: route.path === '/admin/works' }"><AppIcon name="library" /><span>书库管理</span></NuxtLink><NuxtLink to="/admin/tiers" class="sidebar-link" :class="{ selected: route.path === '/admin/tiers' }"><AppIcon name="star" /><span>Tier 榜单管理</span></NuxtLink><NuxtLink v-if="identity.can('account.view')" to="/admin/accounts" class="sidebar-link" :class="{ selected: route.path === '/admin/accounts' }"><AppIcon name="users" /><span>账号权限</span></NuxtLink>
+          <NuxtLink to="/admin/works" class="sidebar-link" :class="{ selected: route.path === '/admin/works' }"><AppIcon name="library" /><span>书库管理</span></NuxtLink><NuxtLink to="/admin/tiers" class="sidebar-link" :class="{ selected: route.path === '/admin/tiers' }"><AppIcon name="star" /><span>共同 Tier 榜设置</span></NuxtLink><NuxtLink v-if="identity.can('account.view')" to="/admin/accounts" class="sidebar-link" :class="{ selected: route.path === '/admin/accounts' }"><AppIcon name="users" /><span>账号权限</span></NuxtLink>
         </div>
         <NuxtLink to="/community" class="sidebar-link"><AppIcon name="calendar" /><span>社团动态与相册</span></NuxtLink><div class="sidebar-bottom">
           <div class="sidebar-flower" aria-hidden="true">✳</div>

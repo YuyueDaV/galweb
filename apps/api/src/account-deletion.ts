@@ -17,6 +17,7 @@ export class AccountDeletion {
    // Lock order matches role changes, email verification, and award mutations.
    await this.platform.lock('account-roles',tx)
    await this.platform.lock(`account:${actor.id}`,tx)
+   await this.platform.lock('catalog',tx)
    await this.db.execute('INSERT IGNORE INTO auth_email_locks(email_key) VALUES (?)',[account.email_key],tx)
    await this.db.rows('SELECT email_key FROM auth_email_locks WHERE email_key=? FOR UPDATE',[account.email_key],tx)
    const campaigns=await this.db.rows<{campaign_id:string}>('SELECT campaign_id FROM award_nominations WHERE user_id=? UNION SELECT campaign_id FROM award_ballots WHERE user_id=?',[actor.id,actor.id],tx)
@@ -37,6 +38,9 @@ export class AccountDeletion {
    await this.db.execute('DELETE FROM notifications WHERE user_id=?',[actor.id],tx)
    await this.db.execute("UPDATE notifications n JOIN forum_replies r ON r.id=n.reply_id SET n.title='一位已注销的同好回复了你的讨论。' WHERE r.user_id=?",[actor.id],tx)
    await this.db.execute('DELETE FROM user_library WHERE user_id=?',[actor.id],tx)
+   await this.db.execute('DELETE FROM tier_ballots WHERE user_id=?',[actor.id],tx)
+   const personalTiers=await this.db.rows<{tier_id:string}>('SELECT tier_id FROM tier_owners WHERE user_id=?',[actor.id],tx)
+   for(const tier of personalTiers){await this.db.execute('DELETE FROM tier_ballots WHERE tier_id=?',[tier.tier_id],tx);await this.db.execute('DELETE FROM tier_owners WHERE tier_id=?',[tier.tier_id],tx);await this.db.execute('DELETE FROM tier_lists WHERE id=?',[tier.tier_id],tx)}
    await this.db.execute("UPDATE forum_posts SET data=JSON_SET(JSON_REMOVE(data,'$.uploadedImage'),'$.author',?,'$.avatar',?) WHERE user_id=?",[anonymous,'已',actor.id],tx)
    await this.db.execute("UPDATE assets SET status='hidden' WHERE user_id=?",[actor.id],tx)
    await this.db.execute('DELETE FROM award_ballots WHERE user_id=?',[actor.id],tx)

@@ -168,7 +168,7 @@ onBeforeUnmount(() => {
         <NuxtLink to="/admin/site" class="button secondary">站点配置</NuxtLink
         ><NuxtLink to="/admin/community" class="button secondary">动态与相册</NuxtLink
         ><NuxtLink to="/admin/awards" class="button secondary">十二橙器活动管理</NuxtLink
-        ><NuxtLink to="/admin/works" class="button secondary">书库管理</NuxtLink><NuxtLink to="/admin/tiers" class="button secondary">Tier 榜单管理</NuxtLink><NuxtLink v-if="auth.user.value?.role === 'super_admin'" to="/admin/accounts" class="button secondary">账号权限</NuxtLink>
+        ><NuxtLink to="/admin/works" class="button secondary">书库管理</NuxtLink><NuxtLink to="/admin/tiers" class="button secondary">共同 Tier 榜设置</NuxtLink><NuxtLink v-if="auth.user.value?.role === 'super_admin'" to="/admin/accounts" class="button secondary">账号权限</NuxtLink>
       </div>
       <section class="award-admin-card">
         <h2>帖子管理</h2>
