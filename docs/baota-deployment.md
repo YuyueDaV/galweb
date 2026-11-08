@@ -362,6 +362,46 @@ curl --noproxy '*' -i http://127.0.0.1:3200/api/admin/asset-management
 | 图片上传失败               | `UPLOAD_DIR` 是否存在、`www` 用户是否可写、Nginx 请求体限制           |
 | 保存或登录被拒绝           | `WEB_ORIGIN` 与实际主站 HTTPS 地址一致，无末尾斜线，使用主域名访问    |
 
+## 本次同步后的更新流程
+
+本次将本地开发成果同步到 `codex/edgeone-deployment` 和 `main`，包含 Bangumi 书库、个人及共同 Tier 榜、帖子话题、管理权限修正、毛玻璃与 iOS 图标修复，以及网站背景设置。服务器继续使用 `codex/edgeone-deployment`。相对于此前部署分支增加了 Tier 等数据表，需运行迁移；背景设置本身使用原有 JSON 字段。
+
+先查看状态。若有未提交改动或处于其他分支，先核对用途，不要强制覆盖：
+
+```bash
+cd /www/wwwroot/galweb
+git status --short
+git branch --show-current
+```
+
+确认分支正确且已跟踪文件没有未提交改动后，执行整段命令；任一步失败即停止。备份包含数据库和上传目录，路径由服务器现有配置决定：
+
+```bash
+set -e
+cd /www/wwwroot/galweb
+test "$(git branch --show-current)" = "codex/edgeone-deployment"
+git diff --quiet
+git diff --cached --quiet
+pnpm --filter @chengzhixiang/api backup
+git pull --ff-only origin codex/edgeone-deployment
+pnpm install --frozen-lockfile
+pnpm --filter @chengzhixiang/api db:check
+pnpm --filter @chengzhixiang/api build
+pnpm db:migrate
+git log -1 --oneline
+```
+
+随后在宝塔「网站 → Node 项目」重启 `galweb-api`。运行目录为 `/www/wwwroot/galweb/apps/api`，启动命令 `node dist/main.js`，运行用户 `www`。已有项目不另开第二个进程。
+
+```bash
+curl --noproxy '*' --fail-with-body --max-time 15 http://127.0.0.1:3200/api/health
+curl --noproxy '*' --fail-with-body --max-time 15 https://njitgal.cn/api/health
+```
+
+两次均应返回 `{"status":"ok"}`。前端在 EdgeOne 用部署分支最新提交重新部署；若已自动部署，核对提交号并确认成功。无需在宝塔构建前端，也无需为背景功能修改域名、Nginx 或环境变量。保留服务器 `.env` 和持久上传目录。
+
+上线后管理员进入「社区内容管理 → 站点配置 → 网站背景」，上传图片或选择纯色并保存。验证 Tier 榜、发帖话题、图片上传及背景切换。
+
 ## 后续更新与备份
 
 每次更新前备份数据库和上传目录，核对版本后再构建 API、按需迁移并在宝塔重启对应 Node 项目。不覆盖 `.env` 和持久目录。备份操作参考 [运行与部署](deployment.md#备份与恢复)，并定期复制到服务器以外的位置。

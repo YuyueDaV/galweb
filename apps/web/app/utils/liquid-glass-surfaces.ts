@@ -46,9 +46,9 @@ export function installLiquidGlass() {
   host.className = 'liquid-glass-definitions'
   host.setAttribute('aria-hidden', 'true')
   document.body.append(host)
-  const transparency = matchMedia('(prefers-reduced-transparency: reduce)')
-  const motion = matchMedia('(prefers-reduced-motion: reduce)')
-  const desktop = matchMedia('(min-width: 900px) and (pointer: fine)')
+  let transparency = matchMedia('(prefers-reduced-transparency: reduce)')
+  let motion = matchMedia('(prefers-reduced-motion: reduce)')
+  let desktop = matchMedia('(min-width: 900px) and (pointer: fine)')
   const urlSupported =
     /Chrome|Chromium|Edg|OPR/.test(navigator.userAgent) &&
     CSS.supports('backdrop-filter', 'url(#liquid-check)')
@@ -235,6 +235,23 @@ export function installLiquidGlass() {
     clearTimeout(scanTimer)
     scanTimer = setTimeout(scan, 60)
   }
+  function preferencesChanged() {
+    // Re-read current media values after viewport changes; a queued change event
+    // can arrive while another MediaQueryList still exposes its previous state.
+    transparency = matchMedia('(prefers-reduced-transparency: reduce)')
+    motion = matchMedia('(prefers-reduced-motion: reduce)')
+    desktop = matchMedia('(min-width: 900px) and (pointer: fine)')
+    for (const surface of surfaces.values()) {
+      const selectedMode = mode(surface)
+      if (selectedMode !== 'refracted') {
+        clearTimeout(surface.timer)
+        pending.delete(surface)
+        release(surface)
+        surface.element.dataset.liquidGlass = selectedMode
+      }
+    }
+    refresh()
+  }
   function refreshSurface(event: Event) {
     const surface = surfaces.get(event.target as HTMLElement)
     if (surface) enqueue(surface)
@@ -250,7 +267,8 @@ export function installLiquidGlass() {
     attributes: true,
     attributeFilter: ['class', 'open'],
   })
-  for (const query of [transparency, motion, desktop]) query.addEventListener('change', refresh)
+  const observedQueries = [transparency, motion, desktop]
+  for (const query of observedQueries) query.addEventListener('change', preferencesChanged)
   document.addEventListener('liquid-glass:refresh', refreshSurface)
   scan()
   return {
@@ -261,7 +279,7 @@ export function installLiquidGlass() {
       mutations.disconnect()
       resize.disconnect()
       intersection.disconnect()
-      for (const query of [transparency, motion, desktop]) query.removeEventListener('change', refresh)
+      for (const query of observedQueries) query.removeEventListener('change', preferencesChanged)
       document.removeEventListener('liquid-glass:refresh', refreshSurface)
       for (const surface of [...surfaces.values()]) remove(surface)
       pending.clear()

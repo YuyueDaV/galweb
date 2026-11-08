@@ -52,7 +52,7 @@ function resetFeed() { query.value = ''; category.value = '全部' }
 
 <template>
   <div class="site-wrap">
-    <div class="header-artwork" aria-hidden="true"><img src="/images/header-autumn.webp" alt="" width="1600" height="520" decoding="async" fetchpriority="low" /></div>
+    <SiteBackground />
     <a class="skip-link" href="#main-content">跳转到正文</a>
     <LiquidGlass as="header" class="site-header" :class="{ 'is-scrolled': headerScrolled }" :radius="30" :scale="24" :bevel-depth="12" :aberration="1.2" :tint="0.64" :frost="0.6">
       <div class="header-inner">

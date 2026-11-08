@@ -5,20 +5,38 @@ import {Platform,staff,reject,type Actor} from './platform'
 import {decode} from './forum'
 import type {PoolConnection} from 'mysql2/promise'
 import {topicsSchema} from './topic-schema'
+import {DEFAULT_SITE_BACKGROUND,normalizeSiteBackground} from './site-background'
 
 const text=(max:number)=>z.string().trim().max(max)
 const webUrl=z.string().url().max(500).refine(url=>/^https?:\/\//i.test(url),'链接必须使用 http 或 https。')
-export const settingsSchema=z.object({title:text(60).min(1),description:text(300),announcement:text(500),joinInfo:text(1000),contact:text(200),links:z.array(z.object({name:text(40).min(1),url:webUrl}).strict()).max(20),version:z.number().int().min(0)}).strict()
+export const backgroundSchema=z.object({mode:z.enum(['image','solid']),assetId:z.uuid().nullable(),color:z.string().regex(/^#[0-9a-f]{6}$/i,'请输入有效的六位十六进制颜色。'),darkColor:z.string().regex(/^#[0-9a-f]{6}$/i,'请输入有效的六位十六进制颜色。')}).strict().transform(normalizeSiteBackground)
+export const settingsSchema=z.object({title:text(60).min(1),description:text(300),announcement:text(500),joinInfo:text(1000),contact:text(200),background:backgroundSchema.optional(),links:z.array(z.object({name:text(40).min(1),url:webUrl}).strict()).max(20),version:z.number().int().min(0)}).strict()
 export const draftSchema=z.object({title:text(80),content:z.string().max(10000),category:z.enum(['作品讨论','阅读手记','同好闲聊','社团活动']),spoiler:z.boolean(),tags:topicsSchema.default([]),workId:z.number().int().positive().nullable(),assetIds:z.array(z.uuid()).max(12)}).strict()
 export const entrySchema=z.object({title:text(80).min(2),content:text(4000).min(1),date:z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(d=>!Number.isNaN(Date.parse(d))&&new Date(d).toISOString().slice(0,10)===d,'请输入有效日期。'),kind:z.enum(['moment','activity']),assetIds:z.array(z.uuid()).max(12),status:z.enum(['published','hidden']).default('published')}).strict()
 export const librarySchema=z.object({state:z.enum(['wish','reading','finished']),note:text(500),isPublic:z.boolean()}).strict()
-export const defaultSettings={title:'南京工程学院澄之响视觉小说同好会',description:'让读完后的心情，遇见另一个懂你的人。',announcement:'',joinInfo:'入社方式与活动安排待管理员公布。',contact:'',links:[],version:0}
+export const defaultSettings={title:'南京工程学院澄之响视觉小说同好会',description:'让读完后的心情，遇见另一个懂你的人。',announcement:'',joinInfo:'入社方式与活动安排待管理员公布。',contact:'',links:[],background:{...DEFAULT_SITE_BACKGROUND},version:0}
 export class Community {
  constructor(readonly db:Database,private platform:Platform){}
  private async write<T>(actor:Actor,admin:boolean,run:(tx:PoolConnection,current:Actor)=>Promise<T>){return this.db.transaction(async tx=>{await this.platform.lock(`account:${actor.id}`,tx);const current=await this.platform.actor(actor.id,tx);if(admin)staff(current);return run(tx,current)})}
  async assets(ids:string[],actor:Actor,tx:PoolConnection){for(const id of ids)if(!(await this.db.rows("SELECT id FROM assets WHERE id=? AND user_id=? AND status='active'",[id,actor.id],tx)).length)throw reject('配图不存在或不属于当前账号。',422)}
- async settings(){const row=(await this.db.rows<{data:unknown,version:number}>('SELECT data,version FROM site_settings WHERE id=1'))[0];return row?{...decode(row.data) as object,version:row.version}:defaultSettings}
- async saveSettings(actor:Actor,input:z.infer<typeof settingsSchema>){return this.write(actor,true,async(tx,current)=>{await this.platform.lock('site-settings',tx);const row=(await this.db.rows<{version:number}>('SELECT version FROM site_settings WHERE id=1 FOR UPDATE',[],tx))[0];if((row?.version||0)!==input.version)throw reject('站点配置已被修改，请刷新后重试。');await this.db.execute('INSERT INTO site_settings(id,data,version) VALUES (1,?,1) ON DUPLICATE KEY UPDATE data=VALUES(data),version=version+1',[JSON.stringify(input)],tx);await this.platform.audit(current,'更新站点配置',null,tx);return {...input,version:input.version+1}})}
+ async settings(){
+  const row=(await this.db.rows<{data:Record<string,unknown>|string,version:number}>('SELECT data,version FROM site_settings WHERE id=1'))[0]
+  const data=row?decode(row.data):{},background=normalizeSiteBackground(data.background)
+  if(background.assetId&&!(await this.db.rows("SELECT id FROM assets WHERE id=? AND status='active'",[background.assetId])).length)background.assetId=null
+  return {...defaultSettings,...data,background,version:row?.version||0}
+ }
+ async saveSettings(actor:Actor,input:z.infer<typeof settingsSchema>){return this.write(actor,true,async(tx,current)=>{
+  await this.platform.lock('site-settings',tx)
+  const row=(await this.db.rows<{data:Record<string,unknown>|string,version:number}>('SELECT data,version FROM site_settings WHERE id=1 FOR UPDATE',[],tx))[0]
+  if((row?.version||0)!==input.version)throw reject('站点配置已被修改，请刷新后重试。')
+  const previous=normalizeSiteBackground(row?decode(row.data).background:undefined),background=normalizeSiteBackground(input.background??previous)
+  if(input.background&&background.mode==='image'&&background.assetId){
+   if(!(await this.db.rows("SELECT id FROM assets WHERE id=? AND status='active' AND (user_id=? OR id=?) FOR UPDATE",[background.assetId,current.id,previous.assetId],tx)).length)throw reject('背景图片不可用，或不属于当前账号，请重新上传。',422)
+  }
+  const result={...input,background,version:input.version+1}
+  await this.db.execute('INSERT INTO site_settings(id,data,version) VALUES (1,?,1) ON DUPLICATE KEY UPDATE data=VALUES(data),version=version+1',[JSON.stringify(result)],tx)
+  await this.platform.audit(current,'更新站点配置',null,tx);return result
+ })}
  async draft(actor:Actor){return (await this.db.rows<{data:unknown,updated_at:number}>('SELECT data,updated_at FROM forum_drafts WHERE user_id=?',[actor.id])).map(r=>({data:decode(r.data),updatedAt:Number(r.updated_at)}))[0]||null}
  async saveDraft(actor:Actor,input:z.infer<typeof draftSchema>){return this.write(actor,false,async tx=>{await this.assets(input.assetIds,actor,tx);await this.db.execute('INSERT INTO forum_drafts(user_id,data,updated_at) VALUES (?,?,?) ON DUPLICATE KEY UPDATE data=VALUES(data),updated_at=VALUES(updated_at)',[actor.id,JSON.stringify(input),Date.now()],tx);return {message:'草稿已保存。'}})}
  async removeDraft(actor:Actor){return this.write(actor,false,async tx=>{await this.db.execute('DELETE FROM forum_drafts WHERE user_id=?',[actor.id],tx);return {message:'草稿已清除。'}})}

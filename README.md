@@ -63,6 +63,8 @@ pnpm.cmd build
 
 导航、卡片、弹窗与次按钮统一采用 Liquid Glass 视觉层，使用本地插画、半透明底色、边缘高光与按需 SVG 折射，支持浅色／深色模式和手机端磨砂降级。正文与表单保持清晰底色，减少透明度时使用实色底。外观参数、应用范围及参考组件适配差异见 [Liquid Glass 说明](docs/liquid-glass.md)。
 
+管理员可在站点配置中上传网站背景图，或使用浅色／深色配对的纯色预设；默认插画和操作说明见 [网站背景设置](docs/site-background.md)。
+
 同好会 QQ 群宣传接入首页、关于页和页脚，支持二维码放大、保存原图及复制群号；Logo、二维码和群号集中配置，更新方法见 [同好会宣传入口](docs/club-promotion.md)。
 
 字体使用本地托管的 Noto Sans SC、Noto Serif SC 和 DM Sans 可变 WOFF2，保留官方 Unicode 分段，浏览器仅加载页面用到的字形分段。维护时运行 `node scripts/vendor-fonts.mjs`，来源、字重、文件摘要及范围见 `apps/web/public/fonts/manifest.json`，许可证见相邻 OFL 文件；正常构建和访问页面都不请求外部字体服务。不要按某一版页面文案裁剪中文字符，否则新增文案和用户内容会触发系统字体回退，造成局部字重不一致。
