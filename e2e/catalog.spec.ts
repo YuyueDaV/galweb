@@ -108,12 +108,47 @@ test('访客开放 Bangumi 搜索；管理员编辑 Tier、草稿发布隔离和
     await expect(page.getByRole('status').filter({ hasText: '榜单已下架' })).toBeVisible()
     expect((await anonymous.get('/api/tier-lists/' + id)).status()).toBe(404)
     await page.goto('/admin/works')
+    await expect(page.getByRole('link', { name: '添加作品', exact: true })).toHaveAttribute(
+      'href',
+      '/works/new',
+    )
     await page.getByRole('button', { name: '魔法使之夜', exact: true }).click()
     await page.getByLabel('书库简介', { exact: true }).fill('浏览器修改后的社团推荐语。')
+    await page.getByLabel('更换作品封面', { exact: true }).setInputFiles({
+      name: 'admin-cover.webp',
+      mimeType: 'image/webp',
+      buffer: cover,
+    })
+    await expect(page.getByRole('status').filter({ hasText: '作品封面已更新' })).toBeVisible()
+    const customCover = await page
+      .getByRole('img', { name: '魔法使之夜当前封面', exact: true })
+      .getAttribute('src')
+    expect(customCover).toMatch(/^\/api\/assets\//)
+    await expect(page.getByLabel('书库简介', { exact: true })).toHaveValue('浏览器修改后的社团推荐语。')
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.locator('.work-cover-editor').scrollIntoViewIfNeeded()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBeTruthy()
+    await page.screenshot({ path: test.info().outputPath('admin-cover-mobile.png'), fullPage: true })
+    await page.setViewportSize({ width: 1440, height: 1000 })
     await page.getByRole('button', { name: '保存作品资料', exact: true }).click()
     await expect(page.getByRole('status').filter({ hasText: '作品资料已保存' })).toBeVisible()
+    await page.reload()
+    await page.getByRole('button', { name: '魔法使之夜', exact: true }).click()
+    await expect(page.getByRole('img', { name: '魔法使之夜当前封面', exact: true })).toHaveAttribute(
+      'src',
+      customCover!,
+    )
     await page.getByRole('link', { name: '查看作品 ↗', exact: true }).click()
     await expect(page.locator('.work-description')).toHaveText('浏览器修改后的社团推荐语。')
+    await expect(page.locator('.work-detail-cover img')).toHaveAttribute('src', customCover!)
+    await page.goto('/admin/works')
+    await page.getByRole('button', { name: '魔法使之夜', exact: true }).click()
+    await page.getByRole('button', { name: '恢复默认封面', exact: true }).click()
+    await expect(page.getByRole('status').filter({ hasText: '作品封面已更新' })).toBeVisible()
+    await expect(page.getByRole('img', { name: '魔法使之夜当前封面', exact: true })).not.toHaveAttribute(
+      'src',
+      customCover!,
+    )
   } finally {
     await anonymous.dispose()
   }

@@ -7,6 +7,7 @@ const works = ref<Work[]>([]),
   query = ref(''),
   selected = ref<Work | null>(null),
   busy = ref(false),
+  coverBusy = ref(false),
   error = ref(''),
   success = ref('')
 const filtered = computed(() =>
@@ -15,6 +16,14 @@ const filtered = computed(() =>
   ),
 )
 const form = reactive({ title: '', subtitle: '', studio: '', description: '', nominator: '', version: 0 })
+const locked = computed(() => busy.value || coverBusy.value)
+function coverUpdated(work: Work) {
+  works.value = works.value.map((item) => (item.rank === work.rank ? work : item))
+  if (selected.value?.rank === work.rank) {
+    selected.value = work
+    form.version = work.version || 0
+  }
+}
 let revision = 0
 function select(work: Work) {
   selected.value = work
@@ -47,7 +56,7 @@ async function load() {
   }
 }
 async function save() {
-  if (!selected.value || busy.value) return
+  if (!selected.value || locked.value) return
   busy.value = true
   error.value = ''
   success.value = ''
@@ -64,7 +73,7 @@ async function save() {
 }
 async function syncBangumi() {
   const work = selected.value
-  if (!work?.bangumi || busy.value) return
+  if (!work?.bangumi || locked.value) return
   busy.value = true
   error.value = ''
   success.value = ''
@@ -98,7 +107,12 @@ useSeoMeta({ title: '书库管理 · 澄之响', robots: 'noindex,nofollow' })
         <h1>书库管理<span>。</span></h1>
         <p>搜索收录更多作品，也为原来的十二部故事补全资料。</p>
       </div>
-      <NuxtLink to="/admin/tiers">管理 Tier 榜单 ↗</NuxtLink>
+      <div class="catalog-actions">
+        <NuxtLink v-if="allowed" to="/works/new" class="button primary">
+          <AppIcon name="plus" :size="16" />添加作品
+        </NuxtLink>
+        <NuxtLink to="/admin/tiers" class="text-link">管理 Tier 榜单 ↗</NuxtLink>
+      </div>
     </header>
     <template v-if="allowed"
       ><BangumiSearch :works="works" @imported="load" />
@@ -113,7 +127,7 @@ useSeoMeta({ title: '书库管理 · 澄之响', robots: 'noindex,nofollow' })
               v-for="work in filtered"
               :key="work.rank"
               :aria-pressed="selected?.rank === work.rank"
-              :disabled="busy"
+              :disabled="locked"
               @click="select(work)"
             >
               {{ work.title }} <span v-if="work.bangumi">· BGM</span>
@@ -121,13 +135,21 @@ useSeoMeta({ title: '书库管理 · 澄之响', robots: 'noindex,nofollow' })
           </div>
         </section>
         <form v-if="selected" class="experience-card settings-form" @submit.prevent="save">
-          <fieldset class="plain-fieldset" :disabled="busy">
+          <fieldset class="plain-fieldset" :disabled="locked">
             <h2>编辑作品</h2>
             <p class="catalog-help">
               编号 {{ selected.rank
               }}{{ selected.archiveRank ? ` · 历史十二橙器第 ${selected.archiveRank} 名` : '' }}。关联 Bangumi
               保留原有作品编号、书单和讨论。
             </p>
+            <WorkCoverEditor
+              :key="selected.rank"
+              :work="selected"
+              embedded
+              :disabled="busy"
+              @busy="coverBusy = $event"
+              @updated="coverUpdated"
+            />
             <label class="community-field"
               >作品名称<input v-model="form.title" required maxlength="160" /></label
             ><label class="community-field"

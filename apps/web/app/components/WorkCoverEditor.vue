@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import type { Work } from '~/types/forum'
-const props = defineProps<{ work: Work }>(),
-  emit = defineEmits<{ updated: [work: Work] }>()
+const props = defineProps<{ work: Work; embedded?: boolean; disabled?: boolean }>(),
+  emit = defineEmits<{ updated: [work: Work]; busy: [value: boolean] }>()
 const auth = useAuth(),
   busy = ref(false),
   error = ref(''),
   success = ref('')
+watch(busy, (value) => emit('busy', value), { flush: 'sync' })
 async function change(id: string | null) {
   const work = await auth.request<Work>(
     '/works/' + props.work.rank + '/cover',
@@ -19,7 +20,7 @@ async function upload(event: Event) {
   const input = event.target as HTMLInputElement,
     file = input.files?.[0]
   input.value = ''
-  if (!file || busy.value) return
+  if (!file || busy.value || props.disabled) return
   error.value = ''
   success.value = ''
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
@@ -39,9 +40,10 @@ async function upload(event: Event) {
   }
 }
 async function reset() {
-  if (busy.value) return
+  if (busy.value || props.disabled) return
   busy.value = true
   error.value = ''
+  success.value = ''
   try {
     await change(null)
   } catch (e) {
@@ -52,21 +54,76 @@ async function reset() {
 }
 </script>
 <template>
-  <section class="experience-card">
+  <section class="work-cover-editor" :class="embedded ? 'embedded' : 'experience-card'">
     <h2>作品封面</h2>
-    <label class="community-field"
-      >更换作品封面<input
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        :disabled="busy"
-        @change="upload"
-    /></label>
-    <p class="catalog-help">JPG、PNG、WebP，最大 5 MB。添加人和管理员可以更换封面。</p>
-    <button v-if="work.coverUrl" type="button" class="button secondary" :disabled="busy" @click="reset">
-      {{ work.bangumi ? '恢复 Bangumi 封面' : '清除自选封面' }}
-    </button>
+    <div class="work-cover-layout">
+      <WorkCover
+        v-if="embedded"
+        class="work-cover-preview"
+        :rank="work.rank"
+        :src="
+          work.coverUrl ||
+          (work.rank > 12 ? work.bangumi?.coverUrl || '/images/work-placeholder.svg' : undefined)
+        "
+        variant="cover"
+        :alt="work.title + '当前封面'"
+      />
+      <div class="work-cover-controls">
+        <label class="community-field"
+          >更换作品封面<input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            :disabled="busy || disabled"
+            @change="upload"
+        /></label>
+        <p class="catalog-help">JPG、PNG、WebP，最大 5 MB。添加人和管理员可以更换封面。</p>
+        <button
+          v-if="work.coverUrl"
+          type="button"
+          class="button secondary"
+          :disabled="busy || disabled"
+          @click="reset"
+        >
+          {{ work.rank <= 12 ? '恢复默认封面' : work.bangumi ? '恢复 Bangumi 封面' : '清除自选封面' }}
+        </button>
+      </div>
+    </div>
     <p v-if="busy" role="status">正在更新封面…</p>
     <p v-if="error" class="form-error" role="alert">{{ error }}</p>
     <p v-if="success" class="form-success" role="status">{{ success }}</p>
+    <p v-else-if="embedded && !busy" class="catalog-help">选择图片后立即更新封面。</p>
   </section>
 </template>
+<style scoped>
+.embedded {
+  padding-bottom: 1rem;
+  margin: 1rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.work-cover-layout {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.work-cover-preview {
+  width: 5rem;
+  height: 7rem;
+  object-fit: contain;
+  background: var(--hero);
+  border-radius: 0.4rem;
+  flex-shrink: 0;
+}
+.work-cover-controls {
+  min-width: 0;
+  flex: 1;
+}
+@media (max-width: 35rem) {
+  .work-cover-layout {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .work-cover-controls {
+    width: 100%;
+  }
+}
+</style>
