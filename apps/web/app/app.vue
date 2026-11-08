@@ -11,7 +11,7 @@ const headerScrolled = ref(false)
 const searchInput = ref<HTMLInputElement | null>(null)
 const searchExpanded = ref(false)
 const { username, query, category, composerOpen, loginOpen, bookmarks, toast } = forum
-const activeSection = computed(() => route.path.startsWith('/account') ? 'account' : route.path.startsWith('/admin') ? 'admin' : route.path.startsWith('/works') ? 'works' : route.path.startsWith('/ranking') || route.path.startsWith('/awards') ? 'ranking' : route.path.startsWith('/about') ? 'about' : 'home')
+const activeSection = computed(() => route.path.startsWith('/account') ? 'account' : route.path.startsWith('/admin') ? 'admin' : route.path.startsWith('/tiers') ? 'tiers' : route.path.startsWith('/works') ? 'works' : route.path.startsWith('/ranking') || route.path.startsWith('/awards') ? 'ranking' : route.path.startsWith('/about') ? 'about' : 'home')
 useHead({ htmlAttrs: { 'data-theme': computed(() => dark.value ? 'dark' : 'light') } })
 
 function updateHeaderScroll() { headerScrolled.value = window.scrollY > 16 }
@@ -60,7 +60,7 @@ function resetFeed() { query.value = ''; category.value = '全部' }
         <NuxtLink to="/" class="brand" aria-label="澄之响首页" @click="resetFeed"><ClubMark /><span class="brand-name">澄之响<span class="brand-english">CHENG ZHI XIANG</span></span><span class="brand-divider"></span><span class="brand-school">南京工程学院<br>视觉小说同好会</span></NuxtLink>
         <nav class="top-nav" aria-label="主导航">
           <NuxtLink to="/" :class="{ active: activeSection === 'home' }" @click="resetFeed">社区首页</NuxtLink>
-          <NuxtLink to="/works" :class="{ active: activeSection === 'works' }">作品书架</NuxtLink>
+          <NuxtLink to="/works" :class="{ active: activeSection === 'works' || activeSection === 'tiers' }">作品书架</NuxtLink>
           <NuxtLink to="/awards" :class="{ active: activeSection === 'ranking' }">十二橙器 <span class="tiny-orange">✳</span></NuxtLink>
         </nav>
         <div class="header-actions">
@@ -78,7 +78,7 @@ function resetFeed() { query.value = ''; category.value = '全部' }
           <p class="sidebar-caption">一起，把故事继续。</p>
           <NuxtLink to="/" class="sidebar-link" :class="{ selected: activeSection === 'home' && !route.query.saved }" @click="resetFeed"><AppIcon name="home" /><span>社区广场</span><span class="nav-dot"></span></NuxtLink>
           <NuxtLink to="/works" class="sidebar-link" :class="{ selected: activeSection === 'works' }"><AppIcon name="library" /><span>作品书架</span></NuxtLink>
-          <NuxtLink to="/awards" class="sidebar-link" :class="{ selected: activeSection === 'ranking' }"><AppIcon name="trophy" /><span>十二橙器</span><span class="sidebar-new">活动</span></NuxtLink>
+          <NuxtLink to="/tiers" class="sidebar-link" :class="{ selected: route.path.startsWith('/tiers') }"><AppIcon name="star" /><span>Tier 榜单</span></NuxtLink><NuxtLink to="/awards" class="sidebar-link" :class="{ selected: activeSection === 'ranking' }"><AppIcon name="trophy" /><span>十二橙器</span><span class="sidebar-new">活动</span></NuxtLink>
           <NuxtLink to="/?category=社团活动#discussions" class="sidebar-link" @click="query = ''"><AppIcon name="calendar" /><span>社团活动</span></NuxtLink>
         </div>
         <div class="sidebar-section">
@@ -97,7 +97,7 @@ function resetFeed() { query.value = ''; category.value = '全部' }
         <div v-if="identity.can('campaign.manage')" class="sidebar-section staff-nav">
           <p class="sidebar-label">{{ identity.roleNames[identity.role.value] }}</p><NuxtLink to="/admin" class="sidebar-link"><AppIcon name="filter" /><span>社区内容管理</span></NuxtLink>
           <NuxtLink to="/admin/awards" class="sidebar-link" :class="{ selected: route.path === '/admin/awards' }"><AppIcon name="filter" /><span>活动管理</span></NuxtLink>
-          <NuxtLink v-if="identity.can('account.view')" to="/admin/accounts" class="sidebar-link" :class="{ selected: route.path === '/admin/accounts' }"><AppIcon name="users" /><span>账号权限</span></NuxtLink>
+          <NuxtLink to="/admin/works" class="sidebar-link" :class="{ selected: route.path === '/admin/works' }"><AppIcon name="library" /><span>书库管理</span></NuxtLink><NuxtLink to="/admin/tiers" class="sidebar-link" :class="{ selected: route.path === '/admin/tiers' }"><AppIcon name="star" /><span>Tier 榜单管理</span></NuxtLink><NuxtLink v-if="identity.can('account.view')" to="/admin/accounts" class="sidebar-link" :class="{ selected: route.path === '/admin/accounts' }"><AppIcon name="users" /><span>账号权限</span></NuxtLink>
         </div>
         <NuxtLink to="/community" class="sidebar-link"><AppIcon name="calendar" /><span>社团动态与相册</span></NuxtLink><div class="sidebar-bottom">
           <div class="sidebar-flower" aria-hidden="true">✳</div>

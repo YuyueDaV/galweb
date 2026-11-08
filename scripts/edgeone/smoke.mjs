@@ -40,7 +40,7 @@ const backend = createServer(async (req, res) => {
     res.writeHead(422).end(JSON.stringify({ message: '验证码无效。' }))
   } else if (req.url?.startsWith('/api/posts')) {
     res.end(JSON.stringify({ items: [], total: 0 }))
-  } else if (req.url === '/api/works') {
+  } else if (req.url === '/api/works' || req.url === '/api/tier-lists') {
     res.end('[]')
   } else {
     res.end(JSON.stringify({ status: 'ok' }))

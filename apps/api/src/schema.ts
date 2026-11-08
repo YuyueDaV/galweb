@@ -2,6 +2,7 @@
 // Declare the charset on every table: otherwise some tables inherit the database's
 // collation while users uses the charset default, breaking string foreign keys.
 export const schema = [
+`CREATE TABLE IF NOT EXISTS tier_lists (id CHAR(36) PRIMARY KEY,draft JSON NOT NULL,published JSON NULL,version INT NOT NULL DEFAULT 0,updated_at BIGINT NOT NULL,INDEX tier_updated(updated_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 `CREATE TABLE IF NOT EXISTS users (
  id CHAR(36) PRIMARY KEY, email VARCHAR(254) NOT NULL, email_key VARCHAR(254) CHARACTER SET ascii COLLATE ascii_bin NOT NULL UNIQUE,
  username VARCHAR(64) NULL, username_key VARCHAR(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL, UNIQUE KEY users_username_key_unique(username_key),

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type {ForumPost,Reply} from '~/types/forum'
-import {coverUrl,works} from '~/data/forum'
+import type {ForumPost,Reply,Work} from '~/types/forum'
+import {coverUrl} from '~/data/forum'
 import {renderMarkdown} from '~/utils/markdown'
 const route=useRoute(),api=useRequestFetch(),auth=useAuth(),forum=useForum(),config=useRuntimeConfig()
 const {bookmarks,likes,username,toggleBookmark,toggleLike,replyCount,recordView,reactionPending,notify}=forum
@@ -8,7 +8,8 @@ const id=computed(()=>String(route.params.id))
 const {data:detail,error:loadError,refresh}=await useAsyncData(()=> 'post-page:'+id.value,async()=>{
  const [post,replies]=await Promise.all([api<ForumPost>('/api/posts/'+encodeURIComponent(id.value)),api<(Reply&{createdAt:number})[]>('/api/posts/'+encodeURIComponent(id.value)+'/replies')]);return {post,replies}
 })
-const post=computed(()=>detail.value?.post),postReplies=computed(()=>detail.value?.replies||[]),relatedWork=computed(()=>works.find(w=>w.rank===(post.value?.workId||post.value?.image)))
+const {data:catalogWorks}=await useAsyncData('work-catalog',()=>api<Work[]>('/api/works'))
+const post=computed(()=>detail.value?.post),postReplies=computed(()=>detail.value?.replies||[]),relatedWork=computed(()=>catalogWorks.value?.find(w=>w.rank===(post.value?.workId||post.value?.image)))
 const reply=ref(''),replyTarget=ref<{id:string,author:string}|null>(null),replyInput=ref<HTMLTextAreaElement|null>(null),replyBusy=ref(false),error=ref('')
 const spoilerVisible=ref(false),editing=ref(false),editTitle=ref(''),editContent=ref(''),editAssets=ref<string[]>([]),editBusy=ref(false),editUploading=ref(false),deleteConfirm=ref(false)
 const canEdit=computed(()=>!!auth.user.value&&(auth.user.value.id===post.value?.userId||auth.user.value.role!=='member'))
@@ -50,7 +51,7 @@ async function submitReply(){if(!auth.user.value){forum.loginOpen.value=true;ret
     <form class="reply-form" @submit.prevent="submitReply"><label for="reply-content">{{ username||'新来的同好' }}，也来说两句</label><div v-if="replyTarget" class="reply-target">正在回复 {{ replyTarget.author }}<button type="button" @click="replyTarget=null">取消</button></div><textarea id="reply-content" ref="replyInput" v-model="reply" rows="4" required maxlength="3000" :disabled="replyBusy" placeholder="把你的感受，接在故事后面……"></textarea><div><span>回复将公开展示在社区</span><button class="button primary" :disabled="replyBusy||!reply.trim()">{{ replyBusy?'发送中…':'发布回复' }}</button></div></form><p v-if="error" class="form-error" role="alert">{{ error }}</p>
    </section>
   </div>
-  <aside class="detail-rail"><section v-if="headings.length&&(!post.spoiler||spoilerVisible)" class="rail-card reading-toc"><h2>这篇故事的目录</h2><a v-for="heading in headings" :key="heading.id" :href="'#'+heading.id" :class="{'toc-child':heading.level>2}">{{ heading.text }}</a></section><section v-if="relatedWork" class="rail-card related-work"><p class="eyebrow">STORY IN THIS POST</p><img :src="coverUrl(relatedWork.rank)" :alt="relatedWork.title+'封面'" /><h2>{{ relatedWork.title }}</h2><p>{{ relatedWork.description }}</p><NuxtLink :to="'/works/'+relatedWork.rank" class="text-link">前往作品书架<AppIcon name="arrowRight" :size="15" /></NuxtLink></section><section class="rail-card conversation-note"><AppIcon name="leaf" :size="23" /><h2>让讨论，多一点温柔。</h2><p>尊重不同感受，标记关键剧透。</p><NuxtLink to="/post/welcome" class="text-link">社区小约定</NuxtLink></section></aside>
+  <aside class="detail-rail"><section v-if="headings.length&&(!post.spoiler||spoilerVisible)" class="rail-card reading-toc"><h2>这篇故事的目录</h2><a v-for="heading in headings" :key="heading.id" :href="'#'+heading.id" :class="{'toc-child':heading.level>2}">{{ heading.text }}</a></section><section v-if="relatedWork" class="rail-card related-work"><p class="eyebrow">STORY IN THIS POST</p><WorkCover :rank="relatedWork.rank" :src="relatedWork.rank>12 ? relatedWork.bangumi?.coverUrl || '/images/work-placeholder.svg' : undefined" variant="cover" :alt="relatedWork.title+'封面'" /><h2>{{ relatedWork.title }}</h2><p>{{ relatedWork.description }}</p><NuxtLink :to="'/works/'+relatedWork.rank" class="text-link">前往作品书架<AppIcon name="arrowRight" :size="15" /></NuxtLink></section><section class="rail-card conversation-note"><AppIcon name="leaf" :size="23" /><h2>让讨论，多一点温柔。</h2><p>尊重不同感受，标记关键剧透。</p><NuxtLink to="/post/welcome" class="text-link">社区小约定</NuxtLink></section></aside>
  </div>
  <div v-else class="empty-state"><h1>这篇故事暂时找不到了</h1><p>{{ loadError?'帖子可能已隐藏、删除，或服务暂不可用。':'' }}</p><button class="button secondary" @click="refresh()">重试加载</button><NuxtLink to="/" class="text-link">回到社区广场</NuxtLink></div>
 </template>

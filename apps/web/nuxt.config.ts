@@ -4,18 +4,23 @@ const edgeoneBuild = process.env.CZX_EDGEONE_BUILD === '1'
 export default defineNuxtConfig({
   vite: { plugins: [tailwindcss()] },
   buildDir: edgeoneBuild ? '.nuxt-edgeone' : process.env.CZX_CHECK === '1' ? '.nuxt-check' : '.nuxt',
-  nitro: edgeoneBuild
-    ? {
-        preset: 'node-server',
-        output: {
-          dir: fileURLToPath(new URL('.edgeone', import.meta.url)),
-          publicDir: fileURLToPath(new URL('.edgeone/assets', import.meta.url)),
-          serverDir: fileURLToPath(new URL('.edgeone/cloud-functions/ssr-node', import.meta.url)),
-        },
-      }
-    : process.env.CZX_CHECK === '1'
-      ? { output: { dir: fileURLToPath(new URL('.output-check', import.meta.url)) } }
-      : {},
+  nitro: {
+    // Bundle Markdown dependencies so production artifacts do not rely on
+    // platform-specific pnpm symlinks for multiple versions of entities.
+    externals: { inline: ['markdown-it', 'entities', 'linkify-it', 'mdurl', 'punycode.js', 'uc.micro'] },
+    ...(edgeoneBuild
+      ? {
+          preset: 'node-server',
+          output: {
+            dir: fileURLToPath(new URL('.edgeone', import.meta.url)),
+            publicDir: fileURLToPath(new URL('.edgeone/assets', import.meta.url)),
+            serverDir: fileURLToPath(new URL('.edgeone/cloud-functions/ssr-node', import.meta.url)),
+          },
+        }
+      : process.env.CZX_CHECK === '1'
+        ? { output: { dir: fileURLToPath(new URL('.output-check', import.meta.url)) } }
+        : {}),
+  },
   compatibilityDate: '2026-10-30',
   devtools: { enabled: false },
   telemetry: false,
@@ -33,6 +38,7 @@ export default defineNuxtConfig({
     '~/assets/css/warm-glass.css',
     '~/assets/css/community.css',
     '~/assets/css/covers.css',
+    '~/assets/css/catalog.css',
     '~/assets/css/foundations.css',
   ],
   app: {

@@ -30,6 +30,9 @@ export interface ForumPost {
 }
 
 export interface Work {
+  archiveRank?: number
+  version?: number
+  bangumi?: import('./catalog').BangumiSubject
   rank: number
   title: string
   subtitle: string

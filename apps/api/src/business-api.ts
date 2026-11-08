@@ -11,6 +11,7 @@ import { Awards } from './awards'
 import {Assets} from './assets'
 import {readFile} from 'node:fs/promises'
 import {communityControllers} from './community-api'
+import {catalogControllers} from './catalog-api'
 export const validate=<T>(schema:z.ZodType<T>,body:unknown)=>{const result=schema.safeParse(body);if(!result.success){const message=result.error.issues[0]?.message||'';throw new HttpException(/[\u4e00-\u9fff]/.test(message)?message:'请求字段无效。',422)}return result.data}
 export function businessControllers(db:Database,auth:Auth,platform:Platform,cookieName:string,viewSecret:string){
  const forum=new Forum(db,platform)
@@ -35,7 +36,6 @@ export function businessControllers(db:Database,auth:Auth,platform:Platform,cook
   @Post('posts/:id/replies') async reply(@Param('id') id:string,@Body() body:unknown,@Req() req:Request){const u=await actor(req,true);await auth.limit('reply-create',u.id,30,60000);const p=validate(z.object({content:z.string().trim().min(1).max(3000),parentId:z.uuid().optional()}).strict(),body);return forum.reply(u,id,p.content,p.parentId)}
   @Put('posts/:id/reactions') async reaction(@Param('id') id:string,@Body() body:unknown,@Req() req:Request){const p=validate(z.object({kind:z.enum(['like','bookmark']),active:z.boolean()}).strict(),body);return forum.reaction(await actor(req,true),id,p.kind,p.active)}
   @Get('forum/me') async mine(@Req() req:Request){return forum.mine(await actor(req))}
-  @Get('works') async works(){return (await db.rows<{data:unknown}>('SELECT data FROM works ORDER BY id')).map(r=>typeof r.data==='string'?JSON.parse(r.data):r.data)}
   @Get('admin/posts') async adminPosts(@Req() req:Request){return forum.adminPosts(await actor(req))}
   @Get('admin/replies') async adminReplies(@Req() req:Request){return forum.adminReplies(await actor(req))}
   @Patch('admin/replies/:id') async moderate(@Param('id') id:string,@Body() body:unknown,@Req() req:Request){return forum.moderateReply(await actor(req,true),id,validate(z.object({status:z.enum(['published','hidden','deleted'])}).strict(),body).status)}
@@ -62,5 +62,5 @@ export function businessControllers(db:Database,auth:Auth,platform:Platform,cook
   @Delete('admin/assets/:id') async hide(@Param('id') id:string,@Req() req:Request){return assets.hide(await actor(req,true),id)}
   @Delete('admin/assets/:id/permanent') async remove(@Param('id') id:string,@Body() body:unknown,@Req() req:Request){const user=await actor(req,true);validate(z.object({confirmation:z.literal('永久删除')}).strict(),body);return assets.remove(user,id)}
  }
- return [ForumController,AwardsController,AssetsController,...communityControllers(db,auth,platform,cookieName)]
+ return [ForumController,AwardsController,AssetsController,...communityControllers(db,auth,platform,cookieName),...catalogControllers(db,auth,platform,cookieName)]
 }

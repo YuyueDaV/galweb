@@ -1,0 +1,231 @@
+.catalog-help {
+  color: var(--subtle);
+  font-size: 0.7rem;
+  line-height: 1.8;
+}
+.catalog-actions,
+.catalog-search {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+.catalog-actions {
+  margin-top: 0.7rem;
+  font-size: 0.7rem;
+}
+.catalog-search {
+  margin: 1rem 0;
+}
+.catalog-search input {
+  flex: 1;
+  min-width: 12rem;
+}
+.catalog-search input,
+.catalog-actions select {
+  padding: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--surface, var(--bg));
+  color: var(--ink);
+}
+.bangumi-panel {
+  margin: 1.5rem 0;
+}
+.bangumi-panel .section-heading {
+  margin-bottom: 0.5rem;
+}
+.bangumi-panel .section-heading > a {
+  font-size: 0.65rem;
+  color: var(--subtle);
+}
+.bangumi-panel h2 {
+  font-family: var(--serif);
+  font-size: 1.5rem;
+}
+.bangumi-results {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.bangumi-result {
+  display: flex;
+  gap: 1rem;
+  border-top: 1px solid var(--line);
+  padding: 1rem 0;
+  min-width: 0;
+}
+.bangumi-result > img,
+.bangumi-result > .image-fallback {
+  width: 80px;
+  height: 110px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border-radius: 0.35rem;
+}
+.bangumi-result > div {
+  min-width: 0;
+}
+.bangumi-result h3 {
+  font-size: 0.85rem;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.catalog-actions select {
+  max-width: 100%;
+  font-size: 0.65rem;
+}
+.catalog-actions a,
+.catalog-actions > button:not(.button) {
+  color: var(--orange);
+}
+.tier-board {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+.tier-level {
+  display: grid;
+  grid-template-columns: 7rem 1fr;
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  overflow: hidden;
+  min-height: 8rem;
+}
+.tier-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  color: #282923;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.tier-works {
+  padding: 0.75rem;
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  background: var(--card, var(--bg));
+}
+.tier-work {
+  width: 5rem;
+  font-size: 0.625rem;
+  overflow-wrap: anywhere;
+}
+.tier-work img,
+.tier-work .image-fallback {
+  width: 5rem;
+  height: 6.5rem;
+  object-fit: cover;
+  border-radius: 0.35rem;
+  margin-bottom: 0.35rem;
+}
+.tier-work-controls {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  margin: 0.35rem 0;
+}
+.tier-work-controls button {
+  font-size: 0.6rem;
+  color: var(--orange);
+}
+.tier-work-controls select {
+  max-width: 100%;
+  width: 100%;
+  font-size: 0.6rem;
+}
+.tier-editor-row {
+  border: 1px solid var(--line);
+  padding: 1rem;
+  border-radius: 0.7rem;
+  margin: 0.75rem 0;
+}
+.tier-editor-row > .catalog-actions {
+  margin: 0 0 0.7rem;
+}
+.tier-editor-row input:not([type='color']) {
+  max-width: 9rem;
+}
+.tier-editor-row input[type='color'] {
+  width: 2.4rem;
+  height: 2.1rem;
+  padding: 0.1rem;
+}
+.tier-pool {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  max-height: 18rem;
+  overflow: auto;
+  padding: 0.5rem 0;
+}
+.tier-pool button {
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  padding: 0.5rem;
+  font-size: 0.65rem;
+}
+.catalog-manager-grid {
+  display: grid;
+  grid-template-columns: minmax(15rem, 1fr) minmax(20rem, 2fr);
+  gap: 1rem;
+  align-items: start;
+}
+.catalog-work-list {
+  max-height: 40rem;
+  overflow: auto;
+}
+.catalog-work-list button {
+  display: block;
+  text-align: left;
+  width: 100%;
+  padding: 0.8rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.75rem;
+}
+.catalog-work-list button[aria-pressed='true'] {
+  background: var(--hero);
+  color: var(--orange);
+}
+@media (max-width: 900px) {
+  .bangumi-results,
+  .catalog-manager-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 600px) {
+  .library-toolbar > div {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  .library-search {
+    flex: 1;
+    min-width: 0;
+  }
+  .library-search input {
+    width: 100%;
+    min-width: 0;
+  }
+  .library-toolbar .feed-sort {
+    flex-shrink: 0;
+  }
+  .bangumi-panel .section-heading {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .tier-level {
+    grid-template-columns: 4.5rem 1fr;
+  }
+  .tier-label {
+    padding: 0.5rem;
+  }
+  .bangumi-result {
+    gap: 0.7rem;
+  }
+  .catalog-search .button {
+    width: 100%;
+  }
+}

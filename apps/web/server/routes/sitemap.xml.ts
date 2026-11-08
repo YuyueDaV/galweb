@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
     ? { 'x-czx-proxy-secret': config.apiProxySecret }
     : {}
   const options = { headers }
-  const urls = ['/', '/works', '/ranking', '/awards', '/about', '/community']
+  const urls = ['/', '/works', '/ranking', '/awards', '/about', '/community', '/tiers']
   const first = await $fetch<{ items: { id: string }[]; total: number }>(
     config.apiBase + '/api/posts?limit=100&page=1',
     options,
@@ -24,6 +24,8 @@ export default defineEventHandler(async (event) => {
   }
   const works = await $fetch<{ rank: number }[]>(config.apiBase + '/api/works', options)
   for (const work of works) urls.push('/works/' + work.rank)
+  const tiers = await $fetch<{id: string}[]>(config.apiBase + '/api/tier-lists', options)
+  for (const tier of tiers) urls.push('/tiers/' + tier.id)
   setHeader(event, 'Content-Type', 'application/xml; charset=utf-8')
   setHeader(event, 'Cache-Control', 'no-store')
   return (

@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test'
 import { mkdir, readdir, readFile } from 'node:fs/promises'
 
 test('桌面与手机导航、深色模式、按需书架、图片故障与减少动画', async ({ page }, info) => {
+  const catalog = await (await page.request.get('/api/works')).json()
   for (const width of [1440, 1024, 390, 320]) {
     await page.setViewportSize({ width, height: 900 })
     await page.goto('/works')
@@ -42,7 +43,7 @@ test('桌面与手机导航、深色模式、按需书架、图片故障与减�
       .first()
       .evaluate((el) => getComputedStyle(el).transform),
   ).toBe('none')
-  await expect(page.locator('.shelf-book-title')).toHaveCount(12)
+  await expect(page.locator('.shelf-book-title')).toHaveCount(catalog.length)
   await page.screenshot({ path: info.outputPath('image-fallback-and-reduced-motion.png') })
   await page.unroute('**/images/works/**')
   await page.emulateMedia({ reducedMotion: 'no-preference' })
@@ -57,7 +58,9 @@ test('桌面与手机导航、深色模式、按需书架、图片故障与减�
       .first()
       .evaluate((el) => getComputedStyle(el).display),
   ).toBe('flex')
-  for (const image of await shelf.locator('img').all()) {
+  // Imported works may use an unavailable external cover; local archive artwork
+  // must load, while external failures are handled by SafeImage's placeholder.
+  for (const image of await shelf.locator('img[src^="/images/"]').all()) {
     await image.scrollIntoViewIfNeeded()
     await expect.poll(() => image.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
   }
@@ -67,6 +70,7 @@ test('桌面与手机导航、深色模式、按需书架、图片故障与减�
 })
 
 test('立体效果脚本加载失败时仍能返回普通书架', async ({ page }) => {
+  const catalog = await (await page.request.get('/api/works')).json()
   const directory = 'apps/web/.output-check/public/_nuxt'
   let chunk = ''
   for (const name of await readdir(directory)) {
@@ -84,5 +88,5 @@ test('立体效果脚本加载失败时仍能返回普通书架', async ({ page 
   await expect(page.getByRole('alert')).toContainText('立体书架暂时未能加载')
   await page.getByRole('button', { name: '返回卡片列表', exact: true }).click()
   await expect(page.locator('.works-grid')).toBeVisible()
-  await expect(page.locator('.works-grid .work-card')).toHaveCount(12)
+  await expect(page.locator('.works-grid .work-card')).toHaveCount(catalog.length)
 })
