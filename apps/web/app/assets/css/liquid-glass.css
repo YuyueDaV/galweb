@@ -188,6 +188,15 @@ html .site-wrap [data-liquid-glass='opaque'] {
   gap: 0.35rem;
   align-items: center;
 }
+.feed-section .section-heading {
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+.section-heading .write-link {
+  flex-shrink: 0;
+  margin-left: auto;
+  white-space: nowrap;
+}
 .feed-toolbar .feed-tabs button,
 .section-heading .write-link {
   box-sizing: border-box;

@@ -146,6 +146,8 @@ test('首页筛选控件圆润易点，下拉打开和选择不会拉伸页面�
       expect(control.height).toBeGreaterThanOrEqual(44)
       expect(control.radius).toBeGreaterThanOrEqual(22)
     }
+    await expect(page.locator('.section-heading .write-link')).toHaveCSS('white-space', 'nowrap')
+    expect((await page.locator('#feed-title').boundingBox())!.height).toBeLessThan(55)
     for (const button of controls.filter((_, index) => index !== controls.length - 1)) {
       expect(button.font).toBeGreaterThanOrEqual(14)
     }
