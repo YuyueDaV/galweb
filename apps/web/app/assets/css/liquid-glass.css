@@ -163,7 +163,7 @@ html .site-wrap [data-liquid-glass='opaque'] {
   background-position: right 0.5rem center;
   background-size: 0.8rem;
   background-repeat: no-repeat;
-  border-radius: 0.6rem;
+  border-radius: var(--control-radius, 999px);
   box-shadow:
     inset 0 1px 0 var(--liquid-highlight),
     inset 0 -1px 0 var(--liquid-shade);
@@ -177,6 +177,78 @@ html .site-wrap [data-liquid-glass='opaque'] {
 .site-wrap select optgroup {
   color: var(--ink);
   background: var(--surface);
+}
+.feed-toolbar {
+  gap: 0.65rem;
+  padding-block: 0.5rem;
+  flex-wrap: wrap;
+}
+.feed-toolbar .feed-tabs {
+  height: auto;
+  gap: 0.35rem;
+  align-items: center;
+}
+.feed-toolbar .feed-tabs button,
+.section-heading .write-link {
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--liquid-edge);
+  border-radius: 999px;
+  background-color: rgb(var(--liquid-rgb) / 66%);
+  font-size: max(14px, 0.7rem);
+  font-weight: 400;
+  line-height: 1.5;
+}
+.feed-toolbar .feed-tabs button.active {
+  background-color: var(--orange-soft);
+  border-color: color-mix(in srgb, var(--orange) 45%, transparent);
+  color: var(--orange);
+  font-weight: 500;
+}
+.feed-toolbar .feed-tabs button.active::after {
+  display: none;
+}
+.feed-toolbar .feed-sort {
+  box-sizing: border-box;
+  min-height: 44px;
+  gap: 0.3rem;
+  padding: 0.2rem 0.45rem 0.2rem 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--muted) 48%, transparent);
+  border-radius: 999px;
+  background-color: rgb(var(--liquid-rgb) / 80%);
+  box-shadow: inset 0 1px 0 var(--liquid-highlight);
+}
+.feed-toolbar .feed-sort:focus-within {
+  border-color: var(--orange);
+  box-shadow: 0 0 0 3px var(--orange-soft);
+}
+.site-wrap .feed-toolbar .feed-sort select {
+  min-height: 1.7rem;
+  max-width: 9rem;
+  padding: 0.2rem 1.65rem 0.2rem 0.35rem;
+  border: 0;
+  background-color: transparent;
+  box-shadow: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: max(16px, 0.75rem);
+  line-height: 1.5;
+}
+.feed-toolbar .feed-sort select:focus-visible {
+  outline: none;
+}
+@media (max-width: 599px) {
+  .feed-toolbar .feed-tabs {
+    flex: 1 0 100%;
+    justify-content: space-between;
+  }
+  .feed-toolbar .feed-tabs button {
+    padding-inline: 0.65rem;
+  }
+  .feed-toolbar .feed-sort {
+    margin-left: auto;
+  }
 }
 /* Dialog lives in the top layer, including when opened from another modal. */
 .site-wrap .glass-select-menu {

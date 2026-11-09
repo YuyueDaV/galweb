@@ -42,6 +42,14 @@ test('玻璃下拉：排序、会社搜索、键盘、手机深色面板和原�
   const company = page.getByRole('combobox', { name: '按会社查找', exact: true })
   await company.click()
   const companies = page.getByRole('dialog', { name: '按会社查找', exact: true })
+  const scrollY = await page.evaluate(() => window.scrollY)
+  await page.keyboard.press('ArrowDown')
+  await page.keyboard.press('End')
+  await expect(companies).toBeVisible()
+  expect(await companies.locator('.glass-select-options').evaluate((list) => list.scrollTop)).toBeGreaterThan(
+    0,
+  )
+  expect(await page.evaluate(() => window.scrollY)).toBe(scrollY)
   await companies.getByLabel('搜索选项', { exact: true }).fill('no matching company here')
   await expect(companies.getByRole('status')).toHaveText('没有匹配的选项')
   await companies.getByLabel('搜索选项', { exact: true }).fill('nitroplus')
@@ -78,6 +86,7 @@ test('弹窗内下拉保留数字和空值，关闭选择面板不关闭发帖�
   const work = editor.getByRole('combobox', { name: '关联作品', exact: true })
   await work.click()
   const menu = page.getByRole('dialog', { name: '关联作品', exact: true })
+  await expect(page.locator('body')).toHaveCSS('overflow', 'hidden')
   await menu.getByLabel('搜索选项').fill('命运石之门')
   const numbered = page.waitForRequest(
     (request) => request.url().endsWith('/api/forum/draft') && request.method() === 'PUT',
@@ -86,6 +95,7 @@ test('弹窗内下拉保留数字和空值，关闭选择面板不关闭发帖�
   expect((await numbered).postDataJSON().workId).toBe(1)
   await expect(editor).toBeVisible()
   await expect(work).toHaveValue('1')
+  await expect(page.locator('body')).toHaveCSS('overflow', 'hidden')
   await work.click()
   await menu.getByLabel('搜索选项').fill('不关联作品')
   const cleared = page.waitForRequest(
@@ -98,4 +108,58 @@ test('弹窗内下拉保留数字和空值，关闭选择面板不关闭发帖�
   await expect(editor).toBeVisible()
   await expect(page.getByRole('dialog', { name: '发布到', exact: true })).not.toBeVisible()
   await editor.getByRole('button', { name: '关闭发帖窗口', exact: true }).click()
+})
+
+test('首页筛选控件圆润易点，下拉打开和选择不会拉伸页面或跳动', async ({ page }) => {
+  await page.goto('/')
+  const sort = page.getByRole('combobox', { name: '帖子排序', exact: true })
+  const menu = page.getByRole('dialog', { name: '帖子排序', exact: true })
+  const geometry = () =>
+    page.evaluate(() => {
+      const toolbar = document.querySelector('.feed-toolbar')!.getBoundingClientRect()
+      return {
+        x: toolbar.x,
+        width: toolbar.width,
+        height: toolbar.height,
+        pageWidth: document.documentElement.clientWidth,
+        pageHeight: document.documentElement.scrollHeight,
+        scrollY: window.scrollY,
+        overflow: getComputedStyle(document.body).overflow,
+      }
+    })
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 })
+    await expect(page.locator('.post-card').first()).toBeVisible()
+    await page.evaluate(() => document.fonts.ready)
+    await sort.scrollIntoViewIfNeeded()
+    const before = await geometry()
+    const controls = await page
+      .locator('.feed-tabs button, .feed-sort, .section-heading .write-link')
+      .evaluateAll((elements) =>
+        elements.map((element) => ({
+          height: element.getBoundingClientRect().height,
+          radius: parseFloat(getComputedStyle(element).borderTopLeftRadius),
+          font: parseFloat(getComputedStyle(element).fontSize),
+        })),
+      )
+    for (const control of controls) {
+      expect(control.height).toBeGreaterThanOrEqual(44)
+      expect(control.radius).toBeGreaterThanOrEqual(22)
+    }
+    for (const button of controls.filter((_, index) => index !== controls.length - 1)) {
+      expect(button.font).toBeGreaterThanOrEqual(14)
+    }
+    expect(
+      await sort.evaluate((element) => parseFloat(getComputedStyle(element).fontSize)),
+    ).toBeGreaterThanOrEqual(16)
+    await sort.click()
+    await expect(menu).toBeVisible()
+    expect(await geometry()).toEqual(before)
+    await page.keyboard.press('End')
+    expect(await geometry()).toEqual(before)
+    await page.keyboard.press('Escape')
+    expect(await geometry()).toEqual(before)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+    await page.screenshot({ path: test.info().outputPath(`feed-controls-${width}.png`) })
+  }
 })

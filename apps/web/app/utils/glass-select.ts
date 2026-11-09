@@ -65,8 +65,8 @@ export function installGlassSelect() {
     }
     const bounds = source.getBoundingClientRect()
     const width = Math.min(Math.max(bounds.width, 280), window.innerWidth - 24)
-    const height = dialog.getBoundingClientRect().height
     dialog.style.width = `${width}px`
+    const height = dialog.getBoundingClientRect().height
     dialog.style.left = `${Math.max(12, Math.min(bounds.left, window.innerWidth - width - 12))}px`
     dialog.style.top = `${Math.max(12, Math.min(bounds.bottom + 8, window.innerHeight - height - 12))}px`
   }
@@ -77,7 +77,10 @@ export function installGlassSelect() {
     if (!row) return
     active = rows.indexOf(row)
     row.focus({ preventScroll: true })
-    row.scrollIntoView({ block: 'nearest' })
+    const bounds = row.getBoundingClientRect()
+    const viewport = list.getBoundingClientRect()
+    if (bounds.top < viewport.top) list.scrollTop -= viewport.top - bounds.top
+    else if (bounds.bottom > viewport.bottom) list.scrollTop += bounds.bottom - viewport.bottom
   }
 
   function choose(index: number) {
@@ -175,7 +178,7 @@ export function installGlassSelect() {
     dialog.showModal()
     position()
     observer.observe(select, { childList: true, subtree: true, attributes: true, characterData: true })
-    if (!search.hidden) search.focus()
+    if (!search.hidden) search.focus({ preventScroll: true })
     else {
       const selected = rows.findIndex((row) => row.getAttribute('aria-selected') === 'true' && !row.disabled)
       const enabled = rows.filter((row) => !row.disabled)
@@ -257,6 +260,10 @@ export function installGlassSelect() {
   document.addEventListener('keydown', keydown, true)
   window.addEventListener('resize', position)
   window.visualViewport?.addEventListener('resize', position)
+  const scroll = (event: Event) => {
+    if (source && event.target instanceof Node && !dialog.contains(event.target)) dismiss(false)
+  }
+  document.addEventListener('scroll', scroll, true)
   function refresh() {
     if (source) dismiss(false)
   }
@@ -270,6 +277,7 @@ export function installGlassSelect() {
       document.removeEventListener('keydown', keydown, true)
       window.removeEventListener('resize', position)
       window.visualViewport?.removeEventListener('resize', position)
+      document.removeEventListener('scroll', scroll, true)
     },
   }
 }
