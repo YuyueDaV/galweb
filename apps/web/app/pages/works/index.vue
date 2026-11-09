@@ -187,6 +187,47 @@ useSeoMeta({ title: '作品书架 · 澄之响' })
 </template>
 
 <style scoped>
+.library-toolbar > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  align-items: center;
+}
+.library-toolbar :is(.library-search, .feed-sort) {
+  box-sizing: border-box;
+  min-height: 2.5rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--muted) 48%, transparent);
+  border-radius: 0.8rem;
+  background: rgb(var(--liquid-rgb) / 80%);
+  box-shadow:
+    inset 0 1px 0 var(--liquid-highlight),
+    0 3px 10px var(--liquid-shadow);
+  -webkit-backdrop-filter: blur(8px) saturate(1.15);
+  backdrop-filter: blur(8px) saturate(1.15);
+  font-size: 0.75rem;
+}
+.library-toolbar :is(.library-search, .feed-sort):focus-within {
+  border-color: var(--orange);
+  box-shadow:
+    0 0 0 3px var(--orange-soft),
+    inset 0 1px 0 var(--liquid-highlight);
+}
+.library-toolbar .library-search input {
+  width: 12rem;
+  min-width: 0;
+  font-size: max(16px, 0.8rem);
+}
+.library-toolbar .feed-sort select {
+  box-sizing: border-box;
+  min-height: 1.65rem;
+  max-width: 12rem;
+  padding: 0.15rem 1.6rem 0.15rem 0.35rem;
+  background-color: transparent;
+  box-shadow: none;
+  color: var(--ink);
+  font-size: 0.75rem;
+}
 .company-filter {
   display: flex;
   align-items: center;
@@ -210,29 +251,28 @@ useSeoMeta({ title: '作品书架 · 澄之响' })
   }
   .library-search {
     grid-column: 1 / -1;
-    padding: 0.55rem 0.65rem;
-    border: 1px solid var(--line);
-    border-radius: 0.5rem;
-    background: var(--surface);
   }
-  .library-search input {
+  .library-toolbar .library-search input {
     width: 100%;
     min-width: 0;
     font-size: 0.8rem;
   }
   .library-toolbar .feed-sort {
-    padding: 0.45rem 0.5rem;
     min-width: 0;
-    border: 1px solid var(--line);
-    border-radius: 0.5rem;
-    background: var(--surface);
-    font-size: 0.65rem;
+    font-size: 0.75rem;
   }
   .library-toolbar .feed-sort select {
     min-width: 0;
     max-width: 100%;
     width: 100%;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .library-toolbar :is(.library-search, .feed-sort) {
+    background: var(--surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }
 </style>

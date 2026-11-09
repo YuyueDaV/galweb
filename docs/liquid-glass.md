@@ -14,6 +14,8 @@
 
 批量入口由 `apps/web/app/utils/liquid-glass-surfaces.ts` 中的 `GLASS_SURFACES` 维护；异步内容、页面路由切换和弹窗打开后自动接入。`REFRACTION_SURFACES` 控制哪些区域在桌面端启用真正的 SVG 折射，其余区域采用轻量磨砂和边缘高光。
 
+单选下拉框由 `glass-select.ts` 渐进增强：桌面使用玻璃浮层，手机使用站内底部面板，超过 10 个选项时提供搜索。支持键盘选择、Escape、焦点返回、禁用选项和弹窗内选择，原来的 `select`、表单验证和 Vue 数字／空值绑定继续保留；无 JavaScript 时使用原生下拉框。多选、列表框和显式标注 `data-native-select` 的控件保留原生行为。按钮统一添加轻量高光，主色、危险色、选中与禁用状态仍由业务样式决定，不为每个按钮生成 SVG 折射资源。
+
 ## 与参考源码的适配差异
 
 1. React 组件改为 `LiquidGlass.vue`，保留 `radius`、`bevelDepth`、`scale`、`aberration`、`frost`、`tint`、`contentClassName` 参数。`as` 可保留原本的 `header` 等标签，避免增加布局包裹层。参数变化会刷新贴图。
