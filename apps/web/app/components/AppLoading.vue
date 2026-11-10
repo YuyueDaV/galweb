@@ -40,6 +40,7 @@ withDefaults(defineProps<{ initial?: boolean }>(), { initial: false })
 
 <style scoped>
 .app-loading {
+  --loading-y: 0px;
   position: fixed;
   bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   left: 50%;
@@ -55,7 +56,7 @@ withDefaults(defineProps<{ initial?: boolean }>(), { initial: false })
   background: var(--surface-solid);
   color: var(--ink);
   box-shadow: 0 12px 40px #443a2120;
-  transform: translateX(-50%);
+  transform: translate(-50%, var(--loading-y));
   pointer-events: none;
   animation: loading-appear 160ms ease-out both;
 }
@@ -157,7 +158,7 @@ withDefaults(defineProps<{ initial?: boolean }>(), { initial: false })
     transform: translateY(0) scale(1.04, 0.96);
   }
   42% {
-    transform: translateY(-12px) scale(0.97, 1.03) rotate(-5deg);
+    transform: translateY(var(--loading-hop-height, -12px)) scale(0.97, 1.03) rotate(-5deg);
   }
   72% {
     transform: translateY(0) scale(1.06, 0.94) rotate(2deg);
@@ -202,11 +203,74 @@ withDefaults(defineProps<{ initial?: boolean }>(), { initial: false })
 @keyframes loading-appear {
   from {
     opacity: 0;
-    transform: translate(-50%, 8px);
+    transform: translate(-50%, calc(var(--loading-y) + 8px));
   }
   to {
     opacity: 1;
-    transform: translate(-50%, 0);
+    transform: translate(-50%, var(--loading-y));
+  }
+}
+@media (min-width: 900px) {
+  .app-loading {
+    min-width: 300px;
+    bottom: 32px;
+    gap: 18px;
+    padding: 16px 28px 16px 20px;
+  }
+  .loading-scene {
+    flex-basis: 80px;
+    width: 80px;
+    height: 92px;
+  }
+  .loading-orange {
+    width: 80px;
+    height: 86px;
+  }
+  .loading-shadow {
+    left: 20px;
+    width: 40px;
+    height: 7px;
+    bottom: 4px;
+  }
+  .loading-label {
+    font-size: 16px;
+  }
+  .loading-copy small {
+    font-size: 13px;
+  }
+  .app-loading.is-initial {
+    --loading-y: -50%;
+    --loading-hop-height: -18px;
+    top: 50%;
+    bottom: auto;
+    display: grid;
+    justify-items: center;
+    gap: 16px;
+    min-width: 300px;
+    padding: 28px 40px 32px;
+    border-radius: 28px;
+  }
+  .is-initial .loading-scene {
+    width: 112px;
+    height: 128px;
+  }
+  .is-initial .loading-orange {
+    width: 112px;
+    height: 120px;
+  }
+  .is-initial .loading-shadow {
+    left: 28px;
+    width: 56px;
+    height: 8px;
+    bottom: 5px;
+  }
+  .is-initial .loading-copy {
+    text-align: center;
+    gap: 8px;
+  }
+  .is-initial .loading-label {
+    justify-content: center;
+    font-size: 18px;
   }
 }
 @media (max-width: 599px) {

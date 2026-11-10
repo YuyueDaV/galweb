@@ -23,8 +23,17 @@ test('慢页面切换显示橘子，不卡操作；手机、深色和减少动�
     await expect(loader.locator('.loading-orange')).toHaveCSS('animation-name', /orange-hop/)
     await expect(page.locator('#main-content')).toHaveAttribute('aria-busy', 'true')
     await expect(loader).toHaveCSS('pointer-events', 'none')
+    await expect(loader.locator('.loading-orange')).toHaveCSS('width', '80px')
     await loader.screenshot({ path: test.info().outputPath('orange-light.png') })
     await page.getByRole('button', { name: '切换深色模式', exact: true }).click()
+    for (const width of [1366, 1920]) {
+      await page.setViewportSize({ width, height: 1080 })
+      const box = await loader.boundingBox()
+      expect(Math.abs(box!.x + box!.width / 2 - width / 2)).toBeLessThan(1)
+      expect(box!.y + box!.height).toBeLessThanOrEqual(1080)
+      await expect(loader.locator('.loading-orange')).toHaveCSS('width', '80px')
+    }
+    await loader.screenshot({ path: test.info().outputPath('orange-desktop-route-dark.png') })
     for (const width of [390, 320]) {
       await page.setViewportSize({ width, height: 844 })
       const box = await loader.boundingBox()

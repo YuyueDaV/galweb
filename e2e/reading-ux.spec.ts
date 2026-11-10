@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test'
 import { createRequire } from 'node:module'
 
 test('主题在脚本加载前生效；慢请求展示加载提示并在完成后退出', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
   await page.addInitScript(() => {
     if (!localStorage.getItem('chengzhixiang-theme')) localStorage.setItem('chengzhixiang-theme', 'dark')
   })
@@ -25,6 +26,15 @@ test('主题在脚本加载前生效；慢请求展示加载提示并在完成�
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
     await expect(page.locator('html')).toHaveCSS('color-scheme', 'dark')
     await expect(page.locator('.app-loading .loading-orange')).toBeVisible()
+    const initialLoader = page.locator('.app-loading.is-initial')
+    await expect(initialLoader.locator('.loading-orange')).toHaveCSS('width', '112px')
+    await expect
+      .poll(async () => {
+        const box = await initialLoader.boundingBox()
+        return Math.abs(box!.y + box!.height / 2 - 500)
+      })
+      .toBeLessThan(2)
+    await initialLoader.screenshot({ path: test.info().outputPath('orange-desktop-initial-dark.png') })
     start()
     await expect(page.getByRole('status').filter({ hasText: '正在加载故事' })).toBeVisible()
     finish()
