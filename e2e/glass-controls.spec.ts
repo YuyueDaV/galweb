@@ -133,6 +133,21 @@ test('首页筛选控件圆润易点，下拉打开和选择不会拉伸页面�
     await page.evaluate(() => document.fonts.ready)
     await sort.scrollIntoViewIfNeeded()
     const before = await geometry()
+    if (width < 600) {
+      const tabs = await page
+        .locator('.feed-tabs button')
+        .evaluateAll((items) =>
+          items.map((item) => ({
+            width: item.getBoundingClientRect().width,
+            y: item.getBoundingClientRect().y,
+          })),
+        )
+      expect(
+        Math.max(...tabs.map((item) => item.width)) - Math.min(...tabs.map((item) => item.width)),
+      ).toBeLessThan(1)
+      expect(new Set(tabs.map((item) => item.y)).size).toBe(1)
+      expect((await page.locator('.feed-sort').boundingBox())!.width).toBeCloseTo(before.width, 0)
+    }
     const controls = await page
       .locator('.feed-tabs button, .feed-sort, .section-heading .write-link')
       .evaluateAll((elements) =>

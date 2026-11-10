@@ -134,8 +134,12 @@ export function useAwards() {
     saveSettings: (next: AwardCampaign) => mutate(adminRoot(), next, 'PATCH'),
     movePhase: (phase: CampaignPhase) =>
       mutate(adminRoot() + '/transitions', { phase, version: campaign.value.version }),
-    submitNomination: (title: string, studio: string, reason: string) =>
-      mutate(root() + '/nominations', { title, studio, reason }),
+    submitNomination: (
+      title: string,
+      studio: string,
+      reason: string,
+      source: { workId?: number; subjectId?: number } = {},
+    ) => mutate(root() + '/nominations', { title, studio, reason, ...source }),
     withdrawNomination: (id: string) =>
       mutate(root() + '/nominations/' + id, { status: 'withdrawn' }, 'PATCH'),
     reviewNomination: (id: string, status: 'approved' | 'rejected', note: string) =>

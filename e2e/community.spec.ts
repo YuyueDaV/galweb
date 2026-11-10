@@ -81,7 +81,10 @@ test('邮件注册、登录、发帖回复、收藏、头像上传、提名审�
   await page.goto('/awards?campaign=browser-voting')
   await page.getByRole('button', { name: '提交一份提名', exact: true }).click()
   const nomination = page.getByRole('dialog', { name: '替喜欢的作品，写一封推荐信。' })
-  await nomination.getByPlaceholder('输入作品名称，也可以提名书架之外的作品').fill('魔法使之夜')
+  await nomination.getByRole('combobox', { name: '书库作品', exact: true }).selectOption('3')
+  await expect(nomination.getByPlaceholder('输入作品名称，也可以提名书架之外的作品')).toHaveValue(
+    '魔法使之夜',
+  )
   await nomination
     .getByPlaceholder('哪一个瞬间，让你想把它推荐给大家？')
     .fill('演出、文字与音乐共同构成了值得分享的阅读体验。')

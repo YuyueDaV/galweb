@@ -1,7 +1,42 @@
 <script setup lang="ts">
-import { works, coverUrl } from '~/data/forum'
-import { ballotRules, phaseNames, formatAwardTime, campaignWindowMessage } from '~/utils/awards'
+import { coverUrl as archiveCoverUrl } from '~/data/forum'
+import { ballotRules, phaseNames, formatAwardTime, campaignWindowMessage, normalizeWorkTitle } from '~/utils/awards'
 import type { AwardCandidate } from '~/types/awards'
+import type { Work } from '~/types/forum'
+import type { BangumiSubject } from '~/types/catalog'
+
+const api = useRequestFetch()
+const { data: works, refresh: refreshWorks, error: catalogError } = await useAsyncData('award-catalog', () => api<Work[]>('/api/works'), { default: () => [] })
+const sourceMode = ref('catalog')
+const selectedWorkId = ref<number | null>(null)
+const selectedSubject = ref<BangumiSubject | null>(null)
+const submitting = ref(false)
+const selectedWork = computed(() => works.value.find((work) => work.rank === selectedWorkId.value))
+function coverUrl(rank: number) {
+  const work = works.value.find((item) => item.rank === rank)
+  return work?.coverUrl || work?.bangumi?.coverUrl || (rank <= 12 ? archiveCoverUrl(rank) : '/images/work-placeholder.svg')
+}
+function chooseWork() {
+  selectedSubject.value = null
+  formTitle.value = selectedWork.value?.title || ''
+  formStudio.value = selectedWork.value?.studio || ''
+}
+function chooseBangumi({ subject }: { subject: BangumiSubject }) {
+  const keys = [subject.title, subject.originalTitle].map(normalizeWorkTitle).filter(Boolean)
+  const existing = works.value.find((work) => work.bangumi?.id === subject.id || [work.title, work.subtitle, work.bangumi?.title, work.bangumi?.originalTitle].some((title) => title && keys.includes(normalizeWorkTitle(title))))
+  selectedWorkId.value = existing?.rank || null
+  selectedSubject.value = existing ? null : subject
+  formTitle.value = existing?.title || subject.title
+  formStudio.value = existing?.studio || subject.studio
+  formError.value = ''
+}
+function changeSource() {
+  selectedWorkId.value = null
+  selectedSubject.value = null
+  formTitle.value = ''
+  formStudio.value = ''
+  formError.value = ''
+}
 
 const awards = useAwards()
 const route = useRoute()
@@ -102,16 +137,30 @@ function openNomination(title = '', studio = '') {
   formStudio.value = studio
   formReason.value = ''
   formError.value = ''
+  selectedWorkId.value = works.value.find((work) => normalizeWorkTitle(work.title) === normalizeWorkTitle(title))?.rank || null
+  selectedSubject.value = null
+  sourceMode.value = title ? 'manual' : 'catalog'
   nominationDialog.value?.showModal()
+  void refreshWorks()
 }
 async function submitNomination() {
+  if (submitting.value) return
+  if (sourceMode.value === 'catalog' && !selectedWork.value) { formError.value = '请先选择书库作品。'; return }
+  if (sourceMode.value === 'bangumi' && !selectedWork.value && !selectedSubject.value) { formError.value = '请先搜索并选择 Bangumi 作品。'; return }
+  submitting.value = true
   try {
-    await awards.submitNomination(formTitle.value, formStudio.value, formReason.value)
+    await awards.submitNomination(formTitle.value, formStudio.value, formReason.value, {
+      ...(selectedWorkId.value ? { workId: selectedWorkId.value } : {}),
+      ...(selectedSubject.value ? { subjectId: selectedSubject.value.id } : {}),
+    })
+    await refreshWorks()
     nominationDialog.value?.close()
     tab.value = 'mine'
     notify('提名已提交，等待管理员审核。')
   } catch (error) {
     formError.value = error instanceof Error ? error.message : '提名提交失败。'
+  } finally {
+    submitting.value = false
   }
 }
 async function withdraw(id: string) {
@@ -266,7 +315,7 @@ async function withdrawBallot() {
               <article v-for="item in winners" :key="item.id" class="award-result-row">
                 <span class="award-result-rank">{{ String(item.rank).padStart(2, '0') }}</span>
                 <div class="award-result-cover">
-                  <img
+                  <SafeImage
                     v-if="item.coverRank"
                     :src="coverUrl(item.coverRank)"
                     :alt="`${item.title}封面`"
@@ -373,7 +422,7 @@ async function withdrawBallot() {
                   :class="{ chosen: selected.includes(item.id) && campaign.phase === 'voting' }"
                 >
                   <div class="award-candidate-cover">
-                    <img
+                    <SafeImage
                       v-if="item.coverRank"
                       :src="coverUrl(item.coverRank)"
                       :alt="`${item.title}封面`"
@@ -611,32 +660,45 @@ async function withdrawBallot() {
             <AppIcon name="close" />
           </button>
         </div>
+        <label class="nomination-source">作品来源<select v-model="sourceMode" :disabled="submitting" @change="changeSource">
+          <option value="catalog">从书库选择</option><option value="bangumi">搜索 Bangumi</option><option value="manual">手动填写</option>
+        </select></label>
+        <p v-if="catalogError" class="form-error" role="alert">书库暂未加载成功。<button type="button" class="text-link" @click="refreshWorks()">重新加载书库</button></p>
+        <label v-if="sourceMode === 'catalog'" class="nomination-source">书库作品<select v-model="selectedWorkId" :disabled="submitting" @change="chooseWork">
+          <option :value="null">请选择作品</option><option v-for="work in works" :key="work.rank" :value="work.rank">{{ work.title }}{{ work.studio ? ' · ' + work.studio : '' }}</option>
+        </select></label>
+        <BangumiSearch v-if="sourceMode === 'bangumi'" :works="works" selectable :selecting="submitting" selection-label="选择此作品提名" @selected="chooseBangumi" />
+        <p class="nomination-help">已有作品复用书库资料；新作品将在提交提名时一并收录并记录添加人，提名仍需审核。</p>
+        <p v-if="selectedWork || selectedSubject" class="nomination-selection" role="status">已选择：{{ formTitle }}{{ selectedWork ? ' · 已在书库' : ' · 来自 Bangumi' }}</p>
         <form class="award-form" @submit.prevent="submitNomination">
           <label
             >作品名称<input
               v-model="formTitle"
               list="award-known-works"
-              maxlength="80"
+              maxlength="160"
+              :readonly="sourceMode !== 'manual'"
+              :disabled="submitting"
               required
               placeholder="输入作品名称，也可以提名书架之外的作品" /></label
           ><datalist id="award-known-works">
             <option v-for="work in works" :key="work.rank" :value="work.title" /></datalist
           ><label
             >制作组 <span>选填</span
-            ><input v-model="formStudio" maxlength="80" placeholder="例如：Key、TYPE-MOON" /></label
+            ><input v-model="formStudio" maxlength="200" :readonly="sourceMode !== 'manual'" :disabled="submitting" placeholder="例如：Key、TYPE-MOON" /></label
           ><label
             >提名说明 <span>选填，最多 600 字，不计推荐词分数</span
             ><textarea
               v-model="formReason"
               rows="5"
               maxlength="600"
+              :disabled="submitting"
               placeholder="哪一个瞬间，让你想把它推荐给大家？"
             ></textarea>
           </label>
           <p v-if="formError" class="form-error" role="alert">{{ formError }}</p>
           <div class="award-form-bottom">
             <span>已提名 {{ nominationCount }} / {{ campaign.nominationLimit }} 部 · 提交后进入审核</span
-            ><button class="button primary" type="submit">提交提名<AppIcon name="send" :size="16" /></button>
+            ><button class="button primary" type="submit" :disabled="submitting">{{ submitting ? '正在提交…' : '提交提名' }}<AppIcon name="send" :size="16" /></button>
           </div>
         </form>
       </dialog>

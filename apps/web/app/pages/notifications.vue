@@ -159,6 +159,13 @@ useSeoMeta({ title: '消息通知 · 澄之响', robots: 'noindex,nofollow' })
   min-width: 0;
 }
 .inbox-item .notification-title {
+  padding: 0;
+  border: 0;
+  border-radius: 0.4rem;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   display: block;
   width: 100%;
   text-align: left;

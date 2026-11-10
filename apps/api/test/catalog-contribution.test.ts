@@ -9,6 +9,7 @@ import { Catalog, workContributionSchema } from '../src/catalog'
 import { Bangumi } from '../src/bangumi'
 import { Assets } from '../src/assets'
 import { hashPassword } from '../src/security'
+import { Awards } from '../src/awards'
 
 test('书库贡献拒绝伪造添加人、审核及角色字段', () => {
   const input = { title: '作品名称', subjectId: null }
@@ -133,6 +134,37 @@ test(
       await catalog.changeCover(member, work.rank, image.id, reset.version)
       await assets.moderate(admin, image.id, 'hidden')
       assert.equal((await catalog.detail(work.rank)).coverUrl, undefined)
+      const awards = new Awards(db, platform, catalog)
+      const campaign = await awards.create(admin)
+      await awards.phase(admin, campaign.id, 'nomination', campaign.version!)
+      const count = (await catalog.works()).length
+      await awards.nominate(member, campaign.id, '伪造名称', '伪造会社', '', { workId: work.rank })
+      const nomination = (await awards.nominations(campaign.id))[0]!
+      assert.equal(nomination.title, work.title)
+      assert.equal(nomination.coverRank, work.rank)
+      assert.equal((await catalog.works()).length, count)
+      await assert.rejects(() => awards.nominate(member, campaign.id, input.subtitle, '', ''), /已提名/)
+      await assert.rejects(
+        () => awards.nominate(other, campaign.id, '不存在', '', '', { workId: 2147483647 }),
+        /不存在/,
+      )
+      await awards.nominate(member, campaign.id, '自动收录 ' + marker, '会社', '')
+      const manual = (await catalog.publicWorks()).find((w) => w.title === '自动收录 ' + marker)!
+      assert.equal(manual.addedBy?.id, member.id)
+      await awards.nominate(member, campaign.id, '忽略客户端资料', '', '', { subjectId: 990103 })
+      const imported = (await catalog.publicWorks()).find((w) => w.bangumi?.id === 990103)!
+      assert.equal(imported.title, '作品' + marker + ' 990103')
+      assert.match(imported.bangumi!.coverUrl, /^https:\/\/lain.bgm.tv\//)
+      await awards.nominate(other, campaign.id, '用相同 Bangumi 编号', '', '', { subjectId: 990103 })
+      assert.equal((await catalog.works()).filter((w) => w.bangumi?.id === 990103).length, 1)
+      const beforeFailure = (await catalog.works()).length
+      await assert.rejects(
+        () => awards.nominate(member, campaign.id, '配额失败须回滚 ' + marker, '', ''),
+        /上限/,
+      )
+      assert.equal((await catalog.works()).length, beforeFailure)
+      await catalog.remove(admin, manual.rank, manual.version)
+      await assert.rejects(() => awards.nominate(other, campaign.id, manual.title, '', ''), /移出书库/)
       await db.execute('UPDATE users SET nickname=? WHERE id=?', ['新昵称', member.id])
       assert.equal((await catalog.detail(work.rank)).addedBy?.name, '新昵称')
       await db.execute("UPDATE users SET status='deleted',nickname='已注销用户' WHERE id=?", [member.id])

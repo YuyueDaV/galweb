@@ -19,6 +19,24 @@ test('管理员创建修改删除活动；自定义分值、互斥选票、推�
   await expect(page.getByLabel('当前活动')).toHaveValue(id)
   await expect(page.getByLabel('真爱票张数', { exact: true })).toHaveValue('1')
   await expect(page.getByLabel('喜爱票张数', { exact: true })).toHaveValue('2')
+  await page.setViewportSize({ width: 390, height: 844 })
+  const rules = page.getByRole('group', { name: '自定义投票规则', exact: true })
+  await expect(rules).toBeVisible()
+  expect(
+    await rules
+      .locator('input')
+      .first()
+      .evaluate((el) => el.getBoundingClientRect().height),
+  ).toBeGreaterThanOrEqual(48)
+  expect(
+    await rules
+      .locator('label')
+      .first()
+      .evaluate((el) => parseFloat(getComputedStyle(el).fontSize)),
+  ).toBeGreaterThanOrEqual(14)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+  await rules.screenshot({ path: test.info().outputPath('award-rules-mobile.png') })
+  await page.setViewportSize({ width: 1440, height: 900 })
   const title = '自定义加分活动 ' + Date.now().toString(36)
   await page.getByLabel('活动名称', { exact: true }).fill(title)
   await page.getByLabel('真爱票分值', { exact: true }).fill('5')

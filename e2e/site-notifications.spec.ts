@@ -66,6 +66,8 @@ test('管理员群发预览、失败重试和防重；成员收件、独立已�
     const item = reader.locator('.inbox-item').filter({ hasText: title })
     await expect(item).toContainText(content)
     await expect(item).toHaveClass(/unread/)
+    await expect(item.locator('.notification-title')).toHaveCSS('background-image', 'none')
+    await expect(item.locator('.notification-title')).toHaveCSS('box-shadow', 'none')
     await reader.setViewportSize({ width: 390, height: 844 })
     await item.screenshot({ path: test.info().outputPath('site-notice-light-mobile.png') })
     expect(await reader.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBeTruthy()

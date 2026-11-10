@@ -249,17 +249,163 @@ html .site-wrap [data-liquid-glass='opaque'] {
 }
 @media (max-width: 599px) {
   .feed-toolbar .feed-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     flex: 1 0 100%;
-    justify-content: space-between;
+    width: 100%;
+    gap: 8px;
   }
   .feed-toolbar .feed-tabs button {
-    padding-inline: 0.65rem;
+    width: 100%;
+    justify-content: center;
+    padding-inline: 4px;
   }
   .feed-toolbar .feed-sort {
-    margin-left: auto;
+    width: 100%;
+    margin: 0;
+  }
+  .site-wrap .feed-toolbar .feed-sort select {
+    flex: 1;
+    width: 100%;
+    max-width: none;
+  }
+  .feed-toolbar {
+    gap: 8px;
   }
 }
 /* Dialog lives in the top layer, including when opened from another modal. */
+.site-wrap .award-nomination-dialog {
+  box-sizing: border-box;
+  width: min(48rem, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: clamp(20px, 3vw, 36px);
+  border-radius: 24px;
+  overflow-y: auto;
+}
+.award-nomination-dialog .modal-heading h2 {
+  font-size: clamp(22px, 2vw, 30px);
+  line-height: 1.5;
+}
+.award-nomination-dialog .nomination-source,
+.site-wrap .award-form > label,
+.site-wrap .award-quota-fields > label {
+  display: block;
+  min-width: 0;
+  font-size: max(14px, 0.75rem);
+  font-weight: 400;
+  line-height: 1.6;
+}
+.nomination-source {
+  margin: 16px 0;
+}
+.site-wrap .nomination-source select,
+.site-wrap .award-form :is(input, textarea),
+.site-wrap .award-quota-fields input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 8px;
+  padding: 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--muted) 48%, transparent);
+  border-radius: 16px;
+  background-color: rgb(var(--liquid-rgb) / 80%);
+  font-size: max(16px, 0.8rem);
+  line-height: 1.6;
+}
+.site-wrap .nomination-source select {
+  padding-right: 40px;
+}
+.site-wrap .award-form textarea {
+  min-height: 144px;
+}
+.site-wrap .award-form :is(input, textarea):focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 2px;
+}
+.site-wrap .award-form label > span:not(.award-number-input) {
+  font-size: max(12px, 0.65rem);
+  font-weight: 400;
+}
+.nomination-help,
+.nomination-selection {
+  font-size: max(14px, 0.7rem);
+  line-height: 1.7;
+  color: var(--subtle);
+  overflow-wrap: anywhere;
+}
+.nomination-selection {
+  color: var(--orange);
+}
+.award-nomination-dialog .bangumi-panel {
+  padding: 16px;
+  margin: 16px 0;
+}
+.site-wrap .award-admin-tabs {
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+}
+.site-wrap .award-admin-tabs button {
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 1px solid var(--liquid-edge);
+  border-radius: 999px;
+  background-color: rgb(var(--liquid-rgb) / 76%);
+  font-size: max(14px, 0.75rem);
+}
+.site-wrap .award-admin-tabs button.active {
+  background: var(--orange-soft);
+  border-color: var(--orange);
+}
+.site-wrap .award-admin-tabs button.active::after {
+  display: none;
+}
+.award-form .plain-fieldset {
+  min-width: 0;
+  margin: 20px 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+}
+.award-form .plain-fieldset legend {
+  padding: 0 8px;
+  font-size: max(16px, 0.85rem);
+  font-weight: 500;
+}
+.award-form .plain-fieldset > p {
+  margin: 16px 0 0;
+  font-size: max(13px, 0.7rem);
+  font-weight: 400;
+  line-height: 1.8;
+  color: var(--subtle);
+}
+.site-wrap .award-number-input {
+  border-radius: 16px;
+}
+.site-wrap .award-number-input > input {
+  margin: 0;
+  border: 0;
+  background: transparent;
+}
+@media (max-width: 599px) {
+  .award-nomination-dialog .award-form-bottom {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .award-nomination-dialog .award-form-bottom > span {
+    max-width: none;
+    font-size: 13px;
+  }
+  .award-nomination-dialog .award-form-bottom > button {
+    justify-content: center;
+    min-height: 48px;
+    font-size: 16px;
+  }
+  .award-form .plain-fieldset .award-quota-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
 .site-wrap .glass-select-menu {
   position: fixed;
   margin: 0;

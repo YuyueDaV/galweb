@@ -100,3 +100,5 @@ Bangumi 封面经同源 `/api/bangumi/cover?image=…` 获取，用户浏览器�
 部署用户（宝塔默认 `www`）需要写入上传目录；缓存自动创建，不需要新环境变量。此更新使用原 `works` JSON 字段，无需新增数据库表。前后端应一并更新并重启 API，再重新部署 EdgeOne。已有 Bangumi 封面地址无需重新导入。
 
 此功能参考了 [VNFest 项目](https://github.com/kokubunshu/china-visualnovelcircle-maps) 的作品检索与榜单管理思路，在现有 Nuxt / NestJS 代码中独立实现。接口依据 [Bangumi 官方 v0 规范](https://github.com/bangumi/api/blob/master/open-api/v0.yaml) 和 [User-Agent 说明](https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md)。
+
+提名窗口支持实时书库选择、Bangumi 搜索和手动填写。提交时可提供 `workId` 或 `subjectId`（两者互斥），名称和会社由服务端书库或 Bangumi 详情确认；不提供编号时按名称及别名匹配。已有作品复用编号，新作品随提名一并收录，记录添加人；收录和提名处于同一事务，配额不足等失败不会留下新条目。管理员已删除的作品不能通过提名恢复。候选项的 `coverRank` 对应书库作品编号，前端读取实时上传封面或 Bangumi 同源代理封面，提名审核规则保持不变。部署需同时更新前后端，无需数据库迁移；Bangumi 授权配置沿用上文。

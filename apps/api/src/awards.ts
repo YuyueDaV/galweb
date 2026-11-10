@@ -28,12 +28,13 @@ import type {
   CampaignPhase,
   WeightedBallotInput,
 } from './award-types'
-import seeds from './seed-data.json'
+import { Catalog } from './catalog'
 type Row<T> = { data: T | string; version: number }
 export class Awards {
   constructor(
     readonly db: Database,
     private platform: Platform,
+    private catalog = new Catalog(db, platform),
   ) {}
   async campaigns() {
     return (
@@ -216,7 +217,8 @@ export class Awards {
   async remove(actor: Actor, id: string, version: number, confirmation: string) {
     return this.mutate(actor, id, 'admin', async (c, tx, current) => {
       if (c.version !== version) throw reject('活动已更新，请刷新后再删除。')
-      if (normalizeCampaignConfirmation(confirmation) !== normalizeCampaignConfirmation(c.title)) throw reject('请输入完整活动名称确认删除。', 422)
+      if (normalizeCampaignConfirmation(confirmation) !== normalizeCampaignConfirmation(c.title))
+        throw reject('请输入完整活动名称确认删除。', 422)
       await this.db.execute(
         'UPDATE award_campaigns SET data=?,version=version+1 WHERE id=?',
         [JSON.stringify({ ...c, deletedAt: new Date().toISOString(), version: c.version! + 1 }), id],
@@ -259,9 +261,13 @@ export class Awards {
       if (to === 'nomination' || to === 'voting') {
         const action = to === 'nomination' ? '开放提名' : '开放投票'
         await new Broadcasts(this.db, this.platform).deliver(
-          current, `award:${id}:${to}`, 'activity', `${c.title} · ${action}`,
+          current,
+          `award:${id}:${to}`,
+          'activity',
+          `${c.title} · ${action}`,
           `${c.title}已进入${phaseNames[to]}，欢迎参与！\n具体开放时间和参与规则请查看活动页。`,
-          '/awards?campaign=' + encodeURIComponent(id), tx,
+          '/awards?campaign=' + encodeURIComponent(id),
+          tx,
         )
       }
     })
@@ -271,25 +277,44 @@ export class Awards {
     const error = campaignWindowMessage(c, phase)
     if (error) throw reject(error)
   }
-  async nominate(actor: Actor, id: string, title: string, studio: string, reason: string) {
+  async nominate(
+    actor: Actor,
+    id: string,
+    title: string,
+    studio: string,
+    reason: string,
+    source: { workId?: number; subjectId?: number } = {},
+  ) {
+    await this.platform.actor(actor.id)
+    if (source.workId && source.subjectId) throw reject('请选择一种作品来源。', 422)
+    const subject = source.subjectId ? await this.catalog.bangumi.detail(source.subjectId, true) : undefined
     return this.mutate(actor, id, 'member', async (c, tx, current) => {
       this.window(c, 'nomination')
-      const normalized = normalizeWorkTitle(title)
+      const known = await this.catalog.nominationWork(current, tx, {
+        title,
+        studio,
+        workId: source.workId,
+        subject,
+      })
+      const normalized = normalizeWorkTitle(known.title)
       if (!normalized) throw reject('作品名称无效。', 422)
       const nominations = await this.nominations(id, tx),
         mine = nominations.filter(
           (n) => n.accountId === actor.id && !['withdrawn', 'rejected'].includes(n.status),
         )
       if (mine.length >= c.nominationLimit) throw reject('已达到本届提名上限。')
-      if (mine.some((n) => normalizeWorkTitle(n.title) === normalized)) throw reject('你已提名过这部作品。')
-      const known = seeds.works.find((w) => normalizeWorkTitle(w.title) === normalized)
-      let candidate = (
-        await this.db.rows<{ id: string }>(
-          'SELECT id FROM award_candidates WHERE campaign_id=? AND normalized_title=?',
-          [id, normalized],
-          tx,
-        )
-      )[0]
+      if (mine.some((n) => n.coverRank === known.rank || normalizeWorkTitle(n.title) === normalized))
+        throw reject('你已提名过这部作品。')
+      const previous = nominations.find((n) => n.coverRank === known.rank)
+      let candidate = previous
+        ? { id: previous.candidateId }
+        : (
+            await this.db.rows<{ id: string }>(
+              'SELECT id FROM award_candidates WHERE campaign_id=? AND normalized_title=?',
+              [id, normalized],
+              tx,
+            )
+          )[0]
       if (!candidate) {
         candidate = { id: randomUUID() }
         await this.db.execute(
@@ -299,9 +324,9 @@ export class Awards {
             id,
             normalized,
             JSON.stringify({
-              title: known?.title || title,
-              studio: known?.studio || studio,
-              coverRank: known?.rank,
+              title: known.title,
+              studio: known.studio,
+              coverRank: known.rank,
             }),
           ],
           tx,
@@ -311,9 +336,9 @@ export class Awards {
         id: randomUUID(),
         campaignId: id,
         candidateId: candidate.id,
-        title: known?.title || title,
-        studio: known?.studio || studio,
-        coverRank: known?.rank,
+        title: known.title,
+        studio: known.studio,
+        coverRank: known.rank,
         reason,
         accountId: actor.id,
         accountName: current.nickname,

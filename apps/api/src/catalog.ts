@@ -149,6 +149,51 @@ export class Catalog {
       await this.db.rows<{ id: number; data: unknown }>('SELECT id,data FROM works ORDER BY id', [], tx)
     ).map((row) => this.work(row))
   }
+  // Called inside the nomination transaction: a failed nomination must not leave a new work behind.
+  async nominationWork(
+    actor: Actor,
+    tx: PoolConnection,
+    input: { title: string; studio: string; workId?: number; subject?: BangumiSubject },
+  ) {
+    await this.platform.lock('catalog', tx)
+    const all = await this.works(tx)
+    const proposed = { title: input.subject?.title || input.title, subtitle: '', bangumi: input.subject }
+    const keys = workKeys(proposed)
+    const existing = input.workId
+      ? all.find((work) => work.rank === input.workId)
+      : (input.subject && all.find((work) => work.bangumi?.id === input.subject!.id)) ||
+        all.find(
+          (work) =>
+            (input.subject && work.bangumi?.id === input.subject.id) ||
+            workKeys(work).some((key) => keys.includes(key)),
+        )
+    if (input.workId && !existing) throw reject('所选书库作品不存在，请重新选择。', 404)
+    if (existing?.catalogDeleted) throw reject('该作品已被管理员移出书库，暂时无法提名。', 409)
+    if (input.subject && existing?.bangumi && existing.bangumi.id !== input.subject.id)
+      throw reject('同名作品已关联其他 Bangumi 条目，请确认作品版本或联系管理员。', 409)
+    if (existing && existing.catalogVisible !== false) return existing
+    const work: CatalogWork = {
+      ...existing,
+      rank: existing?.rank || Math.max(12, ...all.map((work) => work.rank)) + 1,
+      title: existing?.title || proposed.title,
+      subtitle: existing?.subtitle || input.subject?.originalTitle || '',
+      studio: existing?.studio || input.subject?.studio || input.studio,
+      description: existing?.description || input.subject?.summary || '',
+      nominator: existing?.nominator || '成员收录',
+      color: existing?.color || '#91a893',
+      version: (existing?.version || 0) + 1,
+      ...(input.subject && !existing?.bangumi ? { bangumi: input.subject } : {}),
+      catalogVisible: true,
+      addedById: existing?.addedById || actor.id,
+      addedAt: existing?.addedAt || Date.now(),
+    }
+    if (existing)
+      await this.db.execute('UPDATE works SET data=? WHERE id=?', [JSON.stringify(work), work.rank], tx)
+    else
+      await this.db.execute('INSERT INTO works(id,data) VALUES (?,?)', [work.rank, JSON.stringify(work)], tx)
+    await this.platform.audit(actor, '提名收录书库作品 ' + work.rank, null, tx)
+    return work
+  }
   private publicWork(row: PublicWorkRow) {
     const { addedById, ...work } = this.work(row)
     return {
