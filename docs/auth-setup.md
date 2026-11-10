@@ -1,6 +1,6 @@
 # 账号后端运行说明
 
-已实现 `apps/api`：NestJS + MySQL + SMTP，不需要 Redis。包含邮箱验证码注册、用户名密码登录、会话查询/退出、CSRF 凭证恢复、邮箱验证码重置密码。前端登录、论坛和评选已接入真实 API；完整运行步骤见 [运行与部署](deployment.md)。
+已实现 `apps/api`：NestJS + MySQL + SMTP，不需要 Redis。包含邮箱验证码注册、用户名或邮箱密码登录、会话查询/退出、CSRF 凭证恢复、邮箱验证码重置密码。前端登录、论坛和评选已接入真实 API；完整运行步骤见 [运行与部署](deployment.md)。
 
 ## 本机配置
 
@@ -50,7 +50,7 @@ pnpm --filter @chengzhixiang/api mail:test 你的测试收件邮箱
 | --- | --- |
 | POST /api/auth/registration-code | `{email}` → `{challengeId,retryAfter,message}` |
 | POST /api/auth/register | `{challengeId,username,email,password,confirmPassword,code}` → 注册成功提示 |
-| POST /api/auth/login | `{username,password}` → `{user,csrfToken}`，同时设置 HttpOnly 会话 Cookie |
+| POST /api/auth/login | `{username,password}`，`username` 字段可填用户名或注册邮箱（最多 254 字符）→ `{user,csrfToken}`，同时设置 HttpOnly 会话 Cookie |
 | GET /api/auth/me | Cookie → `{user}`，角色来自数据库 |
 | PATCH /api/auth/me | Cookie、X-CSRF-Token、`{nickname}` → 更新展示昵称；用户名不可修改 |
 | DELETE /api/auth/me | Cookie、X-CSRF-Token、`{password,confirmation:"注销账号"}` → 注销当前账号并清除 Cookie；不能指定其他用户 ID |
@@ -61,7 +61,9 @@ pnpm --filter @chengzhixiang/api mail:test 你的测试收件邮箱
 
 注册字段顺序为用户名、邮箱、密码、确认密码、验证码。用户名 3–24 位中文、字母、数字或下划线，规范化后唯一（NFKC + 小写），是固定登录 ID；昵称为独立的社区展示名称，默认使用用户名，登录后可设置为 1–24 字符。内部 UUID 保持不变，用于关联帖子与选票。密码长度 12–128 字符，注册和重置密码均要求二次输入一致；确认失败不消费验证码。验证码 6 位、5 分钟有效、最多失败 5 次。同邮箱发码至少间隔 60 秒、每日最多 10 次；同 IP 每分钟最多 10 次、每日 100 次。注册与找回密码共享发码限额。
 
-`pnpm db:migrate` 会幂等补齐 username / username_key 和唯一索引。已有账号的 UUID、密码、邮箱、角色及昵称保持不变；优先使用有效且未占用的原昵称分配登录名，否则分配 `u_…` 登录名。管理员账号列表会显示登录名。新注册用户必须提供用户名，不能再使用邮箱或修改后的昵称登录。
+`pnpm db:migrate` 会幂等补齐 username / username_key 和唯一索引。已有账号的 UUID、密码、邮箱、角色及昵称保持不变；优先使用有效且未占用的原昵称分配登录名，否则分配 `u_…` 登录名。管理员账号列表会显示登录名。新注册用户必须提供用户名；登录时可使用用户名或注册邮箱，修改后的昵称不作为登录凭据。
+
+登录同时保留 IP 限额（每分钟 30 次）和输入标识限额（每 10 分钟 10 次），同一账号的用户名、邮箱共享每 10 分钟 10 次尝试额度。邮箱首尾空白和大小写按注册时的规则处理，点和加号后缀保留。错误密码、未知账号及禁用账号使用统一失败提示。此功能无需数据库迁移，云端需同时更新前后端并重新构建、重启 API。
 
 邮箱账户按 ASCII 大小写不敏感比较，保留点和加号后缀；目前不支持国际化邮箱地址。注册接口拒绝额外字段（包括 role），新用户恒为 member。首名超级管理员通过 admin:bootstrap 命令引导，后续通过管理界面分配角色，服务端保护最后一名有效超级管理员。
 

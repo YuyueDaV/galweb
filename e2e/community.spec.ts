@@ -5,6 +5,8 @@ import { createRequire } from 'node:module'
 
 test('邮件注册、登录、发帖回复、收藏、头像上传、提名审核与投票持久化', async ({ page, playwright }) => {
   const username = 'pw_' + Date.now().toString(36)
+  const email = `${username}@${'a'.repeat(40)}.${'b'.repeat(40)}.${'c'.repeat(40)}.example.com`
+  expect(email.length).toBeGreaterThan(128)
   const password = 'Browser registration password 123!'
   // Reproduce browsers/proxies omitting Origin and Referer. Keep the same-origin
   // AJAX marker, then exercise the full mail/register/login/CSRF flow below.
@@ -20,7 +22,7 @@ test('邮件注册、登录、发帖回复、收藏、头像上传、提名审�
   const dialog = page.getByRole('dialog', { name: '账号与登录' })
   await dialog.getByRole('button', { name: '邮箱注册', exact: true }).click()
   await dialog.getByLabel('用户名', { exact: true }).fill(username)
-  await dialog.getByLabel('邮箱', { exact: true }).fill(username + '@example.com')
+  await dialog.getByLabel('邮箱', { exact: true }).fill(email)
   await dialog.getByLabel('密码', { exact: true }).fill(password)
   await dialog.getByLabel('确认密码', { exact: true }).fill(password)
   const sent = page.waitForResponse((response) => response.url().endsWith('/api/auth/registration-code'))
@@ -31,6 +33,7 @@ test('邮件注册、登录、发帖回复、收藏、头像上传、提名审�
   await dialog.getByLabel('验证码', { exact: true }).fill(mail.text.match(/\d{6}/)[0])
   await dialog.getByRole('button', { name: '注册账号', exact: true }).click()
   await expect(dialog.getByRole('status')).toContainText('注册成功')
+  await dialog.getByLabel('用户名或邮箱', { exact: true }).fill(email.toUpperCase())
   await dialog.getByLabel('密码', { exact: true }).fill('wrong password')
   await dialog.getByRole('button', { name: '登录', exact: true }).last().click()
   await expect(dialog.getByRole('alert')).toBeVisible()

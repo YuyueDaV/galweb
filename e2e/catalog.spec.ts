@@ -72,7 +72,7 @@ test('访客开放 Bangumi 搜索；管理员编辑 Tier、草稿发布隔离和
     expect((await anonymous.post('/api/admin/works/import', { data: { subjectId: 13 } })).status()).toBe(401)
     await page.getByRole('button', { name: '登录 / 加入', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: '账号与登录' })
-    await dialog.getByLabel('用户名', { exact: true }).fill('browser_editor')
+    await dialog.getByLabel('用户名或邮箱', { exact: true }).fill('browser_editor')
     await dialog.getByLabel('密码', { exact: true }).fill('Isolated editor password 123!')
     await dialog.getByRole('button', { name: '登录', exact: true }).last().click()
     await expect(dialog).not.toBeVisible()

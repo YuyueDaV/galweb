@@ -103,9 +103,12 @@ export function useAuth() {
     if (import.meta.client && user.value && !csrf.value) return singleFlight(() => restore(true))
     return Promise.resolve()
   }
-  async function login(username: string, password: string) {
+  async function login(identifier: string, password: string) {
     runtime.revision++
-    const data = await request<{ user: AuthUser; csrfToken: string }>('/auth/login', { username, password })
+    const data = await request<{ user: AuthUser; csrfToken: string }>('/auth/login', {
+      username: identifier,
+      password,
+    })
     user.value = data.user
     csrf.value = data.csrfToken
     ready.value = true

@@ -2,7 +2,7 @@
 
 状态：邮箱注册、密码登录、会话与密码重置已在前后端接通，采用 MySQL 持久化。SMTP 适配器已实现，真实投递需要配置服务商凭证；开发可使用本地邮件捕获。启动与验收方式见 [账号后端运行说明](auth-setup.md)。
 
-已确认需求：论坛必须支持邮箱注册。首版建议采用“邮箱验证码 + 设置密码”注册，注册后使用用户名和密码登录。邮箱找回密码作为同一账号模块的配套能力，实施时复用邮件发送基础设施，但验证凭证必须区分用途。
+已确认需求：论坛必须支持邮箱注册。采用“邮箱验证码 + 设置密码”注册，注册后使用用户名或注册邮箱和密码登录。邮箱找回密码作为同一账号模块的配套能力，复用邮件发送基础设施，但验证凭证必须区分用途。
 
 ## 用户流程
 
@@ -41,7 +41,7 @@
 | --- | --- |
 | POST /api/auth/registration-code | 接收 email，受限流约束发送注册邮件，返回 challengeId 和重试间隔，不返回验证码 |
 | POST /api/auth/register | 接收 challengeId、username、email、password、confirmPassword、code；校验后在事务中创建普通成员并消费挑战 |
-| POST /api/auth/login | 邮箱与密码登录，创建或轮换会话，通过 Cookie 返回会话凭证 |
+| POST /api/auth/login | 用户名或注册邮箱与密码登录，沿用 `{username,password}` 请求字段，创建或轮换会话，通过 Cookie 返回会话凭证 |
 | POST /api/auth/logout | 撤销当前会话并清除 Cookie |
 | GET /api/auth/me | 返回本人的资料、可信角色及当前会话的 CSRF 令牌；只读，不延长或重建会话 |
 | POST /api/auth/password-reset/request | 配套找回密码邮件，凭证与注册用途隔离 |

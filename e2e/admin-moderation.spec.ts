@@ -7,7 +7,7 @@ test('图片去重、隐藏恢复、永久删除及旧后端提示，超管降�
   await page.goto('/')
   await page.getByRole('button', { name: '登录 / 加入', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: '账号与登录' })
-  await dialog.getByLabel('用户名', { exact: true }).fill('browser_owner')
+  await dialog.getByLabel('用户名或邮箱', { exact: true }).fill('browser_owner')
   await dialog.getByLabel('密码', { exact: true }).fill(password)
   await dialog.getByRole('button', { name: '登录', exact: true }).last().click()
   await expect(dialog).not.toBeVisible()
@@ -158,7 +158,7 @@ test('图片去重、隐藏恢复、永久删除及旧后端提示，超管降�
   expect((await page.request.get('/api/auth/me')).status()).toBe(401)
   // Logging back in after self-demotion must hide every account-management entry
   // and block direct page/API access, while ordinary content management remains.
-  await dialog.getByLabel('用户名', { exact: true }).fill('browser_owner')
+  await dialog.getByLabel('用户名或邮箱', { exact: true }).fill('browser_owner')
   await dialog.getByLabel('密码', { exact: true }).fill(password)
   await dialog.getByRole('button', { name: '登录', exact: true }).last().click()
   await expect(dialog).not.toBeVisible()
@@ -189,7 +189,7 @@ test('图片去重、隐藏恢复、永久删除及旧后端提示，超管降�
   })
   await page.goto('/admin/accounts')
   await page.getByRole('button', { name: '登录账号', exact: true }).click()
-  await dialog.getByLabel('用户名', { exact: true }).fill('browser_owner_other')
+  await dialog.getByLabel('用户名或邮箱', { exact: true }).fill('browser_owner_other')
   await dialog.getByLabel('密码', { exact: true }).fill(password)
   await dialog.getByRole('button', { name: '登录', exact: true }).last().click()
   await expect(dialog).not.toBeVisible()

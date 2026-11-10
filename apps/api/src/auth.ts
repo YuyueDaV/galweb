@@ -78,14 +78,17 @@ export class Auth {
       return true
     })
     if(!success)throw fail()
-    return {message:purpose==='registration'?'注册成功，请使用用户名登录。':'密码已更新，请重新登录。'}
+    return {message:purpose==='registration'?'注册成功，请使用用户名或邮箱登录。':'密码已更新，请重新登录。'}
   }
-  async login(username:string,password:string,ip:string,oldToken?:string){
-    const key=usernameKey(username)
-    await this.limit('login-ip',ip,30,60000);await this.limit('login-username',key,10,600000)
-    const user=(await this.db.rows<User>('SELECT * FROM users WHERE username_key=?',[key]))[0]
+  async login(identifier:string,password:string,ip:string,oldToken?:string){
+    // Usernames cannot contain @. Email matching must preserve dots and + tags.
+    const byEmail=identifier.includes('@'),key=byEmail?emailKey(identifier):usernameKey(identifier)
+    await this.limit('login-ip',ip,30,60000);await this.limit(byEmail?'login-email':'login-username',key,10,600000)
+    const user=(await this.db.rows<User>(byEmail?'SELECT * FROM users WHERE email_key=?':'SELECT * FROM users WHERE username_key=?',[key]))[0]
+    // Both login names share the same account budget, including failed passwords.
+    if(user)await this.limit('login-account',user.id,10,600000)
     const matches=await checkPassword(password,user?.password_hash||this.dummyHash)
-    if(!user||!matches||user.status!=='active')throw fail('用户名或密码错误，或账号不可用。',401)
+    if(!user||!matches||user.status!=='active')throw fail('账号或密码错误，或账号不可用。',401)
     const session=token(),csrf=mac(this.c.AUTH_SECRET,`csrf:${session}`),expires=Date.now()+7*86400000
     await this.db.transaction(async tx=>{
       const fresh=(await this.db.rows<User>('SELECT * FROM users WHERE id=? FOR UPDATE',[user.id],tx))[0]

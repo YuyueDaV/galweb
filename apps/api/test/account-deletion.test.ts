@@ -84,7 +84,7 @@ test('注销完整流程：撤销会话、匿名讨论与榜单、删除图片�
   assert.equal(tombstone.username,null);assert.notEqual(tombstone.email,member.email);assert.equal(tombstone.nickname,'已注销用户');assert.equal(tombstone.signature,'');assert.equal(tombstone.password_hash,'');assert.equal(tombstone.status,'deleted');assert.ok(Number(tombstone.deleted_at)>0)
   await migrateUsernames(db);assert.equal((await db.rows<{username:null}>('SELECT username FROM users WHERE id=?',[member.id]))[0]!.username,null)
   await assert.rejects(()=>auth.session(firstSession.session),/过期/);await assert.rejects(()=>auth.session(secondSession.session),/过期/)
-  await assert.rejects(()=>auth.login(member.username,password,'delete-login-after'),/用户名或密码/)
+  await assert.rejects(()=>auth.login(member.username,password,'delete-login-after'),/账号或密码/)
   assert.equal((await forum.detail(post.id)).author,'已注销用户');assert.equal((await forum.detail(post.id)).uploadedImage,undefined);assert.equal((await forum.detail(post.id)).likes,1)
   const replies=await forum.replies(post.id) as unknown as {author:string}[];assert.equal(replies[0]!.author,'已注销用户');assert.equal(replies[1]!.author,other.nickname)
   assert.deepEqual(await forum.mine(member),{likes:[],bookmarks:[]})

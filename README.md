@@ -92,6 +92,6 @@ EdgeOne Pages / Makers 前端上线分支的构建配置、服务器接口网关
 
 十二橙器的角色边界、阶段规则、MySQL 实体和接口约定见 [后端接入说明](docs/awards-backend.md)。
 
-正式账号后端支持邮箱验证码注册、用户名密码登录、会话退出和邮箱重置密码；流程与数据模型见 [邮箱注册方案](docs/email-registration.md)。SMTP 凭证需要由部署者配置，不要求安装 Redis。普通测试会跳过需专用数据库的集成用例，完整验证方式见运行说明。
+正式账号后端支持邮箱验证码注册、用户名或邮箱密码登录、会话退出和邮箱重置密码；流程与数据模型见 [邮箱注册方案](docs/email-registration.md)。SMTP 凭证需要由部署者配置，不要求安装 Redis。普通测试会跳过需专用数据库的集成用例，完整验证方式见运行说明。
 
 开发验证、独立业务规则、视觉规范及 Tailwind 使用方法见 [工程检查与样式规范](docs/quality-and-styling.md)。完整检查命令：`pnpm check`。

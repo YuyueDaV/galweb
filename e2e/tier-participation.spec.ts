@@ -33,7 +33,7 @@ test('注册用户参与共同榜并改票撤回；通过 Bangumi 制作个人�
     await page.goto('/tiers/' + board.id)
     await page.getByRole('button', { name: '登录后参与分层', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: '账号与登录' })
-    await dialog.getByLabel('用户名', { exact: true }).fill('browser_member')
+    await dialog.getByLabel('用户名或邮箱', { exact: true }).fill('browser_member')
     await dialog.getByLabel('密码', { exact: true }).fill('Isolated moderator password 123!')
     await dialog.getByRole('button', { name: '登录', exact: true }).last().click()
     await expect(dialog).not.toBeVisible()

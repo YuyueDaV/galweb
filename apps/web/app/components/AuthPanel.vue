@@ -23,7 +23,7 @@ async function submit(){
  busy.value=true
  try{
   if(mode.value==='login'){await auth.login(username.value,password.value);loginOpen.value=false;password.value='';notify('登录成功。')}
-  else{const registering=mode.value==='register';await auth.request(registering?'/auth/register':'/auth/password-reset/confirm',{email:email.value,password:password.value,confirmPassword:confirmPassword.value,code:code.value,challengeId:challengeId.value,...(registering?{username:username.value}:{})});mode.value='login';success.value=registering?'注册成功，请使用用户名和密码登录。':'密码已重置，请使用用户名和新密码登录。'}
+  else{const registering=mode.value==='register';await auth.request(registering?'/auth/register':'/auth/password-reset/confirm',{email:email.value,password:password.value,confirmPassword:confirmPassword.value,code:code.value,challengeId:challengeId.value,...(registering?{username:username.value}:{})});mode.value='login';success.value=registering?'注册成功，请使用用户名或邮箱和密码登录。':'密码已重置，请使用用户名或邮箱和新密码登录。'}
  }catch(e){error.value=(e as Error).message}finally{busy.value=false}
 }
 async function logout(){try{await auth.logout();loginOpen.value=false;notify('已退出登录。')}catch(e){error.value=(e as Error).message}}
@@ -40,7 +40,7 @@ async function logout(){try{await auth.logout();loginOpen.value=false;notify('�
    <div class="auth-tabs"><button :disabled="busy" :aria-pressed="mode==='login'" @click="mode='login'">登录</button><button :disabled="busy" :aria-pressed="mode==='register'" @click="mode='register'">邮箱注册</button><button :disabled="busy" :aria-pressed="mode==='reset'" @click="mode='reset'">找回密码</button></div>
    <div v-if="error||success" class="auth-feedback" :class="{'is-error':error}" :role="error?'alert':'status'" aria-atomic="true">{{ error||success }}</div>
    <form class="award-form" :aria-busy="busy" @submit.prevent="submit">
-    <label v-if="mode!=='reset'">用户名<input v-model="username" aria-label="用户名" :aria-describedby="mode==='register'?'username-help':undefined" required :minlength="mode==='register'?3:1" :maxlength="mode==='register'?24:128" autocomplete="username" autocapitalize="none" spellcheck="false" :placeholder="mode==='register'?'3–24 位中文、字母、数字或下划线':'输入注册时的用户名'" /><small v-if="mode==='register'" id="username-help">用于登录，注册后不可修改；昵称可在注册后设置。</small></label>
+    <label v-if="mode!=='reset'">{{ mode==='register'?'用户名':'用户名或邮箱' }}<input v-model="username" :aria-label="mode==='register'?'用户名':'用户名或邮箱'" :aria-describedby="mode==='register'?'username-help':undefined" required :minlength="mode==='register'?3:1" :maxlength="mode==='register'?24:254" autocomplete="username" autocapitalize="none" spellcheck="false" :placeholder="mode==='register'?'3–24 位中文、字母、数字或下划线':'输入用户名或注册邮箱'" /><small v-if="mode==='register'" id="username-help">用于登录，注册后不可修改；昵称可在注册后设置。</small></label>
     <label v-if="mode!=='login'">邮箱<input v-model="email" type="email" required autocomplete="email" maxlength="254" /></label>
     <label>{{ mode==='reset'?'新密码':'密码' }}<input v-model="password" type="password" required :minlength="mode==='login'?1:12" maxlength="128" :placeholder="mode==='login'?'输入密码':'12–128 个字符'" :autocomplete="mode==='login'?'current-password':'new-password'" /></label>
     <label v-if="mode!=='login'">确认密码<input v-model="confirmPassword" type="password" required minlength="12" maxlength="128" autocomplete="new-password" :aria-invalid="mismatched" /></label>
