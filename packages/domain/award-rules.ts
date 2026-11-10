@@ -131,6 +131,14 @@ export function normalizeWorkTitle(title: string) {
     .replace(/[\p{P}\p{Z}\s]/gu, '')
 }
 
+export function nominationDisplayName(nomination: AwardNomination) {
+  return nomination.qqSync?.nominatorName || nomination.accountName
+}
+
+export function nominationDisplayTime(nomination: AwardNomination) {
+  return nomination.qqSync?.nominatedAt || nomination.createdAt
+}
+
 export function validateCampaignSettings(campaign: AwardCampaign) {
   if (campaign.votingRule === 'weighted-v1') {
     const error = validateBallotRules(ballotRules(campaign))

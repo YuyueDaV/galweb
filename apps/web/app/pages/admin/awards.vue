@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import type { AwardCampaign, CampaignPhase } from '~/types/awards'
+import type { AwardCampaign, AwardNomination, CampaignPhase } from '~/types/awards'
 import {
   DEFAULT_BALLOT_RULES,
   normalizeCampaignConfirmation,
   phaseNames,
   roleNames,
   formatAwardTime,
+  formatNominationTime,
+  nominationDisplayName,
+  nominationDisplayTime,
   toAwardTimeInput,
   fromAwardTimeInput,
 } from '~/utils/awards'
@@ -111,8 +114,45 @@ const recentAudit = computed(() =>
     .reverse(),
 )
 const statusNames = { pending: '待审核', approved: '已通过', rejected: '已退回', withdrawn: '已撤回' }
+const qqDialog = ref<HTMLDialogElement | null>(null)
+const qqEditing = ref<AwardNomination | null>(null)
+const qqName = ref(''), qqDate = ref(''), qqError = ref(''), qqBusy = ref(false)
+async function openQqSync(item: AwardNomination) {
+  if (campaign.value.edition !== 2 || busy.value || qqBusy.value) return
+  qqEditing.value = { ...item }
+  qqName.value = nominationDisplayName(item)
+  qqDate.value = toAwardTimeInput(nominationDisplayTime(item))
+  qqError.value = ''
+  await nextTick()
+  qqDialog.value?.showModal()
+}
+function closeQqSync() {
+  if (qqBusy.value) return
+  qqDialog.value?.close()
+  qqEditing.value = null
+}
+async function saveQqSync() {
+  if (!qqEditing.value || qqBusy.value) return
+  if (!qqEditing.value.qqSyncRevision) { qqError.value = '提名版本信息缺失，请刷新记录后重试。'; return }
+  qqBusy.value = true
+  qqError.value = ''
+  try {
+    const nominatedAt = fromAwardTimeInput(qqDate.value)
+    if (!nominatedAt) { qqError.value = '请填写实际提名时间。'; return }
+    await awards.syncQqNomination(qqEditing.value.id, { nominatorName: qqName.value, nominatedAt, revision: qqEditing.value.qqSyncRevision })
+    qqDialog.value?.close()
+    qqEditing.value = null
+    notify('第二届QQ群提名信息已同步。')
+  } catch (e) {
+    qqError.value = (e as Error).message
+  } finally {
+    qqBusy.value = false
+  }
+}
 
 function loadSettings() {
+  qqDialog.value?.close()
+  qqEditing.value = null
   settings.value = {
     ...campaign.value,
     ballotRules: { ...(campaign.value.ballotRules || DEFAULT_BALLOT_RULES) },
@@ -425,6 +465,7 @@ function review(id: string, status: 'approved' | 'rejected') {
             <option value="all">全部记录</option>
           </select>
         </div>
+        <p v-if="campaign.edition === 2" class="qq-sync-help">第二届临时同步：可在每条记录中填写QQ群提名人和实际提名时间。前台按同步信息显示；原网站提交账号、时间、审核状态与票数保留。已通过的记录请选择“全部记录”查看。</p>
         <div v-if="!reviewItems.length" class="empty-state">
           <AppIcon name="check" :size="30" />
           <h3>暂时没有待处理的提名</h3>
@@ -436,13 +477,14 @@ function review(id: string, status: 'approved' | 'rejected') {
               <div>
                 <h3>{{ item.title }}</h3>
                 <span
-                  >{{ item.accountName }} · {{ item.studio || '制作组未填写' }} ·
-                  {{ formatAwardTime(item.createdAt) }}</span
+                  >{{ nominationDisplayName(item) }} · {{ item.studio || '制作组未填写' }} ·
+                  {{ formatNominationTime(item) }}{{ item.qqSync ? ' · QQ群已同步' : '' }}</span
                 >
               </div>
               <span :class="['award-status', item.status]">{{ statusNames[item.status] }}</span>
             </div>
             <blockquote>{{ item.reason }}</blockquote>
+            <div v-if="campaign.edition === 2" class="qq-sync-record-actions"><button type="button" class="button secondary" :disabled="busy || qqBusy" @click="openQqSync(item)">同步提名人和日期</button><span v-if="item.qqSync">原网站提交：{{ item.accountName }} · {{ formatAwardTime(item.createdAt) }}</span></div>
             <template v-if="item.status === 'pending' && campaign.phase === 'nomination'"
               ><label :for="`review-note-${item.id}`">审核备注 <span>退回时必填</span></label
               ><textarea
@@ -472,6 +514,20 @@ function review(id: string, status: 'approved' | 'rejected') {
         <details v-for="ballot in awards.ballots.value" :key="ballot.round + ':' + ballot.id" class="award-ballot-record"><summary>{{ ballot.accountName }} · 第 {{ ballot.round }} 轮 · {{ ballot.candidateIds.length ? ballot.candidateIds.length + ' 部作品' : '已撤回' }} · {{ formatAwardTime(ballot.updatedAt) }}</summary><p>账号编号：{{ ballot.accountId }}</p><p v-if="weightedRule">真爱票：{{ (ballot.loveIds || (ballot.loveId ? [ballot.loveId] : [])).map(workTitle).join('、') || '无' }}</p><p v-if="weightedRule">喜爱票：{{ (ballot.likeIds || []).map(workTitle).join('、') || '无' }}</p><p v-else>投票作品：{{ ballot.candidateIds.map(workTitle).join('、') || '无' }}</p><p v-for="rec in ballot.recommendations || []" :key="rec.candidateId">《{{ workTitle(rec.candidateId) }}》推荐词：{{ rec.text }}</p></details>
         <details class="award-ballot-record"><summary>全部管理与参与记录 · {{ audit.length }} 条</summary><ol><li v-for="entry in audit" :key="entry.id">{{ entry.actor }} · {{ entry.action }} · {{ formatAwardTime(entry.createdAt) }}</li></ol></details>
       </section>
+      <dialog v-if="campaign.edition === 2" ref="qqDialog" class="modal qq-sync-dialog" aria-labelledby="qq-sync-title" @cancel.prevent="closeQqSync">
+        <template v-if="qqEditing">
+          <div class="qq-sync-heading"><div><p class="eyebrow">仅第二届 · QQ群临时同步</p><h2 id="qq-sync-title">同步提名人和日期</h2></div><button type="button" class="icon-button" aria-label="关闭QQ群同步窗口" :disabled="qqBusy" @click="closeQqSync"><AppIcon name="close" /></button></div>
+          <h3>{{ qqEditing.title }}</h3>
+          <p class="qq-sync-help">填写QQ群内的提名人昵称及实际时间（北京时间 UTC+8）。此操作只更正展示信息，不改变网站账号归属、原始提交记录、候选作品或得分。</p>
+          <form class="award-form" @submit.prevent="saveQqSync">
+            <label>QQ群提名人<input v-model.trim="qqName" required maxlength="64" :disabled="qqBusy" placeholder="填写群内提名人的昵称" /></label>
+            <label>实际提名时间（北京时间）<input v-model="qqDate" type="datetime-local" required :disabled="qqBusy" /></label>
+            <p class="qq-sync-original">原网站提交：{{ qqEditing.accountName }} · {{ formatAwardTime(qqEditing.createdAt) }}</p>
+            <p v-if="qqError" class="form-error" role="alert">{{ qqError }}</p>
+            <div class="qq-sync-buttons"><button type="button" class="button secondary" :disabled="qqBusy" @click="closeQqSync">取消</button><button type="submit" class="button primary" :disabled="qqBusy">{{ qqBusy ? '正在同步…' : '保存QQ群提名信息' }}</button></div>
+          </form>
+        </template>
+      </dialog>
       <section class="award-admin-card campaign-delete-zone">
         <header>
           <AppIcon name="info" :size="22" />
@@ -527,6 +583,22 @@ function review(id: string, status: 'approved' | 'rejected') {
 </template>
 
 <style scoped>
+.qq-sync-help { margin: 16px 0; padding: 12px 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--orange-soft); color: var(--subtle); font-size: max(14px, 0.75rem); line-height: 1.8; overflow-wrap: anywhere; }
+.qq-sync-record-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-block: 12px; }
+.qq-sync-record-actions .button { min-height: 44px; font-size: 14px; }
+.qq-sync-record-actions span, .qq-sync-original { color: var(--subtle); font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
+.qq-sync-dialog { box-sizing: border-box; width: min(38rem, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; padding: clamp(20px, 3vw, 32px); border-radius: 24px; }
+.qq-sync-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.qq-sync-heading h2 { margin: 8px 0 0; font-size: 24px; line-height: 1.5; }
+.qq-sync-heading .icon-button { flex-shrink: 0; }
+.qq-sync-dialog > h3 { font-size: 20px; line-height: 1.6; margin-block: 16px; overflow-wrap: anywhere; }
+.qq-sync-dialog .award-form > label { display: block; margin-block: 16px; }
+.qq-sync-buttons { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.qq-sync-buttons .button { min-height: 44px; font-size: 16px; }
+@media (max-width: 599px) {
+  .qq-sync-buttons { display: grid; grid-template-columns: 1fr; }
+  .qq-sync-buttons .button { justify-content: center; }
+}
 .campaign-delete-zone {
   margin-top: 1.5rem;
   border-color: color-mix(in srgb, #bd493c 30%, var(--line));

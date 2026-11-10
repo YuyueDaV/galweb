@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { coverUrl as archiveCoverUrl } from '~/data/forum'
-import { ballotRules, phaseNames, formatAwardTime, campaignWindowMessage, normalizeWorkTitle } from '~/utils/awards'
+import { ballotRules, phaseNames, formatAwardTime, formatNominationTime, nominationDisplayName, campaignWindowMessage, normalizeWorkTitle } from '~/utils/awards'
 import type { AwardCandidate } from '~/types/awards'
 import type { Work } from '~/types/forum'
 import type { BangumiSubject } from '~/types/catalog'
@@ -451,8 +451,8 @@ async function withdrawBallot() {
                     <p>{{ item.nominations[0]?.reason }}</p>
                     <p v-if="campaign.phase === 'voting' || ended" class="award-live-score">{{ resultById.get(item.id)?.votes || 0 }} {{ weighted ? '分' : '票' }}<span v-if="isLocked(item.id)"> · 首轮已保留</span></p>
                     <details class="award-public-details">
-                      <summary>提名人：{{ item.nominations.map((n) => n.accountName).join('、') }}</summary>
-                      <div v-for="n in item.nominations" :key="n.id"><strong>{{ n.accountName }}</strong> · {{ statusNames[n.status] }}<time>{{ formatAwardTime(n.createdAt) }}</time><p v-if="n.reason">{{ n.reason }}</p></div>
+                      <summary>提名人：{{ item.nominations.map(nominationDisplayName).join('、') }}</summary>
+                      <div v-for="n in item.nominations" :key="n.id"><strong>{{ nominationDisplayName(n) }}</strong> · {{ statusNames[n.status] }}<time>{{ formatNominationTime(n) }}<span v-if="n.qqSync"> · QQ群提名</span></time><p v-if="n.reason">{{ n.reason }}</p></div>
                     </details>
                     <details v-if="awards.recommendations.value.some((rec) => rec.candidateId === item.id)" class="award-public-details">
                       <summary>查看署名推荐词（{{ awards.recommendations.value.filter((rec) => rec.candidateId === item.id).length }}）</summary>
@@ -494,7 +494,7 @@ async function withdrawBallot() {
                   <p>{{ item.reason }}</p>
                   <p v-if="item.reviewNote" class="award-review-note">管理员反馈：{{ item.reviewNote }}</p>
                   <div>
-                    <span>{{ formatAwardTime(item.createdAt) }}</span
+                    <span>{{ formatNominationTime(item) }}{{ item.qqSync ? ' · QQ群提名' : '' }}</span
                     ><button v-if="canNominate && item.status !== 'rejected'" @click="withdraw(item.id)">
                       撤回提名</button
                     ><button

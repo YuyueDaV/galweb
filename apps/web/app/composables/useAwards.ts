@@ -168,6 +168,8 @@ export function useAwards() {
       mutate(root() + '/nominations/' + id, { status: 'withdrawn' }, 'PATCH'),
     reviewNomination: (id: string, status: 'approved' | 'rejected', note: string) =>
       mutate(root() + '/nominations/' + id, { status, note }, 'PATCH'),
+    syncQqNomination: (id: string, input: { nominatorName: string; nominatedAt: string; revision: string }) =>
+      mutate(adminRoot() + '/qq-nominations/' + id, input, 'PATCH'),
     saveBallot: (candidateIds: string[]) =>
       mutate(
         root() + '/ballot',

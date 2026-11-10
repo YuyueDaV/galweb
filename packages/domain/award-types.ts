@@ -59,6 +59,8 @@ export interface AwardCampaign {
 }
 
 export interface AwardNomination {
+  qqSync?: { nominatorName: string; nominatedAt: string }
+  qqSyncRevision?: string
   id: string
   campaignId: string
   candidateId: string

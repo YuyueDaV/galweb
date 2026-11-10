@@ -8,6 +8,7 @@ import { Platform } from './platform'
 import { Forum } from './forum'
 import { digest,equal,mac } from './security'
 import { Awards } from './awards'
+import { qqNominationSchema } from './qq-nominations'
 import {Assets} from './assets'
 import {readFile} from 'node:fs/promises'
 import {communityControllers} from './community-api'
@@ -53,6 +54,7 @@ export function businessControllers(db:Database,auth:Auth,platform:Platform,cook
   @Post('admin/award-campaigns/:id/transitions') async advance(@Param('id') id:string,@Body() body:unknown,@Req() req:Request){const p=validate(z.object({phase,version:z.number().int().min(0)}).strict(),body);await awards.phase(await actor(req,true),id,p.phase,p.version);return {message:'阶段已更新。'}}
   @Post('award-campaigns/:id/nominations') async nominate(@Param('id') id:string,@Body() body:unknown,@Req() req:Request){const p=validate(z.object({title:z.string().trim().min(1).max(160),studio:z.string().trim().max(200),reason:z.string().trim().max(600),workId:z.number().int().positive().max(2147483647).optional(),subjectId:z.number().int().positive().max(2147483647).optional()}).strict(),body);const user=await actor(req,true);await auth.limit('award-nomination',user.id,20,60000);return awards.nominate(user,id,p.title,p.studio,p.reason,{workId:p.workId,subjectId:p.subjectId})}
   @Patch('award-campaigns/:id/nominations/:nominationId') async nomination(@Param('id') id:string,@Param('nominationId') nominationId:string,@Body() body:unknown,@Req() req:Request){const p=validate(z.object({status:z.enum(['withdrawn','approved','rejected']),note:z.string().trim().max(300).default('')}).strict(),body);await awards.nominationAction(await actor(req,true),id,nominationId,p.status,p.note);return {message:'提名已更新。'}}
+  @Patch('admin/award-campaigns/:id/qq-nominations/:nominationId') async syncQqNomination(@Param('id') id:string,@Param('nominationId') nominationId:string,@Body() body:unknown,@Req() req:Request){return awards.syncQqNomination(await actor(req,true),id,validate(z.uuid(),nominationId),validate(qqNominationSchema,body))}
   @Post('admin/award-campaigns/:id/runoff') async runoff(@Param('id') id:string,@Body() body:unknown,@Req() req:Request){const p=validate(z.object({version:z.number().int().min(0)}).strict(),body);await awards.startRunoff(await actor(req,true),id,p.version);return {message:'二次投票已开启。'}}
   @Put('award-campaigns/:id/ballot') async vote(@Param('id') id:string,@Body() body:unknown,@Req() req:Request){const p=validate(z.object({candidateIds:z.array(z.string()).max(100).nullable(),weighted:z.object({loveIds:z.array(z.string()).max(10).optional(),loveId:z.string().nullable(),likeIds:z.array(z.string()).max(10),recommendations:z.array(z.object({candidateId:z.string(),text:z.string().trim().min(1).max(600)}).strict()).max(20)}).strict().optional(),version:z.number().int().min(0),round:z.number().int().min(1).max(2).default(1)}).strict(),body);const user=await actor(req,true);await auth.limit('award-vote',user.id,60,60000);await awards.vote(user,id,p.candidateIds,p.version,p.weighted,p.round);return {message:'选票已保存。'}}
  }

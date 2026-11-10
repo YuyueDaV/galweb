@@ -32,6 +32,8 @@ import type {
   AwardAdminBallot,
 } from './award-types'
 import { Catalog } from './catalog'
+import { qqNominationRevision, qqNominationSchema } from './qq-nominations'
+import type { z } from 'zod'
 type Row<T> = { data: T | string; version: number }
 type RoundArchive = {
   round: number
@@ -142,10 +144,19 @@ export class Awards {
       const names = new Map(
         users.map((user) => [user.id, user.status === 'deleted' ? '已注销用户' : user.nickname]),
       )
-      const sanitize = (n: AwardNomination) =>
-        isStaff || n.accountId === actor?.id
-          ? n
-          : { ...n, accountId: '', reviewedBy: undefined, reviewNote: undefined }
+      const currentNominations = new Map(nominations.map((item) => [item.id, item]))
+      const sanitize = (n: AwardNomination) => {
+        const latest = currentNominations.get(n.id) || n
+        // Only presentation metadata changes; historical scores and original submissions stay intact.
+        const displayed = campaign.edition === 2 && latest.qqSync ? { ...n, qqSync: latest.qqSync } : n
+        if (isStaff)
+          return campaign.edition === 2
+            ? { ...displayed, qqSyncRevision: qqNominationRevision(latest) }
+            : displayed
+        return n.accountId === actor?.id
+          ? displayed
+          : { ...displayed, accountId: '', reviewedBy: undefined, reviewNote: undefined }
+      }
       const recommendations: AwardPublicRecommendation[] =
         campaign.votingRule === 'weighted-v1'
           ? roundBallots.flatMap((ballot) => {
@@ -507,6 +518,40 @@ export class Awards {
       )
       await this.platform.audit(current, '提交作品提名', id, tx)
       return { id: n.id }
+    })
+  }
+  async syncQqNomination(
+    actor: Actor,
+    id: string,
+    nominationId: string,
+    input: z.infer<typeof qqNominationSchema>,
+  ) {
+    return this.mutate(actor, id, 'admin', async (campaign, tx, current) => {
+      if (campaign.edition !== 2) throw reject('QQ群提名临时同步仅限第二届活动。', 403)
+      const nomination = (await this.nominations(id, tx)).find((item) => item.id === nominationId)
+      if (!nomination) throw reject('提名不存在或不属于当前活动。', 404)
+      if (qqNominationRevision(nomination) !== input.revision)
+        throw reject('提名信息已被修改，请刷新后重新同步。', 409)
+      const previous = nomination.qqSync || {
+        nominatorName: nomination.accountName,
+        nominatedAt: nomination.createdAt,
+      }
+      nomination.qqSync = {
+        nominatorName: input.nominatorName,
+        nominatedAt: new Date(input.nominatedAt).toISOString(),
+      }
+      await this.db.execute(
+        'UPDATE award_nominations SET data=? WHERE id=? AND campaign_id=?',
+        [JSON.stringify(nomination), nomination.id, id],
+        tx,
+      )
+      await this.platform.audit(
+        current,
+        `第二届QQ群提名同步 ${nomination.id}：${previous.nominatorName}（${previous.nominatedAt}）→${nomination.qqSync.nominatorName}（${nomination.qqSync.nominatedAt}）`,
+        id,
+        tx,
+      )
+      return { message: '第二届QQ群提名信息已同步。' }
     })
   }
   async nominationAction(
