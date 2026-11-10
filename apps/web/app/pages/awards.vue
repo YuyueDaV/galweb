@@ -285,9 +285,11 @@ async function withdrawBallot() {
   <div v-if="!activityReady" class="empty-state" role="status">正在加载活动…</div>
   <div v-else-if="!awards.online.value" class="empty-state" role="alert"><p>活动暂时未能加载。</p><button class="button secondary" @click="loadActivity">重新加载活动</button></div>
   <div v-else class="awards-page">
-    <p v-if="!campaigns.length && awards.online.value" class="empty-state">
-      暂无开放的活动，欢迎关注后续投票。
-    </p>
+    <template v-if="!campaigns.length && awards.online.value">
+      <AwardEditionNavigation :campaigns="[]" selected-campaign-id="orange-awards-1" />
+      <p class="award-empty-note">暂无开放的活动，先回顾第一届十二橙器。</p>
+      <AwardArchive :edition="1" :entries="firstEditionEntries" />
+    </template>
     <template v-if="campaigns.length">
       <AwardEditionNavigation :campaigns="campaigns" :selected-campaign-id="selectedCampaignId" />
       <AwardArchive
@@ -836,5 +838,15 @@ async function withdrawBallot() {
 }
 .award-archive-records .awards-layout {
   grid-template-columns: minmax(0, 1fr);
+}
+.award-empty-note {
+  margin: 0 0 1rem;
+  padding: 0.85rem 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  background: var(--surface);
+  color: var(--subtle);
+  font-size: 14px;
+  line-height: 1.8;
 }
 </style>
