@@ -30,9 +30,14 @@ test('访客开放 Bangumi 搜索；管理员编辑 Tier、草稿发布隔离和
       directRequests++
       return route.abort()
     })
-    await page.route('**/api/bangumi/cover?*', (route) =>
-      route.fulfill({ contentType: 'image/webp', body: cover }),
-    )
+    let firstCover = true
+    await page.route('**/api/bangumi/cover?*', (route) => {
+      if (firstCover) {
+        firstCover = false
+        return route.fulfill({ status: 502, json: { message: '封面网络暂时中断' } })
+      }
+      return route.fulfill({ contentType: 'image/webp', body: cover })
+    })
     await page.route('**/api/bangumi/search?*', (route) =>
       route.fulfill({ json: { items: [subject], total: 1, page: 1 } }),
     )
@@ -40,6 +45,7 @@ test('访客开放 Bangumi 搜索；管理员编辑 Tier、草稿发布隔离和
     await page.getByLabel('Bangumi 作品名称', { exact: true }).fill('CLANNAD')
     await page.getByRole('button', { name: '搜索 Bangumi', exact: true }).click()
     await expect(page.locator('.bangumi-result')).toContainText('Bangumi 8.9')
+    await page.getByRole('button', { name: '重试CLANNAD封面', exact: true }).click()
     await expect(page.locator('.bangumi-result img')).toHaveAttribute('src', /^\/api\/bangumi\/cover\?image=/)
     await expect
       .poll(() => page.locator('.bangumi-result img').evaluate((img: HTMLImageElement) => img.naturalWidth))

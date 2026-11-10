@@ -13,12 +13,12 @@ test('管理员上传站点背景、访客生效、纯色预设和深色模式�
   let headers: Record<string, string> = {}
   try {
     const login = await staff.post('/api/auth/login', {
-      data: { username: 'browser_editor', password: 'Isolated editor password 123!' },
+      data: { username: 'browser_background_editor', password: 'Isolated editor password 123!' },
     })
     headers = { 'X-CSRF-Token': (await login.json()).csrfToken }
     await page.request.post('/api/auth/login', {
       headers: { Origin: origin },
-      data: { username: 'browser_editor', password: 'Isolated editor password 123!' },
+      data: { username: 'browser_background_editor', password: 'Isolated editor password 123!' },
     })
     await page.goto('/admin/site')
     const save = page.getByRole('button', { name: '保存配置', exact: true })

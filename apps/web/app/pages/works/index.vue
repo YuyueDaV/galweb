@@ -157,10 +157,9 @@ useSeoMeta({ title: '作品书架 · 澄之响' })
             "
             variant="cover"
             :alt="`${work.title}封面`"
-          /><span class="work-rank"
-            >{{ work.archiveRank ? String(work.archiveRank).padStart(2, '0') : work.bangumi ? 'BGM' : 'BOOK'
-            }}<span>{{ work.archiveRank ? '十二橙器' : '书库收录' }}</span></span
-          ><span class="work-cover-arrow"><AppIcon name="arrowUpRight" :size="20" /></span>
+          /><WorkAwardBadge :work="work" overlay /><span class="work-cover-arrow"
+            ><AppIcon name="arrowUpRight" :size="20"
+          /></span>
         </div>
         <div class="work-card-copy">
           <p>{{ work.studio }}</p>

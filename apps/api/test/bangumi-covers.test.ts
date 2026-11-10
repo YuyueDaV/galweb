@@ -72,7 +72,7 @@ test('封面接口拒绝任意外站、内网、重定向、非图片及超限�
       await assert.rejects(() => denied.image(url), /无效/)
     assert.equal(calls, 0)
     for (let i = 0; i < 2; i++) await assert.rejects(() => denied.image(source), /封面暂时无法获取/)
-    assert.equal(calls, 1)
+    assert.equal(calls, 2)
     for (const response of [
       new Response('redirect', { status: 302, headers: { location: 'http://127.0.0.1/' } }),
       new Response('<svg/>', { headers: { 'content-type': 'image/svg+xml' } }),
@@ -84,6 +84,46 @@ test('封面接口拒绝任意外站、内网、重定向、非图片及超限�
     ]) {
       const invalid = new BangumiCovers(async () => response, directory)
       await assert.rejects(() => invalid.image(source), /封面暂时无法获取/)
+    }
+  } finally {
+    await cleanup(directory)
+  }
+})
+
+test('封面网络中断及上游 5xx 有限重试，成功后缓存，不重试永久 404', async () => {
+  const directory = await temporary()
+  try {
+    const raw = await sharp({ create: { width: 40, height: 60, channels: 3, background: 'green' } })
+      .png()
+      .toBuffer()
+    for (const failure of ['network', 'server', 'stream', '404']) {
+      let calls = 0
+      const covers = new BangumiCovers(async () => {
+        calls++
+        if (calls === 1) {
+          if (failure === 'network') throw new Error('private socket details')
+          if (failure === 'server') return new Response('unavailable', { status: 503 })
+          if (failure === '404') return new Response('missing', { status: 404 })
+          return new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.error(new Error('interrupted'))
+              },
+            }),
+            { headers: { 'content-type': 'image/png' } },
+          )
+        }
+        return new Response(raw, { headers: { 'content-type': 'image/png' } })
+      }, directory)
+      const url = source.replace('.jpg', '_' + failure + '.jpg')
+      if (failure === '404') {
+        await assert.rejects(() => covers.image(url), /暂时无法/)
+        assert.equal(calls, 1)
+      } else {
+        assert.equal((await sharp(await covers.image(url)).metadata()).format, 'webp')
+        await covers.image(url)
+        assert.equal(calls, 2)
+      }
     }
   } finally {
     await cleanup(directory)

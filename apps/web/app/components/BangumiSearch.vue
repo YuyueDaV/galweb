@@ -20,6 +20,12 @@ const query = ref(''),
   page = ref(1),
   total = ref(0)
 const includeRestricted = ref(false)
+const failedCovers = ref(new Set<number>())
+const coverRetries = reactive<Record<number, number>>({})
+function retryCover(id: number) {
+  failedCovers.value.delete(id)
+  coverRetries[id] = (coverRetries[id] || 0) + 1
+}
 const completionOpen = ref(false),
   collected = ref<Work | null>(null),
   alreadyCollected = ref(false)
@@ -52,6 +58,7 @@ let version = 0
 function resetResults() {
   ++version
   results.value = []
+  failedCovers.value.clear()
   submitted.value = ''
   total.value = 0
   loading.value = false
@@ -87,6 +94,7 @@ async function search(next = 1) {
   error.value = ''
   success.value = ''
   results.value = []
+  failedCovers.value.clear()
   try {
     const response = await $fetch<{ items: BangumiSubject[]; total: number }>(
       `/api/bangumi/search?q=${encodeURIComponent(keyword)}&page=${next}${includeRestricted.value ? '&includeRestricted=true' : ''}`,
@@ -161,15 +169,26 @@ onBeforeUnmount(() => {
     <div class="bangumi-results">
       <article v-for="item in results" :key="item.id" class="bangumi-result">
         <SafeImage
+          :key="item.id + ':' + (coverRetries[item.id] || 0)"
           :src="item.coverUrl || '/images/work-placeholder.svg'"
           :alt="item.title + '封面'"
           width="80"
           height="110"
           loading="lazy"
           referrerpolicy="no-referrer"
+          @error="failedCovers.add(item.id)"
         />
         <div>
           <h3>{{ item.title }} <small v-if="item.nsfw" class="bangumi-restricted">受限条目</small></h3>
+          <button
+            v-if="failedCovers.has(item.id)"
+            type="button"
+            class="text-link cover-retry"
+            :aria-label="`重试${item.title}封面`"
+            @click="retryCover(item.id)"
+          >
+            封面暂不可用，稍后重试<AppIcon name="arrowRight" :size="13" />
+          </button>
           <p class="catalog-help">{{ item.originalTitle }}</p>
           <p class="catalog-help">
             {{ item.date || '发售日期待补充' }} ·

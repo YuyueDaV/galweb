@@ -36,6 +36,7 @@ export interface Work {
   addedBy?:{id:string|null;name:string}|null
   addedAt?:number
   archiveRank?: number
+  awardHonors?: {campaignId:string;edition:number;rank:number}[]
   version?: number
   bangumi?: import('./catalog').BangumiSubject
   rank: number

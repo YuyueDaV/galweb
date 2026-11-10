@@ -173,24 +173,32 @@ try {
       ],
     )
   }
-  const editorId = randomUUID()
-  await connection.query(
-    'INSERT INTO `' +
-      database +
-      '`.users(id,username,username_key,email,email_key,nickname,password_hash,role,email_verified_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)',
-    [
-      editorId,
-      'browser_editor',
-      'browser_editor',
-      'editor@example.com',
-      'editor@example.com',
-      '测试编辑',
-      await hashPassword('Isolated editor password 123!'),
-      'admin',
-      Date.now(),
-      Date.now(),
-    ],
-  )
+  // Separate frequently used accounts so the complete suite still exercises real login limits.
+  for (const username of [
+    'browser_editor',
+    'browser_notices_editor',
+    'browser_tiers_editor',
+    'browser_background_editor',
+  ]) {
+    const editorId = randomUUID()
+    await connection.query(
+      'INSERT INTO `' +
+        database +
+        '`.users(id,username,username_key,email,email_key,nickname,password_hash,role,email_verified_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)',
+      [
+        editorId,
+        username,
+        username,
+        username + '@example.com',
+        username + '@example.com',
+        '测试编辑',
+        await hashPassword('Isolated editor password 123!'),
+        'admin',
+        Date.now(),
+        Date.now(),
+      ],
+    )
+  }
   await writeFile(path.join(workspace, 'active.json'), JSON.stringify({ cwd, database, origin }))
   start(process.execPath, [path.join(root, 'apps/api/dist/main.js')])
   await ready(async () => (await fetch('http://127.0.0.1:3217/api/health')).ok, 'Test API')

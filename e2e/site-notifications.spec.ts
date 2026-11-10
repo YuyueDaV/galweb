@@ -4,7 +4,7 @@ test('管理员群发预览、失败重试和防重；成员收件、独立已�
   const origin = 'http://127.0.0.1:3117'
   const signed = await page.request.post('/api/auth/login', {
     headers: { Origin: origin },
-    data: { username: 'browser_editor', password: 'Isolated editor password 123!' },
+    data: { username: 'browser_notices_editor', password: 'Isolated editor password 123!' },
   })
   expect(signed.ok()).toBeTruthy()
   const headers = { Origin: origin, 'X-CSRF-Token': (await signed.json()).csrfToken }

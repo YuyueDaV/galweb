@@ -6,6 +6,7 @@ import { Platform, staff, reject, type Actor } from './platform'
 import { decode } from './forum'
 import { normalizeWorkTitle } from './award-rules'
 import { Bangumi, type BangumiSubject } from './bangumi'
+import { workAwardHonors, type PublishedAward, type AwardHonor } from './award-honors'
 import { TierVoting, validTierChoices, tierPublicationKey, type TierChoice } from './tier-voting'
 
 export interface CatalogWork {
@@ -21,6 +22,7 @@ export interface CatalogWork {
   nominator: string
   color: string
   archiveRank?: number
+  awardHonors?: AwardHonor[]
   version: number
   bangumi?: BangumiSubject
   catalogVisible?: boolean
@@ -153,7 +155,13 @@ export class Catalog {
   async nominationWork(
     actor: Actor,
     tx: PoolConnection,
-    input: { title: string; studio: string; workId?: number; subject?: BangumiSubject; coverAssetId?: string },
+    input: {
+      title: string
+      studio: string
+      workId?: number
+      subject?: BangumiSubject
+      coverAssetId?: string
+    },
   ) {
     await this.platform.lock('catalog', tx)
     const all = await this.works(tx)
@@ -198,10 +206,11 @@ export class Catalog {
     await this.platform.audit(actor, '提名收录书库作品 ' + work.rank, null, tx)
     return work
   }
-  private publicWork(row: PublicWorkRow) {
+  private publicWork(row: PublicWorkRow, published: PublishedAward[] = []) {
     const { addedById, ...work } = this.work(row)
     return {
       ...work,
+      awardHonors: workAwardHonors(work.rank, work.archiveRank, published),
       coverUrl: row.activeCover ? '/api/assets/' + row.activeCover : undefined,
       addedBy: addedById
         ? {
@@ -212,8 +221,9 @@ export class Catalog {
     }
   }
   async publicWorks(tx?: PoolConnection) {
+    const published = await this.publishedAwards(tx)
     return (await this.db.rows<PublicWorkRow>(publicWorkSelect + ' ORDER BY w.id', [], tx))
-      .map((row) => this.publicWork(row))
+      .map((row) => this.publicWork(row, published))
       .filter((work) => work.catalogVisible !== false && !work.catalogDeleted)
       .sort((a, b) => {
         const position = (work: CatalogWork) =>
@@ -249,7 +259,14 @@ export class Catalog {
   async detail(id: number) {
     const row = (await this.db.rows<PublicWorkRow>(publicWorkSelect + ' WHERE w.id=?', [id]))[0]
     if (!row) throw reject('作品不存在。', 404)
-    return this.publicWork(row)
+    return this.publicWork(row, await this.publishedAwards())
+  }
+  private publishedAwards(tx?: PoolConnection) {
+    return this.db.rows<PublishedAward>(
+      "SELECT c.id AS campaignId,c.edition,c.data AS campaign,JSON_OBJECT('results',JSON_EXTRACT(r.data,'$.results')) AS results FROM award_campaigns c JOIN award_results r ON r.campaign_id=c.id WHERE JSON_EXTRACT(c.data,'$.deletedAt') IS NULL AND JSON_UNQUOTE(JSON_EXTRACT(c.data,'$.phase')) IN ('results','archived') ORDER BY c.edition DESC",
+      [],
+      tx,
+    )
   }
   async remove(actor: Actor, id: number, version: number) {
     return this.write(actor, async (tx, current) => {

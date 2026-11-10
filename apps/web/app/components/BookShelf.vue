@@ -23,7 +23,19 @@ defineProps<{ works: Work[] }>()
         />
       </div>
       <span class="shelf-book-title tw:text-center">{{ work.title }}</span
-      ><span class="shelf-book-studio tw:text-center tw:text-czx-subtle">{{ work.studio }}</span>
+      ><span class="shelf-book-studio tw:text-center tw:text-czx-subtle">{{ work.studio }}</span
+      ><WorkAwardBadge
+        v-if="work.awardHonors?.length || work.archiveRank"
+        :work="work"
+        class="shelf-award-honors"
+      />
     </NuxtLink>
   </div>
 </template>
+
+<style scoped>
+.shelf-award-honors {
+  justify-content: center;
+  margin-top: 0.65rem;
+}
+</style>

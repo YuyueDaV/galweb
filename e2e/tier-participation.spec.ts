@@ -9,7 +9,7 @@ test('注册用户参与共同榜并改票撤回；通过 Bangumi 制作个人�
   const anonymous = await playwright.request.newContext({ baseURL: origin })
   try {
     const login = await staff.post('/api/auth/login', {
-      data: { username: 'browser_editor', password: 'Isolated editor password 123!' },
+      data: { username: 'browser_tiers_editor', password: 'Isolated editor password 123!' },
     })
     const staffHeaders = { 'X-CSRF-Token': (await login.json()).csrfToken }
     const created = await staff.post('/api/admin/tier-lists', {

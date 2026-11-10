@@ -7,6 +7,7 @@ import { reject } from './platform'
 
 const MAX_BYTES = 5 * 1024 * 1024,
   FRESH = 7 * 86400000
+class TransientCoverError extends Error {}
 export class BangumiCovers {
   private pending = new Map<string, Promise<Buffer>>()
   private failures = new Map<string, number>()
@@ -81,43 +82,21 @@ export class BangumiCovers {
           const i = this.waiting.indexOf(ready)
           if (i >= 0) this.waiting.splice(i, 1)
           reject(new Error('queue timeout'))
-        }, 5000)
+        }, 12000)
         this.waiting.push(ready)
       })
     }
     try {
-      const response = await this.request(url, {
-        redirect: 'error',
-        signal: AbortSignal.timeout(8000),
-        headers: {
-          'User-Agent': 'YuyueDaV/galweb (https://github.com/YuyueDaV/galweb)',
-          Accept: 'image/webp,image/jpeg,image/png,image/gif',
-        },
-      })
-      if (
-        !response.ok ||
-        !/^image\/(jpeg|png|webp|gif)(?:;|$)/i.test(response.headers.get('content-type') || '') ||
-        Number(response.headers.get('content-length')) > MAX_BYTES
-      ) {
-        await response.body?.cancel()
-        throw new Error('upstream')
-      }
-      if (!response.body) throw new Error('empty')
-      const reader = response.body.getReader(),
-        chunks: Uint8Array[] = []
-      let length = 0
-      try {
-        while (true) {
-          const next = await reader.read()
-          if (next.done) break
-          length += next.value.length
-          if (length > MAX_BYTES) throw new Error('size')
-          chunks.push(next.value)
+      let bytes: Buffer | undefined
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          bytes = await this.fetchBytes(url)
+          break
+        } catch (error) {
+          if (!(error instanceof TransientCoverError) || attempt === 1) throw error
         }
-      } finally {
-        await reader.cancel().catch(() => {})
       }
-      const image = sharp(Buffer.concat(chunks), { limitInputPixels: 20000000, animated: false })
+      const image = sharp(bytes!, { limitInputPixels: 20000000, animated: false })
       const metadata = await image.metadata()
       if (!['jpeg', 'png', 'webp', 'gif'].includes(metadata.format || '')) throw new Error('format')
       const output = await image
@@ -132,6 +111,54 @@ export class BangumiCovers {
       if (next) next()
       else this.active--
     }
+  }
+  private async fetchBytes(url: string): Promise<Buffer> {
+    let response: Response
+    try {
+      response = await this.request(url, {
+        redirect: 'error',
+        signal: AbortSignal.timeout(6000),
+        headers: {
+          'User-Agent': 'YuyueDaV/galweb (https://github.com/YuyueDaV/galweb)',
+          Accept: 'image/webp,image/jpeg,image/png,image/gif',
+        },
+      })
+    } catch {
+      throw new TransientCoverError('network')
+    }
+    if (response.status >= 500) {
+      await response.body?.cancel()
+      throw new TransientCoverError('upstream unavailable')
+    }
+    if (
+      !response.ok ||
+      !/^image\/(jpeg|png|webp|gif)(?:;|$)/i.test(response.headers.get('content-type') || '') ||
+      Number(response.headers.get('content-length')) > MAX_BYTES
+    ) {
+      await response.body?.cancel()
+      throw new Error('upstream')
+    }
+    if (!response.body) throw new Error('empty')
+    const reader = response.body.getReader(),
+      chunks: Uint8Array[] = []
+    let length = 0
+    try {
+      while (true) {
+        let next: ReadableStreamReadResult<Uint8Array>
+        try {
+          next = await reader.read()
+        } catch {
+          throw new TransientCoverError('interrupted image')
+        }
+        if (next.done) break
+        length += next.value.length
+        if (length > MAX_BYTES) throw new Error('size')
+        chunks.push(next.value)
+      }
+    } finally {
+      await reader.cancel().catch(() => {})
+    }
+    return Buffer.concat(chunks)
   }
   private async prune() {
     const files = (await readdir(this.directory)).filter((name) => /^[a-f0-9]{64}\.webp$/.test(name))
