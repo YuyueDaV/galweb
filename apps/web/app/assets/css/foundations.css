@@ -131,6 +131,39 @@ textarea::placeholder {
 .site-wrap .award-search input::placeholder {
   color: var(--subtle);
 }
+.site-wrap .hero-links .hero-button {
+  box-sizing: border-box;
+  min-height: 48px;
+  gap: 12px;
+  padding: 12px 20px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.site-wrap .hero-links .hero-about {
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.site-wrap .award-hero-actions .button {
+  box-sizing: border-box;
+  min-height: 48px;
+  gap: 10px;
+  padding: 12px 20px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.site-wrap .award-hero-actions .text-link {
+  gap: 6px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.site-wrap .award-hero-actions .award-pending-text {
+  box-sizing: border-box;
+  min-height: 48px;
+  padding: 12px 18px;
+  font-size: 14px;
+  line-height: 1.5;
+}
 .site-wrap .award-admin-audit h2 {
   font-size: 24px;
   line-height: 1.5;
