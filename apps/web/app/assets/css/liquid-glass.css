@@ -273,7 +273,268 @@ html .site-wrap [data-liquid-glass='opaque'] {
     gap: 8px;
   }
 }
-/* Dialog lives in the top layer, including when opened from another modal. */
+.site-wrap .left-sidebar button.sidebar-link {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgb(var(--liquid-rgb) / 72%);
+  box-shadow: none;
+  color: var(--subtle);
+  font: inherit;
+  text-align: left;
+}
+.site-wrap .left-sidebar button.sidebar-link:hover {
+  border-color: var(--orange);
+  color: var(--orange);
+  background: var(--orange-soft);
+}
+.site-wrap .award-stepper li > div {
+  min-width: 0;
+}
+.site-wrap .award-stepper strong {
+  font-size: 16px;
+  line-height: 1.6;
+}
+.site-wrap .award-stepper li > div > span {
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--subtle);
+  overflow-wrap: anywhere;
+}
+.site-wrap .award-rule-card {
+  padding: 24px;
+}
+.site-wrap .award-rule-card > .eyebrow {
+  font-size: 11px;
+}
+.site-wrap .award-rule-card h2 {
+  font-size: 24px;
+  line-height: 1.6;
+}
+.site-wrap .award-rule-card ol {
+  gap: 24px;
+}
+.site-wrap .award-rule-card li > span {
+  flex: 0 0 28px;
+  font-size: 20px;
+}
+.site-wrap .award-rule-card li strong {
+  font-size: 16px;
+  line-height: 1.6;
+}
+.site-wrap .award-rule-card li p {
+  font-size: 14px;
+  line-height: 1.9;
+  color: var(--subtle);
+}
+.site-wrap .award-rule-footer {
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--subtle);
+}
+.site-wrap .nomination-cover-field {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgb(var(--liquid-rgb) / 60%);
+}
+.site-wrap .nomination-cover-field input[hidden] {
+  display: none;
+}
+.nomination-cover-label {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 16px;
+}
+.nomination-cover-label > span {
+  color: var(--subtle);
+  font-size: 14px;
+}
+.site-wrap .nomination-cover-field .button {
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgb(var(--liquid-rgb) / 80%);
+  color: var(--ink);
+  font-size: 14px;
+}
+.nomination-cover-filename {
+  margin-block: 12px;
+  font-size: 14px;
+  color: var(--subtle);
+  overflow-wrap: anywhere;
+}
+.nomination-cover-preview {
+  display: block;
+  width: auto;
+  max-width: min(100%, 160px);
+  max-height: 220px;
+  margin-block: 16px;
+  border-radius: 12px;
+  object-fit: contain;
+}
+@media (max-width: 599px) {
+  .site-wrap .award-stepper {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .site-wrap .award-rule-card {
+    padding: 20px;
+  }
+}
+.site-wrap .award-phase-confirm {
+  padding: 16px;
+  border-radius: 18px;
+}
+.site-wrap .award-phase-confirm strong {
+  font-size: 16px;
+  line-height: 1.6;
+}
+.site-wrap .award-phase-confirm p {
+  font-size: 14px;
+  line-height: 1.8;
+}
+.site-wrap .award-phase-confirm > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.site-wrap .award-phase-confirm button.button {
+  flex: 1 1 auto;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.site-wrap .award-phase-confirm button.primary {
+  background: var(--orange);
+  color: #fff;
+}
+.site-wrap .award-phase-confirm button.secondary {
+  background-color: rgb(var(--liquid-rgb) / 80%);
+  color: var(--ink);
+}
+.site-wrap .award-tabs {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  flex: 1 1 22rem;
+  min-width: 0;
+  height: auto;
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgb(var(--liquid-rgb) / 88%);
+}
+.site-wrap .award-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 6px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--subtle);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.site-wrap .award-tabs button.active {
+  border-color: color-mix(in srgb, var(--orange) 45%, transparent);
+  background: var(--orange-soft);
+  color: var(--orange);
+  font-weight: 500;
+}
+.site-wrap .award-tabs button.active::after {
+  display: none;
+}
+.site-wrap .award-tabs button > span {
+  font-size: 12px;
+  border-radius: 999px;
+}
+.site-wrap .award-candidate-copy > button.text-link,
+.site-wrap .award-my-nominations article > div:last-child > button {
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background-color: rgb(var(--liquid-rgb) / 80%);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.site-wrap .award-candidate-copy > button.text-link {
+  margin-top: 16px;
+  color: var(--orange);
+}
+.site-wrap .award-my-nominations article > div:last-child {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.site-wrap .award-my-nominations article > div:last-child > span {
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.site-wrap .award-my-nominations article > div:last-child > button {
+  margin-left: auto;
+  color: var(--orange);
+}
+.site-wrap .award-status {
+  min-height: 28px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+.site-wrap .account-page .account-shortcuts {
+  display: grid;
+  gap: 8px;
+  padding: 20px;
+}
+.site-wrap .account-page .account-shortcuts > :is(a, button) {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgb(var(--liquid-rgb) / 80%);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  color: var(--subtle);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.6;
+  text-align: left;
+}
+.site-wrap .account-page .account-shortcuts > :is(a, button):hover {
+  border-color: var(--orange);
+  color: var(--orange);
+}
+@media (max-width: 599px) {
+  .site-wrap .award-tabs {
+    flex-basis: 100%;
+  }
+  .site-wrap .award-phase-confirm button.button {
+    flex-basis: 100%;
+  }
+}
 .award-settings-stage {
   min-width: 0;
   margin-top: 24px;

@@ -153,7 +153,7 @@ export class Catalog {
   async nominationWork(
     actor: Actor,
     tx: PoolConnection,
-    input: { title: string; studio: string; workId?: number; subject?: BangumiSubject },
+    input: { title: string; studio: string; workId?: number; subject?: BangumiSubject; coverAssetId?: string },
   ) {
     await this.platform.lock('catalog', tx)
     const all = await this.works(tx)
@@ -171,7 +171,10 @@ export class Catalog {
     if (existing?.catalogDeleted) throw reject('该作品已被管理员移出书库，暂时无法提名。', 409)
     if (input.subject && existing?.bangumi && existing.bangumi.id !== input.subject.id)
       throw reject('同名作品已关联其他 Bangumi 条目，请确认作品版本或联系管理员。', 409)
+    if (input.coverAssetId && existing)
+      throw reject('该作品已在书库中，请使用现有封面；如需修改，请前往作品页面。', 409)
     if (existing && existing.catalogVisible !== false) return existing
+    if (input.coverAssetId) await this.requireCover(actor, input.coverAssetId, tx)
     const work: CatalogWork = {
       ...existing,
       rank: existing?.rank || Math.max(12, ...all.map((work) => work.rank)) + 1,
@@ -186,6 +189,7 @@ export class Catalog {
       catalogVisible: true,
       addedById: existing?.addedById || actor.id,
       addedAt: existing?.addedAt || Date.now(),
+      ...(input.coverAssetId ? { coverAssetId: input.coverAssetId } : {}),
     }
     if (existing)
       await this.db.execute('UPDATE works SET data=? WHERE id=?', [JSON.stringify(work), work.rank], tx)

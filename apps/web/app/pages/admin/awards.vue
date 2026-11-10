@@ -405,7 +405,7 @@ function review(id: string, status: 'approved' | 'rejected') {
               <p>第 {{ campaign.votingRound || 1 }} 轮 · 有效得分 {{ scoredCount }} / {{ campaign.winnerCount }} 部</p>
               <p v-if="needsRunoff">未满计划名额，需先进行二次投票。首轮已得分作品保留。</p>
               <button v-if="needsRunoff && !confirmRunoff" type="button" class="button secondary full" :disabled="busy || dirty" @click="confirmRunoff = true">开启二次投票</button>
-              <div v-if="confirmRunoff" class="award-phase-confirm"><strong>确认开启二次投票？</strong><p>保存首轮全部记录，保留已得分作品，其余已提名作品开放补投。所有人获得一份新的本轮选票，补投时间将清空，可重新设置。</p><button type="button" :disabled="busy" @click="confirmRunoff = false">取消</button><button type="button" class="button primary" :disabled="busy" @click="openRunoff">确认开启二次投票</button></div>
+              <div v-if="confirmRunoff" class="award-phase-confirm"><strong>确认开启二次投票？</strong><p>保存首轮全部记录，保留已得分作品，其余已提名作品开放补投。所有人获得一份新的本轮选票，补投时间将清空，可重新设置。</p><div class="award-phase-actions"><button type="button" class="button secondary" :disabled="busy" @click="confirmRunoff = false">取消</button><button type="button" class="button primary" :disabled="busy" @click="openRunoff">确认开启二次投票</button></div></div>
               <p v-if="campaign.votingRound === 2 && !awards.votingCandidates.value.length">没有剩余可补投作品。提名作品数不足时，可公布实际有效结果。</p>
               <button type="button" class="text-link" @click="awards.initialize">刷新投票数据</button>
             </div>
@@ -436,7 +436,7 @@ function review(id: string, status: 'approved' | 'rejected') {
                 }}
               </p>
               <div>
-                <button @click="confirmPhase = null">取消</button><button @click="advance">确认推进</button>
+                <button type="button" class="button secondary" :disabled="busy" @click="confirmPhase = null">取消</button><button type="button" class="button primary" :disabled="busy" @click="advance">确认推进</button>
               </div>
             </div>
           </section>

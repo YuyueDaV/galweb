@@ -11,6 +11,15 @@ const sourceMode = ref('catalog')
 const selectedWorkId = ref<number | null>(null)
 const selectedSubject = ref<BangumiSubject | null>(null)
 const submitting = ref(false)
+const auth = useAuth()
+const nominationCover = ref<{ id: string; url: string; name: string } | null>(null)
+const nominationCoverInput = ref<HTMLInputElement | null>(null)
+const uploadingCover = ref(false)
+let coverUploadVersion = 0
+const manualExistingWork = computed(() => {
+  const key = normalizeWorkTitle(formTitle.value)
+  return key ? works.value.find((work) => [work.title, work.subtitle, work.bangumi?.title, work.bangumi?.originalTitle].some((title) => title && normalizeWorkTitle(title) === key)) : undefined
+})
 const selectedWork = computed(() => works.value.find((work) => work.rank === selectedWorkId.value))
 function coverUrl(rank: number) {
   const work = works.value.find((item) => item.rank === rank)
@@ -31,6 +40,8 @@ function chooseBangumi({ subject }: { subject: BangumiSubject }) {
   formError.value = ''
 }
 function changeSource() {
+  coverUploadVersion++
+  nominationCover.value = null
   selectedWorkId.value = null
   selectedSubject.value = null
   formTitle.value = ''
@@ -59,6 +70,10 @@ const formTitle = ref('')
 const formStudio = ref('')
 const formReason = ref('')
 const formError = ref('')
+watch(manualExistingWork, (work) => {
+  if (sourceMode.value === 'manual') selectedWorkId.value = work?.rank || null
+  if (work) nominationCover.value = null
+})
 const ballotError = ref('')
 const now = ref(Date.now())
 let clock: ReturnType<typeof setInterval> | undefined
@@ -71,6 +86,7 @@ onMounted(async () => {
   }, 15000)
 })
 onBeforeUnmount(() => {
+  coverUploadVersion++
   if (clock) clearInterval(clock)
 })
 watch(
@@ -141,6 +157,8 @@ function openNomination(title = '', studio = '') {
   formStudio.value = studio
   formReason.value = ''
   formError.value = ''
+  nominationCover.value = null
+  coverUploadVersion++
   selectedWorkId.value = works.value.find((work) => normalizeWorkTitle(work.title) === normalizeWorkTitle(title))?.rank || null
   selectedSubject.value = null
   sourceMode.value = title ? 'manual' : 'catalog'
@@ -148,14 +166,15 @@ function openNomination(title = '', studio = '') {
   void refreshWorks()
 }
 async function submitNomination() {
-  if (submitting.value) return
+  if (submitting.value || uploadingCover.value) return
   if (sourceMode.value === 'catalog' && !selectedWork.value) { formError.value = '请先选择书库作品。'; return }
   if (sourceMode.value === 'bangumi' && !selectedWork.value && !selectedSubject.value) { formError.value = '请先搜索并选择 Bangumi 作品。'; return }
   submitting.value = true
   try {
     await awards.submitNomination(formTitle.value, formStudio.value, formReason.value, {
-      ...(selectedWorkId.value ? { workId: selectedWorkId.value } : {}),
+      ...(sourceMode.value !== 'manual' && selectedWorkId.value ? { workId: selectedWorkId.value } : {}),
       ...(selectedSubject.value ? { subjectId: selectedSubject.value.id } : {}),
+      ...(sourceMode.value === 'manual' && !manualExistingWork.value && nominationCover.value ? { coverAssetId: nominationCover.value.id } : {}),
     })
     await refreshWorks()
     nominationDialog.value?.close()
@@ -165,6 +184,31 @@ async function submitNomination() {
     formError.value = error instanceof Error ? error.message : '提名提交失败。'
   } finally {
     submitting.value = false
+  }
+}
+async function uploadNominationCover(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file || submitting.value || uploadingCover.value) return
+  formError.value = ''
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
+    formError.value = '封面请选择 JPG、PNG 或 WebP，最大 5 MB。'
+    return
+  }
+  uploadingCover.value = true
+  const uploadVersion = ++coverUploadVersion
+  try {
+    const data = new FormData()
+    data.append('file', file)
+    const uploaded = await auth.request<{ id: string; url: string }>('/uploads', data)
+    if (uploadVersion === coverUploadVersion && sourceMode.value === 'manual' && !manualExistingWork.value && nominationDialog.value?.open)
+      nominationCover.value = { ...uploaded, name: file.name }
+  } catch (error) {
+    if (uploadVersion === coverUploadVersion)
+      formError.value = error instanceof Error ? error.message : '封面上传失败，请重试。'
+  } finally {
+    uploadingCover.value = false
   }
 }
 async function withdraw(id: string) {
@@ -304,7 +348,7 @@ async function withdrawBallot() {
         <div class="award-main">
           <section v-if="campaign.phase === 'voting'" class="award-live-summary" aria-label="投票进度">
             <h2>{{ campaign.votingRound === 2 ? '二次投票 · 补足入选名额' : '首轮投票' }}</h2>
-            <p>有效得分作品 {{ qualifiedCount }} / {{ campaign.winnerCount }} 部 · 分数每 15 秒更新。普通用户看不到他人的选票，推荐词公开署名。</p>
+            <p>有效得分作品 {{ qualifiedCount }} / {{ campaign.winnerCount }} 部 · 分数每 15 秒更新。</p>
             <p v-if="campaign.votingRound === 2">首轮 {{ campaign.lockedCandidateIds?.length || 0 }} 部已得分作品保留，仅可对其余已提名作品补投。</p>
             <p v-if="campaign.votingRound === 2 && !awards.votingCandidates.value.length" role="status">所有提名作品均已得分，目前没有可补投的作品。现有提名不足计划名额时，最终只能公布实际有效作品。</p>
             <button class="button secondary" @click="awards.initialize">刷新分数</button>
@@ -634,7 +678,7 @@ async function withdrawBallot() {
                 <span>03</span>
                 <div>
                   <strong>一起见证新书单</strong>
-                  <p>计划选出 {{ campaign.winnerCount }} 部作品，同分并列，投票期间不公开票数。</p>
+                  <p>计划选出 {{ campaign.winnerCount }} 部作品，同分并列。</p>
                 </div>
               </li>
             </ol>
@@ -681,7 +725,7 @@ async function withdrawBallot() {
             <AppIcon name="close" />
           </button>
         </div>
-        <label class="nomination-source">作品来源<select v-model="sourceMode" :disabled="submitting" @change="changeSource">
+        <label class="nomination-source">作品来源<select v-model="sourceMode" :disabled="submitting || uploadingCover" @change="changeSource">
           <option value="catalog">从书库选择</option><option value="bangumi">搜索 Bangumi</option><option value="manual">手动填写</option>
         </select></label>
         <p v-if="catalogError" class="form-error" role="alert">书库暂未加载成功。<button type="button" class="text-link" @click="refreshWorks()">重新加载书库</button></p>
@@ -698,7 +742,7 @@ async function withdrawBallot() {
               list="award-known-works"
               maxlength="160"
               :readonly="sourceMode !== 'manual'"
-              :disabled="submitting"
+              :disabled="submitting || uploadingCover"
               required
               placeholder="输入作品名称，也可以提名书架之外的作品" /></label
           ><datalist id="award-known-works">
@@ -716,10 +760,22 @@ async function withdrawBallot() {
               placeholder="哪一个瞬间，让你想把它推荐给大家？"
             ></textarea>
           </label>
+          <section v-if="sourceMode === 'manual'" class="nomination-cover-field" aria-label="作品封面">
+            <p v-if="manualExistingWork" class="nomination-help">该作品已在书库中，将使用现有封面。</p>
+            <template v-else>
+              <p class="nomination-cover-label">作品封面 <span>选填</span></p>
+              <input ref="nominationCoverInput" type="file" hidden aria-label="上传提名作品封面" accept="image/jpeg,image/png,image/webp" :disabled="submitting || uploadingCover" @change="uploadNominationCover" />
+              <button type="button" class="button secondary" :disabled="submitting || uploadingCover" @click="nominationCoverInput?.click()"><AppIcon name="image" :size="18" />{{ uploadingCover ? '正在上传…' : nominationCover ? '更换封面图片' : '选择封面图片' }}</button>
+              <p v-if="nominationCover" class="nomination-cover-filename">已选择：{{ nominationCover.name }}</p>
+              <p class="nomination-help" role="status">{{ uploadingCover ? '正在上传封面…' : '支持 JPG、PNG、WebP，最大 5 MB；封面将随新作品一起收录到书库。' }}</p>
+              <SafeImage v-if="nominationCover" class="nomination-cover-preview" :src="nominationCover.url" alt="提名作品封面预览" />
+              <button v-if="nominationCover" type="button" class="button secondary" :disabled="submitting || uploadingCover" @click="nominationCover = null">移除封面</button>
+            </template>
+          </section>
           <p v-if="formError" class="form-error" role="alert">{{ formError }}</p>
           <div class="award-form-bottom">
             <span>已提名 {{ nominationCount }} / {{ campaign.nominationLimit }} 部 · 提交后进入审核</span
-            ><button class="button primary" type="submit" :disabled="submitting">{{ submitting ? '正在提交…' : '提交提名' }}<AppIcon name="send" :size="16" /></button>
+            ><button class="button primary" type="submit" :disabled="submitting || uploadingCover">{{ submitting ? '正在提交…' : uploadingCover ? '正在上传封面…' : '提交提名' }}<AppIcon name="send" :size="16" /></button>
           </div>
         </form>
       </dialog>

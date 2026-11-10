@@ -107,6 +107,35 @@ test('弹窗内下拉保留数字和空值，关闭选择面板不关闭发帖�
   await page.keyboard.press('Escape')
   await expect(editor).toBeVisible()
   await expect(page.getByRole('dialog', { name: '发布到', exact: true })).not.toBeVisible()
+  const close = editor.getByRole('button', { name: '关闭发帖窗口', exact: true })
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 })
+    const before = await close.boundingBox()
+    await editor.locator('.compose-form').evaluate((element) => {
+      element.scrollTop = element.scrollHeight
+    })
+    await expect(close).toBeInViewport()
+    expect(await close.boundingBox()).toEqual(before)
+    expect(before!.width).toBeGreaterThanOrEqual(44)
+    expect(before!.height).toBeGreaterThanOrEqual(44)
+    await expect(editor.getByRole('button', { name: '保存草稿', exact: true })).toBeInViewport()
+    await expect(editor.getByRole('button', { name: '清除草稿', exact: true })).toBeInViewport()
+    expect(await editor.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBeTruthy()
+    await editor.screenshot({ path: test.info().outputPath(`compose-controls-${width}.png`) })
+    await editor.locator('.compose-form').evaluate((element) => {
+      element.scrollTop = 0
+    })
+  }
+  await editor.getByLabel('帖子标题', { exact: true }).fill('草稿按钮操作测试')
+  await editor
+    .getByLabel('帖子正文', { exact: true })
+    .fill('验证调整按钮和滚动区域后草稿仍可正常保存与清除。')
+  await editor.getByRole('button', { name: '保存草稿', exact: true }).click()
+  await expect(editor.getByRole('status')).toContainText('草稿已保存')
+  await editor.getByRole('button', { name: '清除草稿', exact: true }).click()
+  await expect(editor.getByRole('status')).toContainText('草稿已清除')
+  await expect(editor.getByLabel('帖子标题', { exact: true })).toHaveValue('')
+  await expect(editor.getByLabel('帖子正文', { exact: true })).toHaveValue('')
   await editor.getByRole('button', { name: '关闭发帖窗口', exact: true }).click()
 })
 
@@ -134,14 +163,12 @@ test('首页筛选控件圆润易点，下拉打开和选择不会拉伸页面�
     await sort.scrollIntoViewIfNeeded()
     const before = await geometry()
     if (width < 600) {
-      const tabs = await page
-        .locator('.feed-tabs button')
-        .evaluateAll((items) =>
-          items.map((item) => ({
-            width: item.getBoundingClientRect().width,
-            y: item.getBoundingClientRect().y,
-          })),
-        )
+      const tabs = await page.locator('.feed-tabs button').evaluateAll((items) =>
+        items.map((item) => ({
+          width: item.getBoundingClientRect().width,
+          y: item.getBoundingClientRect().y,
+        })),
+      )
       expect(
         Math.max(...tabs.map((item) => item.width)) - Math.min(...tabs.map((item) => item.width)),
       ).toBeLessThan(1)

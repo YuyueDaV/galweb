@@ -162,7 +162,7 @@ export function useAwards() {
       title: string,
       studio: string,
       reason: string,
-      source: { workId?: number; subjectId?: number } = {},
+      source: { workId?: number; subjectId?: number; coverAssetId?: string } = {},
     ) => mutate(root() + '/nominations', { title, studio, reason, ...source }),
     withdrawNomination: (id: string) =>
       mutate(root() + '/nominations/' + id, { status: 'withdrawn' }, 'PATCH'),

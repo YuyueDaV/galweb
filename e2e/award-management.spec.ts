@@ -56,7 +56,17 @@ test('管理员创建修改删除活动；自定义分值、互斥选票、推�
     })
     expect(r.ok()).toBeTruthy()
   }
-  await advance('nomination')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('button', { name: '开放提名', exact: true }).click()
+  const phaseConfirm = page.locator('.award-phase-confirm')
+  await expect(phaseConfirm.getByRole('button', { name: '取消', exact: true })).toBeVisible()
+  await phaseConfirm.screenshot({ path: test.info().outputPath('phase-confirm-mobile.png') })
+  await phaseConfirm.getByRole('button', { name: '取消', exact: true }).click()
+  await expect(phaseConfirm).toHaveCount(0)
+  await page.getByRole('button', { name: '开放提名', exact: true }).click()
+  await phaseConfirm.getByRole('button', { name: '确认推进', exact: true }).click()
+  await expect(page.locator('.award-stage-management li.active')).toContainText('提名阶段')
+  await page.setViewportSize({ width: 1440, height: 900 })
   for (const name of ['甲', '乙', '丙'])
     expect(
       (

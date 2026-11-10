@@ -37,16 +37,123 @@ async function submitPost(){
 </script>
 <template>
  <dialog ref="composeDialog" class="modal compose-modal" aria-labelledby="compose-title" @close="composerOpen=false">
-  <div class="modal-heading"><div><p class="eyebrow">LET YOUR STORY RESONATE</p><h2 id="compose-title">把你的故事，留在这里。</h2></div><button type="button" class="icon-button" aria-label="关闭发帖窗口" :disabled="publishing||uploading" @click="composerOpen=false"><AppIcon name="close" /></button></div>
+  <div class="modal-heading"><div><p class="eyebrow">LET YOUR STORY RESONATE</p><h2 id="compose-title">把你的故事，留在这里。</h2></div><button type="button" class="icon-button" aria-label="关闭发帖窗口" :disabled="publishing||uploading" @click="composerOpen=false"><AppIcon name="close" :size="22" /></button></div>
   <form class="compose-form" @submit.prevent="submitPost"><fieldset class="plain-fieldset" :disabled="publishing||loading">
    <div class="form-line"><label>发布到<select v-model="postCategory"><option v-for="item in categories" :key="item.name">{{ item.name }}</option></select></label><label class="spoiler-checkbox"><input v-model="spoiler" type="checkbox" />整篇包含剧透</label></div>
    <label class="community-field">关联作品<select v-model="workId"><option :value="null">不关联作品</option><option v-for="item in works" :key="item.rank" :value="item.rank">{{ item.title }}</option></select></label>
    <TopicPicker v-model="tags" :disabled="publishing||loading" />
    <label class="sr-only" for="post-title">帖子标题</label><input id="post-title" v-model="title" class="compose-title-input" required minlength="4" maxlength="80" placeholder="一个值得点开的标题……" />
    <MarkdownEditor v-model="content" :asset-ids="assetIds" :disabled="publishing||loading" @assets="assetIds=$event" @busy="uploading=$event" />
-   <p v-if="error" class="form-error" role="alert">{{ error }}</p><div class="draft-status" role="status"><span>{{ draftStatus }}</span><button type="button" :disabled="uploading" @click="saveDraft">保存草稿</button><button type="button" :disabled="uploading" @click="discard">清除草稿</button></div>
+   <p v-if="error" class="form-error" role="alert">{{ error }}</p><div class="draft-status" role="status"><span>{{ draftStatus }}</span><div class="draft-actions" role="group" aria-label="草稿操作"><button type="button" class="button secondary" :disabled="uploading" @click="saveDraft"><AppIcon name="check" :size="16" />保存草稿</button><button type="button" class="button secondary draft-clear" :disabled="uploading" @click="discard">清除草稿</button></div></div>
    <div class="compose-bottom"><p>请标记剧透，尊重彼此的阅读体验。</p><button type="submit" class="button primary" :disabled="uploading||publishing">{{ publishing?'发布中…':'发布帖子' }}<AppIcon name="send" :size="16" /></button></div>
   </fieldset></form>
  </dialog>
  <dialog ref="loginDialog" class="modal login-modal" aria-label="账号与登录" @close="loginOpen=false"><button class="icon-button modal-close" aria-label="关闭登录窗口" @click="loginOpen=false"><AppIcon name="close" /></button><AuthPanel /></dialog>
 </template>
+
+<style scoped>
+.compose-modal {
+  box-sizing: border-box;
+  width: min(46rem, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  overflow: hidden;
+  border-radius: 24px;
+}
+.compose-modal[open] {
+  display: flex;
+  flex-direction: column;
+}
+.compose-modal > .modal-heading {
+  flex: 0 0 auto;
+  align-items: flex-start;
+  gap: 16px;
+  margin: 0;
+  padding: 24px 28px;
+  border-bottom: 1px solid var(--line);
+}
+.compose-modal .modal-heading h2 {
+  font-size: clamp(22px, 2vw, 30px);
+  line-height: 1.5;
+}
+.compose-modal .modal-heading .eyebrow {
+  font-size: 11px;
+  line-height: 1.6;
+}
+.compose-modal .modal-heading > .icon-button {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--ink);
+  background-color: rgb(var(--liquid-rgb) / 88%);
+}
+.compose-modal .modal-heading > .icon-button:hover {
+  border-color: var(--orange);
+  color: var(--orange);
+}
+.compose-modal > .compose-form {
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--muted) 60%, transparent) transparent;
+  padding: 20px 28px 24px;
+}
+.compose-form::-webkit-scrollbar { width: 8px; }
+.compose-form::-webkit-scrollbar-track { background: transparent; margin-block: 12px; }
+.compose-form::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 999px; background: color-mix(in srgb, var(--muted) 60%, transparent); background-clip: padding-box; }
+.compose-modal .draft-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 0;
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--subtle);
+}
+.compose-modal .draft-status > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.draft-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.compose-modal .draft-actions > .button {
+  box-sizing: border-box;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background-color: rgb(var(--liquid-rgb) / 80%);
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.compose-modal .draft-actions > .draft-clear { color: var(--subtle); }
+@media (max-width: 599px) {
+  .compose-modal > .modal-heading { padding: 20px 16px; gap: 12px; }
+  .compose-modal > .compose-form { padding: 16px; }
+  .compose-modal .modal-heading .eyebrow { font-size: 10px; letter-spacing: 0.08em; }
+  .compose-modal .draft-status { flex-direction: column; align-items: stretch; }
+  .draft-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .compose-modal .draft-actions > .button { width: 100%; padding-inline: 10px; }
+}
+</style>

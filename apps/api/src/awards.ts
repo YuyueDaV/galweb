@@ -449,10 +449,12 @@ export class Awards {
     title: string,
     studio: string,
     reason: string,
-    source: { workId?: number; subjectId?: number } = {},
+    source: { workId?: number; subjectId?: number; coverAssetId?: string } = {},
   ) {
     await this.platform.actor(actor.id)
     if (source.workId && source.subjectId) throw reject('请选择一种作品来源。', 422)
+    if (source.coverAssetId && (source.workId || source.subjectId))
+      throw reject('自选封面仅用于手动添加新作品。', 422)
     const subject = source.subjectId ? await this.catalog.bangumi.detail(source.subjectId, true) : undefined
     return this.mutate(actor, id, 'member', async (c, tx, current) => {
       this.window(c, 'nomination')
@@ -461,6 +463,7 @@ export class Awards {
         studio,
         workId: source.workId,
         subject,
+        coverAssetId: source.coverAssetId,
       })
       const normalized = normalizeWorkTitle(known.title)
       if (!normalized) throw reject('作品名称无效。', 422)

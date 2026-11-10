@@ -39,6 +39,19 @@ test('邮件注册、登录、发帖回复、收藏、头像上传、提名审�
   await expect(dialog).not.toBeVisible()
   await expect(page.getByRole('link', { name: '进入用户中心' })).toBeVisible()
 
+  // Keep the full desktop navigation visible while checking its appearance.
+  await page.setViewportSize({ width: 1440, height: 1600 })
+  const write = page.getByRole('button', { name: '写点什么', exact: true })
+  expect(await write.evaluate((el) => getComputedStyle(el).backgroundImage)).toBe('none')
+  expect((await write.boundingBox())!.height).toBeGreaterThanOrEqual(48)
+  await page.getByRole('button', { name: '切换深色模式', exact: true }).click()
+  await write.scrollIntoViewIfNeeded()
+  await expect(write).toBeInViewport()
+  await page.screenshot({ path: test.info().outputPath('sidebar-page-dark.png') })
+  await write.screenshot({ path: test.info().outputPath('sidebar-write-dark.png') })
+  expect(await write.evaluate((el) => getComputedStyle(el).backgroundImage)).toBe('none')
+  await page.getByRole('button', { name: '切换浅色模式', exact: true }).click()
+  await page.setViewportSize({ width: 1280, height: 720 })
   await page.getByRole('button', { name: '写点什么', exact: true }).click()
   const composer = page.getByRole('dialog', { name: '把你的故事，留在这里。' })
   const title = '浏览器测试手记 ' + username
@@ -88,6 +101,17 @@ test('邮件注册、登录、发帖回复、收藏、头像上传、提名审�
   ).toHaveAttribute('href', personalPath)
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+  await expect(
+    page.locator('.account-shortcuts').getByRole('button', { name: '退出登录', exact: true }),
+  ).toHaveCSS('background-image', 'none')
+  await page
+    .locator('.account-shortcuts')
+    .screenshot({ path: test.info().outputPath('account-shortcuts-light-mobile.png') })
+  await page.getByRole('button', { name: '切换深色模式', exact: true }).click()
+  await page
+    .locator('.account-shortcuts')
+    .screenshot({ path: test.info().outputPath('account-shortcuts-dark-mobile.png') })
+  await page.getByRole('button', { name: '切换浅色模式', exact: true }).click()
   await page
     .locator('.account-heading')
     .screenshot({ path: test.info().outputPath('account-personal-space-mobile.png') })
