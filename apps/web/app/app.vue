@@ -14,7 +14,7 @@ const headerScrolled = ref(false)
 const searchInput = ref<HTMLInputElement | null>(null)
 const searchExpanded = ref(false)
 const { username, query, category, composerOpen, loginOpen, bookmarks, toast } = forum
-const activeSection = computed(() => route.path.startsWith('/account') ? 'account' : route.path.startsWith('/admin') ? 'admin' : route.path.startsWith('/tiers') ? 'tiers' : route.path.startsWith('/works') ? 'works' : route.path.startsWith('/ranking') || route.path.startsWith('/awards') ? 'ranking' : route.path.startsWith('/about') ? 'about' : 'home')
+const activeSection = computed(() => route.path.startsWith('/user/') ? 'profile' : route.path.startsWith('/account') ? 'account' : route.path.startsWith('/admin') ? 'admin' : route.path.startsWith('/tiers') ? 'tiers' : route.path.startsWith('/works') ? 'works' : route.path.startsWith('/ranking') || route.path.startsWith('/awards') ? 'ranking' : route.path.startsWith('/about') ? 'about' : 'home')
 if(import.meta.server)useHead({htmlAttrs:{'data-theme':dark.value?'dark':'light'}})
 
 function updateHeaderScroll() { headerScrolled.value = window.scrollY > 16 }
@@ -96,6 +96,7 @@ function resetFeed() { query.value = ''; category.value = '全部' }
         </div>
         <div class="sidebar-section personal-section">
           <p class="sidebar-label">我的小角落</p>
+          <NuxtLink v-if="auth.user.value" :to="'/user/'+auth.user.value.id" class="sidebar-link" :class="{ selected: route.path === '/user/'+auth.user.value.id }"><AppIcon name="home" /><span>我的个人空间</span></NuxtLink>
           <NuxtLink to="/tiers/mine" class="sidebar-link" :class="{ selected: route.path === '/tiers/mine' }"><AppIcon name="star" /><span>我的个人 Tier 榜</span></NuxtLink><NuxtLink to="/library" class="sidebar-link"><AppIcon name="book" /><span>我的书单</span></NuxtLink><NuxtLink to="/account" class="sidebar-link" :class="{ selected: activeSection === 'account' }"><AppIcon name="users" /><span>用户中心</span></NuxtLink>
           <NuxtLink to="/?saved=1#discussions" class="sidebar-link" :class="{ selected: !!route.query.saved }" @click="resetFeed"><AppIcon name="bookmark" /><span>我的收藏</span><span v-if="bookmarks.length" class="bookmark-count">{{ bookmarks.length }}</span></NuxtLink>
           <button class="sidebar-link" @click="composerOpen = true"><AppIcon name="pen" /><span>写点什么</span></button>

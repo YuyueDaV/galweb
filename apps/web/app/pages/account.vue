@@ -6,6 +6,7 @@ const avatarInput=ref<HTMLInputElement|null>(null),uploading=ref(false),saving=r
 const avatarError=ref(''),avatarFeedback=ref(''),uploadStage=ref<'processing'|'uploading'>('processing')
 const roleNames={member:'社区成员',admin:'管理员',super_admin:'超级管理员'}
 const deletionOpen=ref(false),deleting=ref(false),deletionPassword=ref(''),deletionConfirmation=ref(''),deletionError=ref(''),deletionInput=ref<HTMLInputElement|null>(null)
+const personalSpacePath=computed(()=>auth.user.value?'/user/'+encodeURIComponent(auth.user.value.id):null)
 const avatarUrl=computed(()=>avatarAssetId.value?'/api/assets/'+avatarAssetId.value:null)
 const dirty=computed(()=>!!auth.user.value&&(nickname.value!==auth.user.value.nickname||signature.value!==(auth.user.value.signature||'')||avatarAssetId.value!==(auth.user.value.avatarAssetId||null)))
 const signatureLength=computed(()=>Array.from(signature.value).length)
@@ -59,7 +60,7 @@ async function deleteAccount(){
 <template>
  <div class="account-page">
   <p class="page-kicker"><span class="category-dot orange"></span> MY LITTLE CORNER</p>
-  <div class="account-heading"><div><p class="eyebrow">YOUR PROFILE, YOUR STORY</p><h1>我的小角落<span>。</span></h1><p>让同好认识你，也让每一次回响有自己的模样。</p></div><NuxtLink to="/" class="text-link">回到社区<AppIcon name="arrowUpRight" :size="16" /></NuxtLink></div>
+  <div class="account-heading"><div><p class="eyebrow">YOUR PROFILE, YOUR STORY</p><h1>我的小角落<span>。</span></h1><p>让同好认识你，也让每一次回响有自己的模样。</p></div><div class="account-heading-actions"><NuxtLink v-if="personalSpacePath" :to="personalSpacePath" class="button primary"><AppIcon name="home" :size="17" />我的个人空间<AppIcon name="arrowUpRight" :size="16" /></NuxtLink><NuxtLink to="/" class="text-link">回到社区<AppIcon name="arrowUpRight" :size="16" /></NuxtLink></div></div>
   <div v-if="!auth.ready.value" class="account-guest" role="status">正在读取个人资料…</div>
   <template v-else-if="auth.user.value">
    <div class="account-grid">
@@ -78,7 +79,7 @@ async function deleteAccount(){
      </form>
     </section>
     <aside class="account-side">
-     <section class="profile-preview" aria-label="个人名片预览"><DecorativeSpark class="profile-preview-spark" /><p class="eyebrow">A LITTLE ABOUT YOU</p><UserAvatar :src="avatarUrl" :name="nickname" size="4.25rem" /><h2>{{ nickname.trim()||'你的昵称' }}</h2><span class="profile-role">{{ roleNames[auth.user.value.role] }}</span><p class="preview-signature">{{ signature.trim()||'故事之外，期待与你相遇。' }}</p><span class="preview-note">个人名片预览</span></section>
+     <section class="profile-preview" aria-label="个人名片预览"><DecorativeSpark class="profile-preview-spark" /><p class="eyebrow">A LITTLE ABOUT YOU</p><UserAvatar :src="avatarUrl" :name="nickname" size="4.25rem" /><h2>{{ nickname.trim()||'你的昵称' }}</h2><span class="profile-role">{{ roleNames[auth.user.value.role] }}</span><p class="preview-signature">{{ signature.trim()||'故事之外，期待与你相遇。' }}</p><span class="preview-note">个人名片预览</span><NuxtLink v-if="personalSpacePath" :to="personalSpacePath" class="button secondary profile-space-link">查看我的个人空间<AppIcon name="arrowUpRight" :size="16" /></NuxtLink><p v-if="dirty" class="profile-space-hint">个人空间展示已保存的资料。</p></section>
      <section class="profile-card account-details"><div class="profile-card-heading"><h2><AppIcon name="info" />账号信息</h2></div><dl><div><dt>用户名</dt><dd>{{ auth.user.value.username }}<small>用于登录，不随昵称改变</small></dd></div><div><dt>邮箱</dt><dd>{{ auth.user.value.email }}<small>{{ auth.user.value.email.endsWith('.invalid')?'本地初始化账号的占位邮箱':'用于账号验证与找回密码' }}</small></dd></div></dl><div class="account-shortcuts"><NuxtLink v-if="auth.user.value" :to="'/user/'+auth.user.value.id" class="text-link">查看我的公开主页<AppIcon name="arrowUpRight" :size="16" /></NuxtLink><NuxtLink to="/?saved=1#discussions"><AppIcon name="bookmark" :size="16" />我的收藏<AppIcon name="arrowUpRight" :size="14" /></NuxtLink><NuxtLink v-if="auth.user.value.role!=='member'" to="/admin"><AppIcon name="filter" :size="16" />管理中心<AppIcon name="arrowUpRight" :size="14" /></NuxtLink><button type="button" :disabled="saving||uploading||deleting" @click="logout"><AppIcon name="login" :size="16" />退出登录</button></div></section>
     </aside>
    </div>
@@ -100,6 +101,13 @@ async function deleteAccount(){
 </template>
 
 <style scoped>
+.account-heading-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:12px;flex-shrink:0}
+.account-heading-actions>.button{min-height:44px;border-radius:999px;font-size:14px;white-space:nowrap}
+.account-heading-actions>.text-link{min-height:44px;font-size:14px;white-space:nowrap}
+.profile-preview .preview-note{display:block}
+.profile-preview .profile-space-link{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;width:100%;margin-top:16px;border-radius:999px;font-size:14px}
+.profile-preview .profile-space-hint{margin-top:10px;color:var(--subtle);font-size:13px;line-height:1.7}
+@media(max-width:600px){.account-page .account-heading{flex-direction:column;gap:16px}.account-heading-actions{width:100%;justify-content:space-between;gap:8px}.account-heading-actions>.button{flex:1}}
 .deletion-zone{margin-top:1.5rem;border-color:#b96b5545}.deletion-heading{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:1.25rem}.deletion-heading h2{font-size:.85rem;font-weight:500;color:#b65c45}.deletion-heading p,.deletion-note{font-size:.6rem;color:var(--subtle);line-height:1.9;margin-top:.4rem}.deletion-start{border:1px solid #b96b5566;border-radius:.4rem;padding:.5rem .75rem;color:#b65c45;font-size:.65rem;white-space:nowrap}.deletion-form{padding:0 1.25rem 1.25rem}.deletion-form ul{font-size:.65rem;line-height:1.9;color:var(--subtle);padding-left:1rem;margin:0 0 .75rem}.deletion-form>.profile-field{max-width:26rem;margin-top:1rem}.deletion-actions{display:flex;justify-content:flex-end;gap:.75rem;flex-wrap:wrap}.deletion-actions .button{font-size:.65rem}.deletion-confirm{background:#b85f49;color:#fff}.deletion-confirm:hover{background:#a44f3d}
 @media(max-width:600px){.deletion-heading{align-items:flex-start;flex-direction:column}.deletion-heading p,.deletion-form ul,.deletion-note{font-size:.75rem}.deletion-start,.deletion-actions .button{font-size:.8rem;min-height:2.75rem}}
 .account-page{font-family:'DM Sans','Microsoft YaHei','PingFang SC',system-ui,sans-serif;font-weight:400;font-synthesis:none}

@@ -78,6 +78,36 @@ test('邮件注册、登录、发帖回复、收藏、头像上传、提名审�
   await expect(page.locator('.avatar-picker img')).toHaveAttribute('src', /\/api\/assets\//)
   await expect(page.locator('.avatar-picker img')).toHaveJSProperty('naturalWidth', 128)
 
+  const self = (await (await page.request.get('/api/auth/me')).json()).user
+  const personalPath = '/user/' + self.id
+  await expect(
+    page.locator('.account-heading').getByRole('link', { name: '我的个人空间', exact: true }),
+  ).toHaveAttribute('href', personalPath)
+  await expect(
+    page.locator('.profile-preview').getByRole('link', { name: '查看我的个人空间', exact: true }),
+  ).toHaveAttribute('href', personalPath)
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+  await page
+    .locator('.account-heading')
+    .screenshot({ path: test.info().outputPath('account-personal-space-mobile.png') })
+  await page.locator('.account-heading').getByRole('link', { name: '我的个人空间', exact: true }).click()
+  await expect(page).toHaveURL(new RegExp(personalPath + '$'))
+  await expect(page.locator('.member-identity h1')).toHaveText(self.nickname)
+  await expect(page.locator('.member-content')).toContainText(title)
+  await page.getByRole('link', { name: '进入用户中心', exact: true }).click()
+  await page.locator('.profile-preview').getByRole('link', { name: '查看我的个人空间', exact: true }).click()
+  await expect(page.locator('.member-identity h1')).toHaveText(self.nickname)
+  await page.getByRole('button', { name: '展开社区导航', exact: true }).click()
+  const spaceLink = page.locator('.personal-section').getByRole('link', { name: '我的个人空间', exact: true })
+  await expect(spaceLink).toHaveClass(/selected/)
+  await expect(spaceLink).toHaveAttribute('href', personalPath)
+  await expect(
+    page.locator('.left-sidebar').getByRole('link', { name: '社区广场', exact: true }),
+  ).not.toHaveClass(/selected/)
+  await spaceLink.click()
+  await page.setViewportSize({ width: 1280, height: 900 })
+
   await page.goto('/awards?campaign=browser-voting')
   await page.getByRole('button', { name: '提交一份提名', exact: true }).click()
   const nomination = page.getByRole('dialog', { name: '替喜欢的作品，写一封推荐信。' })
