@@ -49,6 +49,42 @@ const tab = ref('settings')
 const reviewFilter = ref('pending')
 const reviewNotes = reactive<Record<string, string>>({})
 const error = ref('')
+const createDialog = ref<HTMLDialogElement | null>(null)
+const createEdition = ref('')
+const createError = ref('')
+const nextEdition = computed(() => Math.max(0, ...campaigns.value.map((c) => c.edition)) + 1)
+function openCreate() {
+  createError.value = ''
+  createEdition.value = String(nextEdition.value)
+  createDialog.value?.showModal()
+}
+function closeCreate() {
+  createDialog.value?.close()
+}
+async function createActivity() {
+  if (busy.value) return
+  const edition = Number(createEdition.value)
+  if (!Number.isInteger(edition) || edition < 1 || edition > 99) {
+    createError.value = '届数需为 1–99 之间的整数。'
+    return
+  }
+  if (campaigns.value.some((c) => c.edition === edition)) {
+    createError.value = `第 ${edition} 届已存在，请换一个届数。`
+    return
+  }
+  busy.value = true
+  createError.value = ''
+  try {
+    await awards.createCampaign(edition)
+    tab.value = 'settings'
+    closeCreate()
+    notify(`已创建第 ${edition} 届活动草稿。`)
+  } catch (e) {
+    createError.value = (e as Error).message
+  } finally {
+    busy.value = false
+  }
+}
 const confirmPhase = ref<CampaignPhase | null>(null)
 const confirmRunoff = ref(false)
 const confirmTieBreak = ref(false)
@@ -259,12 +295,7 @@ function review(id: string, status: 'approved' | 'rejected') {
         v-if="identity.can('campaign.create')"
         class="button primary"
         :disabled="busy"
-        @click="
-          run(async () => {
-            await awards.createCampaign()
-            tab = 'settings'
-          }, '已创建新一届活动草稿。')
-        "
+        @click="openCreate"
       >
         <AppIcon name="plus" :size="16" />新建一届
       </button>
@@ -601,6 +632,46 @@ function review(id: string, status: 'approved' | 'rejected') {
       </section>
     </template>
   </div>
+  <dialog
+    ref="createDialog"
+    class="modal create-campaign-dialog"
+    aria-labelledby="create-campaign-title"
+    @cancel.prevent="closeCreate"
+  >
+    <div class="create-campaign-heading">
+      <div>
+        <p class="eyebrow">NEW CAMPAIGN</p>
+        <h2 id="create-campaign-title">新建一届活动</h2>
+      </div>
+      <button type="button" class="icon-button" aria-label="关闭" @click="closeCreate"><AppIcon name="close" :size="16" /></button>
+    </div>
+    <form class="award-form" @submit.prevent="createActivity">
+      <label
+        >活动届数<span class="create-edition-field"
+          ><span>第</span
+          ><input
+            v-model="createEdition"
+            type="number"
+            min="1"
+            max="99"
+            step="1"
+            inputmode="numeric"
+            required
+            aria-describedby="create-edition-help" /><span>届</span></span
+        ></label
+      >
+      <p id="create-edition-help" class="create-edition-help">
+        默认填入下一届；可改为尚未使用的届数，不能与现有活动重复；若该届数属于已删除的档案，将回收该届数重新创建。
+      </p>
+      <p v-if="createError" class="form-error" role="alert">{{ createError }}</p>
+      <div class="create-campaign-actions">
+        <button type="button" class="button secondary" :disabled="busy" @click="closeCreate">取消</button>
+        <button type="submit" class="button primary" :disabled="busy">
+          {{ busy ? '正在创建…' : '创建草稿' }}
+        </button>
+      </div>
+    </form>
+  </dialog>
 </template>
 
 <style scoped>
@@ -712,5 +783,58 @@ function review(id: string, status: 'approved' | 'rejected') {
   .campaign-delete-zone {
     padding: 1.2rem;
   }
+}
+.create-campaign-dialog {
+  box-sizing: border-box;
+  width: min(30rem, calc(100vw - 32px));
+  padding: clamp(20px, 3vw, 28px);
+  border-radius: 24px;
+}
+.create-campaign-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.create-campaign-heading h2 {
+  margin: 8px 0 0;
+  font-size: 24px;
+  line-height: 1.5;
+}
+.create-campaign-heading .icon-button {
+  flex-shrink: 0;
+}
+.create-edition-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 14px;
+}
+.create-edition-field input {
+  width: 7rem;
+  min-height: 48px;
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+  font-size: 16px;
+}
+.create-edition-help {
+  margin: 12px 0;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--subtle);
+}
+.create-campaign-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+.create-campaign-actions .button {
+  min-height: 44px;
+  font-size: 14px;
 }
 </style>

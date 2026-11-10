@@ -112,8 +112,11 @@ export function useAwards() {
   }
   const root = () => `/award-campaigns/${campaign.value.id}`,
     adminRoot = () => `/admin/award-campaigns/${campaign.value.id}`
-  async function createCampaign() {
-    const c = await auth.request<AwardCampaign>('/admin/award-campaigns', {})
+  async function createCampaign(edition?: number) {
+    const c = await auth.request<AwardCampaign>(
+      '/admin/award-campaigns',
+      edition ? { edition } : {},
+    )
     selectedCampaignId.value = c.id
     await refresh()
     return c

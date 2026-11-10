@@ -275,21 +275,42 @@ export class Awards {
       return run(await this.campaign(id, tx), tx, current)
     })
   }
-  async create(actor: Actor) {
+  async create(actor: Actor, input: { edition?: number } = {}) {
     staff(actor)
     return this.db.transaction(async (tx) => {
       await this.platform.lock(`account:${actor.id}`, tx)
       await this.platform.lock('campaign-editions', tx)
       staff(await this.platform.actor(actor.id, tx))
-      const edition = Number(
-        (
-          await this.db.rows<{ edition: number }>(
-            'SELECT COALESCE(MAX(edition),1)+1 edition FROM award_campaigns',
-            [],
-            tx,
-          )
-        )[0]!.edition,
-      )
+      let edition: number
+      if (input.edition != null) {
+        edition = input.edition
+        const occupied = await this.db.rows<{ id: string; data: unknown }>(
+          'SELECT id,data FROM award_campaigns WHERE edition=? FOR UPDATE',
+          [edition],
+          tx,
+        )
+        if (occupied.length) {
+          const archived = !!(decode(occupied[0]!.data) as AwardCampaign & { deletedAt?: string })
+            .deletedAt
+          if (!archived) throw reject(`第 ${edition} 届已存在，请换一个届数。`, 422)
+          await this.db.execute('DELETE FROM award_nominations WHERE campaign_id=?', [occupied[0]!.id], tx)
+          await this.db.execute('DELETE FROM award_ballots WHERE campaign_id=?', [occupied[0]!.id], tx)
+          await this.db.execute('DELETE FROM award_results WHERE campaign_id=?', [occupied[0]!.id], tx)
+          await this.db.execute('DELETE FROM award_candidates WHERE campaign_id=?', [occupied[0]!.id], tx)
+          await this.db.execute('DELETE FROM award_campaigns WHERE id=?', [occupied[0]!.id], tx)
+          await this.platform.audit(actor, `回收已删除的第 ${edition} 届档案`, occupied[0]!.id, tx)
+        }
+      } else {
+        edition = Number(
+          (
+            await this.db.rows<{ edition: number }>(
+              'SELECT COALESCE(MAX(edition),1)+1 edition FROM award_campaigns',
+              [],
+              tx,
+            )
+          )[0]!.edition,
+        )
+      }
       const campaign: AwardCampaign = {
         id: randomUUID(),
         edition,
