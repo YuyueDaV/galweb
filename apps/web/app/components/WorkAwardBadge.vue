@@ -11,6 +11,7 @@ const honors = computed(
 const honorLabels = computed(() =>
   honors.value.map((honor) => `第${honor.edition}届十二橙器第${honor.rank}名`),
 )
+const singleHonor = computed(() => (honors.value.length === 1 ? honors.value[0] : undefined))
 </script>
 <template>
   <span class="work-award-badges" :class="{ 'is-overlay': overlay }" aria-label="作品收录与十二橙器荣誉">
@@ -22,17 +23,14 @@ const honorLabels = computed(() =>
       </span>
       <span class="work-award-options" role="list">
         <span v-for="honor in honors" :key="honor.campaignId" role="listitem">
-          <strong>第 {{ honor.edition }} 届</strong><small>第 {{ String(honor.rank).padStart(2, '0') }} 名</small>
+          <strong>第 {{ honor.edition }} 届</strong
+          ><small>第 {{ String(honor.rank).padStart(2, '0') }} 名</small>
         </span>
       </span>
     </span>
-    <span
-      v-else-if="overlay && honors.length === 1"
-      class="work-award-badge is-compact"
-      :aria-label="honorLabels[0]"
-    >
+    <span v-else-if="overlay && singleHonor" class="work-award-badge is-compact" :aria-label="honorLabels[0]">
       <AppIcon name="trophy" :size="15" /><span
-        >第 {{ honors[0].edition }} 届 · 第 {{ String(honors[0].rank).padStart(2, '0') }} 名</span
+        >第 {{ singleHonor.edition }} 届 · 第 {{ String(singleHonor.rank).padStart(2, '0') }} 名</span
       >
     </span>
     <template v-else>

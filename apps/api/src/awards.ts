@@ -20,6 +20,11 @@ import {
   validateBallot,
   tallyAwardResults,
   combineAwardRoundResults,
+  awardVotingMode,
+  awardVotingCandidates,
+  findAwardTieGroups,
+  validateTieBreakBallot,
+  combineAwardTieBreakResults,
 } from './award-rules'
 import type {
   AwardCampaign,
@@ -30,6 +35,7 @@ import type {
   WeightedBallotInput,
   AwardPublicRecommendation,
   AwardAdminBallot,
+  AwardVotingMode,
 } from './award-types'
 import { Catalog } from './catalog'
 import { qqNominationRevision, qqNominationSchema } from './qq-nominations'
@@ -37,6 +43,9 @@ import type { z } from 'zod'
 type Row<T> = { data: T | string; version: number }
 type RoundArchive = {
   round: number
+  mode?: AwardVotingMode
+  phase?: CampaignPhase
+  candidateIds?: string[]
   results: AwardResult[]
   ballots: AwardBallot[]
   ballotCount: number
@@ -92,6 +101,33 @@ export class Awards {
     )[0]
     return row ? decode(row.data) : {}
   }
+  private resultSnapshot(
+    c: AwardCampaign,
+    stored: StoredResults,
+    candidates: ReturnType<typeof collectAwardCandidates>,
+    ballots: AwardBallot[],
+  ) {
+    if (['results', 'archived'].includes(c.phase)) return stored.results || []
+    if (c.phase !== 'voting') return []
+    const tieBreak = awardVotingMode(c) === 'tie-break'
+    const live = tallyAwardResults(
+      tieBreak ? awardVotingCandidates(c, candidates) : candidates,
+      tieBreak
+        ? ballots.filter((ballot) => !validateTieBreakBallot(ballot.candidateIds, c.tieBreakGroups || []))
+        : ballots,
+      c.id,
+      tieBreak ? 'legacy' : c.votingRule,
+      ballotRules(c),
+    )
+    if (tieBreak)
+      return combineAwardTieBreakResults(
+        stored.results || [],
+        live,
+        c.tieBreakGroups || [],
+        c.votingRound || 1,
+      )
+    return stored.rounds?.[0] ? combineAwardRoundResults(stored.rounds[0].results, live) : live
+  }
   async state(id: string, actor?: Actor) {
     return this.db.transaction(async (tx) => {
       const campaign = await this.campaign(id, tx),
@@ -102,15 +138,7 @@ export class Awards {
         stored = await this.storedResults(id, tx)
       const current = await this.ballots(id, tx),
         candidates = collectAwardCandidates(nominations, id)
-      const previous = stored.rounds?.[0]
-      const live = tallyAwardResults(candidates, current, id, campaign.votingRule, ballotRules(campaign))
-      const results = ended
-        ? stored.results || []
-        : campaign.phase === 'voting'
-          ? previous
-            ? combineAwardRoundResults(previous.results, live)
-            : live
-          : []
+      const results = this.resultSnapshot(campaign, stored, candidates, current)
       const mine = actor
         ? (
             await this.db.rows<Row<AwardBallot>>(
@@ -130,8 +158,20 @@ export class Awards {
           ).map((row) => decode(row.data))
         : current
       const roundBallots = [
-        ...(previous?.ballots || []).map((ballot) => ({ ...ballot, round: 1 })),
-        ...allBallots.map((ballot) => ({ ...ballot, round })),
+        ...(stored.rounds || []).flatMap((previous) =>
+          previous.ballots.map((ballot) => ({
+            ...ballot,
+            round: previous.round,
+            mode: previous.mode || ((previous.round === 1 ? 'standard' : 'supplementary') as AwardVotingMode),
+            eligibleCandidateIds: previous.candidateIds,
+          })),
+        ),
+        ...allBallots.map((ballot) => ({
+          ...ballot,
+          round,
+          mode: awardVotingMode(campaign),
+          eligibleCandidateIds: awardVotingCandidates(campaign, candidates).map((item) => item.id),
+        })),
       ]
       const ids = [...new Set(roundBallots.map((ballot) => ballot.accountId))]
       const users = ids.length
@@ -160,8 +200,10 @@ export class Awards {
       const recommendations: AwardPublicRecommendation[] =
         campaign.votingRule === 'weighted-v1'
           ? roundBallots.flatMap((ballot) => {
-              const pool =
-                ballot.round === 2
+              if (ballot.mode === 'tie-break') return []
+              const pool = ballot.eligibleCandidateIds
+                ? candidates.filter((candidate) => ballot.eligibleCandidateIds!.includes(candidate.id))
+                : ballot.round === 2
                   ? candidates.filter((candidate) => !campaign.lockedCandidateIds?.includes(candidate.id))
                   : candidates
               if (
@@ -185,7 +227,7 @@ export class Awards {
             })
           : []
       const ballots: AwardAdminBallot[] = isStaff
-        ? roundBallots.map((ballot) => ({
+        ? roundBallots.map(({ eligibleCandidateIds: _eligibleCandidateIds, ...ballot }) => ({
             ...ballot,
             accountName: names.get(ballot.accountId) || '已注销用户',
           }))
@@ -204,7 +246,9 @@ export class Awards {
             : null,
         ballotVersion: mine?.version || 0,
         results: results.map((result) => ({ ...result, nominations: result.nominations.map(sanitize) })),
-        ballotCount: ended ? stored.ballotCount || 0 : current.length + (previous?.ballotCount || 0),
+        ballotCount: ended
+          ? stored.ballotCount || 0
+          : current.length + (stored.rounds || []).reduce((sum, previous) => sum + previous.ballotCount, 0),
         recommendations,
         ...(isStaff ? { ballots, rounds: stored.rounds || [] } : {}),
         audit: isStaff
@@ -297,6 +341,8 @@ export class Awards {
         edition: c.edition,
         phase: c.phase,
         votingRound: c.votingRound,
+        votingMode: c.votingMode,
+        tieBreakGroups: c.tieBreakGroups,
         lockedCandidateIds: c.lockedCandidateIds,
         createdAt: c.createdAt,
         version: c.version! + 1,
@@ -337,12 +383,22 @@ export class Awards {
         candidates.length,
       )
       if (error) throw reject(error)
-      if (to === 'results') {
-        const ballots = await this.ballots(id, tx),
+      if (to === 'results' || to === 'archived') {
+        const ballots = to === 'results' ? await this.ballots(id, tx) : [],
           stored = await this.storedResults(id, tx)
-        const live = tallyAwardResults(candidates, ballots, id, c.votingRule, ballotRules(c))
-        const results = stored.rounds?.[0] ? combineAwardRoundResults(stored.rounds[0].results, live) : live
-        if ((c.votingRound || 1) === 1 && results.filter((item) => item.votes > 0).length < c.winnerCount)
+        const results = this.resultSnapshot(c, stored, candidates, ballots)
+        if (findAwardTieGroups(results).length)
+          throw reject('存在尚未分出位次的同票作品，请开启同票加赛，直至名次唯一后再公布或归档。', 409)
+        const supplementary =
+          awardVotingMode(c) === 'supplementary' ||
+          stored.rounds?.some(
+            (item) => item.mode === 'supplementary' || item.phase === 'results' || item.phase === 'archived',
+          )
+        if (
+          to === 'results' &&
+          !supplementary &&
+          results.filter((item) => item.votes > 0).length < c.winnerCount
+        )
           throw reject(
             '有效得分作品不足计划名额，请先开启二次投票，保留首轮已得分作品并补投其余提名作品。',
             409,
@@ -350,28 +406,48 @@ export class Awards {
         const result = {
           ...stored,
           results,
-          ballotCount: ballots.length + (stored.rounds?.[0]?.ballotCount || 0),
+          ballotCount:
+            ballots.length + (stored.rounds || []).reduce((sum, item) => sum + item.ballotCount, 0),
         }
-        await this.db.execute(
-          'INSERT INTO award_results(campaign_id,data) VALUES (?,?) ON DUPLICATE KEY UPDATE data=VALUES(data)',
-          [id, JSON.stringify(result)],
-          tx,
-        )
+        if (to === 'results')
+          await this.db.execute(
+            'INSERT INTO award_results(campaign_id,data) VALUES (?,?) ON DUPLICATE KEY UPDATE data=VALUES(data)',
+            [id, JSON.stringify(result)],
+            tx,
+          )
       }
       await this.db.execute(
         'UPDATE award_campaigns SET data=?,version=version+1 WHERE id=?',
         [JSON.stringify({ ...c, phase: to, version: c.version! + 1 }), id],
         tx,
       )
-      await this.platform.audit(actor, `推进阶段：${phaseNames[to]}`, id, tx)
-      if (to === 'nomination' || to === 'voting') {
-        const action = to === 'nomination' ? '开放提名' : '开放投票'
+      await this.platform.audit(current, `推进阶段：${phaseNames[to]}`, id, tx)
+      const announcements: Partial<Record<CampaignPhase, { action: string; content: string }>> = {
+        nomination: {
+          action: '开放提名',
+          content: `${c.title}已进入${phaseNames.nomination}，欢迎参与！\n具体开放时间和参与规则请查看活动页。`,
+        },
+        voting: {
+          action: '开放投票',
+          content: `${c.title}已进入${phaseNames.voting}，欢迎参与！\n具体开放时间和参与规则请查看活动页。`,
+        },
+        results: {
+          action: '结果公布',
+          content: `${c.title}的投票结果已公布。欢迎查看本届入选作品、最终名次与成员推荐词。`,
+        },
+        archived: {
+          action: '本届已归档',
+          content: `${c.title}已归档，设置与结果保持只读。欢迎翻开本届评选档案，重温共同喜欢的故事。`,
+        },
+      }
+      const announcement = announcements[to]
+      if (announcement) {
         await new Broadcasts(this.db, this.platform).deliver(
           current,
-          `award:${id}:${to}`,
+          `award:${id}:${to}${awardVotingMode(c) === 'tie-break' ? ':round:' + (c.votingRound || 1) : ''}`,
           'activity',
-          `${c.title} · ${action}`,
-          `${c.title}已进入${phaseNames[to]}，欢迎参与！\n具体开放时间和参与规则请查看活动页。`,
+          `${c.title} · ${announcement.action}`,
+          announcement.content,
           '/awards?campaign=' + encodeURIComponent(id),
           tx,
         )
@@ -397,6 +473,9 @@ export class Awards {
         rounds: [
           {
             round: 1,
+            mode: 'standard',
+            phase: c.phase,
+            candidateIds: candidates.map((item) => item.id),
             results,
             ballots: (
               await this.db.rows<Row<AwardBallot>>(
@@ -422,6 +501,7 @@ export class Awards {
           JSON.stringify({
             ...c,
             votingRound: 2,
+            votingMode: 'supplementary',
             lockedCandidateIds: locked,
             votingStart: null,
             votingEnd: null,
@@ -438,6 +518,81 @@ export class Awards {
         'activity',
         c.title + ' · 二次投票',
         '首轮已得分作品保留，请为其余已提名作品补投，补足入选名额。',
+        '/awards?campaign=' + encodeURIComponent(id),
+        tx,
+      )
+    })
+  }
+  async startTieBreak(actor: Actor, id: string, version: number) {
+    return this.mutate(actor, id, 'admin', async (c, tx, current) => {
+      if (c.version !== version) throw reject('活动状态已更新，请刷新。', 409)
+      if (!['voting', 'results', 'archived'].includes(c.phase))
+        throw reject('仅投票、公布或归档后的同票结果可以开启加赛。', 409)
+      const candidates = collectAwardCandidates(await this.nominations(id, tx), id)
+      const ballots = await this.ballots(id, tx)
+      const stored = await this.storedResults(id, tx)
+      const results = this.resultSnapshot(c, stored, candidates, ballots)
+      const groups = findAwardTieGroups(results)
+      if (!groups.length) throw reject('当前没有需要加赛的同票作品。', 409)
+      if (
+        c.phase === 'voting' &&
+        awardVotingMode(c) === 'standard' &&
+        results.filter((item) => item.votes > 0).length < c.winnerCount
+      )
+        throw reject('有效得分作品不足计划名额，请先开启二次投票补足名单，再处理同票加赛。', 409)
+      const round = c.votingRound || 1
+      const nextRound = round + 1
+      const history: RoundArchive = {
+        round,
+        mode: awardVotingMode(c),
+        phase: c.phase,
+        results,
+        candidateIds: awardVotingCandidates(c, candidates).map((item) => item.id),
+        ballots: (
+          await this.db.rows<Row<AwardBallot>>('SELECT data FROM award_ballots WHERE campaign_id=?', [id], tx)
+        ).map((row) => decode(row.data)),
+        ballotCount: ballots.length,
+        closedAt: new Date().toISOString(),
+      }
+      const rounds = [...(stored.rounds || []), history]
+      await this.db.execute(
+        'INSERT INTO award_results(campaign_id,data) VALUES (?,?) ON DUPLICATE KEY UPDATE data=VALUES(data)',
+        [
+          id,
+          JSON.stringify({
+            ...stored,
+            results,
+            rounds,
+            ballotCount: rounds.reduce((sum, item) => sum + item.ballotCount, 0),
+          }),
+        ],
+        tx,
+      )
+      await this.db.execute('DELETE FROM award_ballots WHERE campaign_id=?', [id], tx)
+      await this.db.execute(
+        'UPDATE award_campaigns SET data=?,version=version+1 WHERE id=?',
+        [
+          JSON.stringify({
+            ...c,
+            phase: 'voting',
+            votingMode: 'tie-break',
+            votingRound: nextRound,
+            tieBreakGroups: groups,
+            votingStart: null,
+            votingEnd: null,
+            version: c.version! + 1,
+          }),
+          id,
+        ],
+        tx,
+      )
+      await this.platform.audit(current, `开启第 ${nextRound} 轮同票加赛，共 ${groups.length} 组`, id, tx)
+      await new Broadcasts(this.db, this.platform).deliver(
+        current,
+        `award:${id}:tie-break:${nextRound}`,
+        'activity',
+        `${c.title} · 第 ${nextRound} 轮同票加赛`,
+        '同票作品重新投票，每组每人最多选择一部作品；仅决定组内名次，其他名次和原始得分保留。若仍同票，将继续加赛直至分出位次。',
         '/awards?campaign=' + encodeURIComponent(id),
         tx,
       )
@@ -609,9 +764,8 @@ export class Awards {
     return this.mutate(actor, id, 'member', async (c, tx) => {
       this.window(c, 'voting')
       if (round !== (c.votingRound || 1)) throw reject('投票轮次已更新，请刷新后重新填写本轮选票。', 409)
-      const available = collectAwardCandidates(await this.nominations(id, tx), id).filter(
-        (item) => !c.lockedCandidateIds?.includes(item.id),
-      )
+      const available = awardVotingCandidates(c, collectAwardCandidates(await this.nominations(id, tx), id))
+      const tieBreak = awardVotingMode(c) === 'tie-break'
       const existing = (
         await this.db.rows<Row<AwardBallot>>(
           'SELECT data,version FROM award_ballots WHERE campaign_id=? AND user_id=?',
@@ -622,9 +776,13 @@ export class Awards {
       if ((existing?.version || 0) !== version) throw reject('选票已在其他页面修改，请刷新。')
       {
         if (ids !== null) {
-          const error = validateBallot(ids, available, c.voteLimit)
+          const error = tieBreak
+            ? validateTieBreakBallot(ids, c.tieBreakGroups || [])
+            : validateBallot(ids, available, c.voteLimit)
           if (error) throw reject(error, 422)
-          if (c.votingRule === 'weighted-v1') {
+          if (tieBreak) {
+            if (weighted) throw reject('同票加赛每组一票，不使用真爱票、喜爱票或推荐词加分。', 422)
+          } else if (c.votingRule === 'weighted-v1') {
             if (!weighted) throw reject('请按真爱票和喜爱票重新填写选票。', 422)
             const problem = validateWeightedBallot(weighted, available, ballotRules(c))
             if (problem) throw reject(problem, 422)
@@ -638,7 +796,7 @@ export class Awards {
           campaignId: id,
           accountId: actor.id,
           candidateIds: ids || [],
-          ...(ids && c.votingRule === 'weighted-v1' ? weighted : {}),
+          ...(ids && !tieBreak && c.votingRule === 'weighted-v1' ? weighted : {}),
           updatedAt: new Date().toISOString(),
         }
         await this.db.execute(

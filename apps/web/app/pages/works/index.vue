@@ -31,6 +31,9 @@ function resetFilters() {
   company.value = ''
 }
 const shelfView = ref('cards')
+const pageSize = 24
+const page = ref(1)
+const resultsHeading = ref<HTMLElement | null>(null)
 const filteredWorks = computed(() => {
   const term = search.value.trim().toLowerCase()
   const list = works.value.filter(
@@ -48,6 +51,20 @@ const filteredWorks = computed(() => {
         ? [...list].sort((a, b) => a.rank - b.rank)
         : list
 })
+const pageCount = computed(() => Math.max(1, Math.ceil(filteredWorks.value.length / pageSize)))
+const pageStart = computed(() => (page.value - 1) * pageSize)
+const pageWorks = computed(() => filteredWorks.value.slice(pageStart.value, pageStart.value + pageSize))
+watch([search, company, order], () => {
+  page.value = 1
+})
+watch(pageCount, (count) => {
+  page.value = Math.min(page.value, count)
+})
+async function changePage(nextPage: number) {
+  page.value = Math.max(1, Math.min(nextPage, pageCount.value))
+  await nextTick()
+  resultsHeading.value?.scrollIntoView({ block: 'start' })
+}
 useSeoMeta({ title: '作品书架 · 澄之响' })
 </script>
 
@@ -98,7 +115,7 @@ useSeoMeta({ title: '作品书架 · 澄之响' })
       书库暂时未能加载。<button @click="refresh()">重试加载</button>
     </p>
     <BangumiSearch :works="works" @imported="refresh()" />
-    <div class="library-toolbar">
+    <div ref="resultsHeading" class="library-toolbar">
       <h2>
         同好会的共同书单 <span>{{ filteredWorks.length }}</span>
       </h2>
@@ -127,16 +144,22 @@ useSeoMeta({ title: '作品书架 · 澄之响' })
         >
       </div>
     </div>
-    <div class="shelf-view-switch" role="group" aria-label="书架展示方式">
-      <button type="button" :aria-pressed="shelfView === 'cards'" @click="shelfView = 'cards'">
-        卡片列表</button
-      ><button type="button" :aria-pressed="shelfView === 'shelf'" @click="shelfView = 'shelf'">
-        立体书架
-      </button>
+    <div class="library-results-heading">
+      <div class="shelf-view-switch" role="group" aria-label="书架展示方式">
+        <button type="button" :aria-pressed="shelfView === 'cards'" @click="shelfView = 'cards'">
+          卡片列表</button
+        ><button type="button" :aria-pressed="shelfView === 'shelf'" @click="shelfView = 'shelf'">
+          立体书架
+        </button>
+      </div>
+      <p v-if="filteredWorks.length" class="library-page-summary" role="status">
+        每页 {{ pageSize }} 部 · 当前第 {{ pageStart + 1 }}–{{ pageStart + pageWorks.length }} 部，共
+        {{ filteredWorks.length }} 部
+      </p>
     </div>
     <NuxtErrorBoundary v-if="shelfView === 'shelf'"
       ><Suspense
-        ><LazyBookShelf :works="filteredWorks" /><template #fallback
+        ><LazyBookShelf :works="pageWorks" /><template #fallback
           ><p class="shelf-loading" role="status">正在打开书架…</p></template
         ></Suspense
       ><template #error
@@ -147,7 +170,7 @@ useSeoMeta({ title: '作品书架 · 澄之响' })
       ></NuxtErrorBoundary
     >
     <div v-else class="works-grid">
-      <NuxtLink v-for="work in filteredWorks" :key="work.rank" :to="`/works/${work.rank}`" class="work-card"
+      <NuxtLink v-for="work in pageWorks" :key="work.rank" :to="`/works/${work.rank}`" class="work-card"
         ><div class="work-cover">
           <WorkCover
             :rank="work.rank"
@@ -178,6 +201,11 @@ useSeoMeta({ title: '作品书架 · 澄之响' })
       <p>试试作品的中文名、英文名或制作组。</p>
       <button class="button secondary" @click="resetFilters">查看全部作品</button>
     </div>
+    <nav v-if="pageCount > 1" class="page-controls library-pagination" aria-label="作品书架分页">
+      <button type="button" :disabled="page === 1" @click="changePage(page - 1)">上一页</button>
+      <span>第 {{ page }} / {{ pageCount }} 页</span>
+      <button type="button" :disabled="page === pageCount" @click="changePage(page + 1)">下一页</button>
+    </nav>
     <p class="page-footnote">
       本书库收录同好会推荐作品，保留历届十二橙器档案；Bangumi
       评分为外部平台数据。封面及宣传图版权归各作品权利人所有。排名代表当届成员票选，每一种喜欢都值得被珍惜。
@@ -186,6 +214,40 @@ useSeoMeta({ title: '作品书架 · 澄之响' })
 </template>
 
 <style scoped>
+.library-toolbar {
+  scroll-margin-top: 8rem;
+}
+.library-results-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.library-page-summary {
+  color: var(--subtle);
+  font-size: 14px;
+  line-height: 1.8;
+}
+.library-pagination {
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+}
+.library-pagination > button {
+  min-width: 80px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--orange-soft);
+}
+.library-pagination > span {
+  color: var(--subtle);
+  white-space: nowrap;
+}
 .library-toolbar > div {
   display: flex;
   flex-wrap: wrap;

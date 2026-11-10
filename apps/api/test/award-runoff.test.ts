@@ -86,6 +86,12 @@ test(
         awards.startRunoff(admin, c.id, c.version!),
       ])
       assert.equal(starts.filter((item) => item.status === 'fulfilled').length, 1)
+      assert.equal(
+        (await db.rows('SELECT id FROM notification_broadcasts WHERE event_key=?', [`award:${c.id}:runoff`]))
+          .length,
+        1,
+        '二次投票并发开启只发送一次通知',
+      )
       c = await awards.campaign(c.id)
       assert.equal(c.votingRound, 2)
       assert.deepEqual(c.lockedCandidateIds, [a])

@@ -24,6 +24,11 @@ export interface PreviewAccount {
 }
 
 export type AwardVotingRule = 'legacy' | 'weighted-v1'
+export type AwardVotingMode = 'standard' | 'supplementary' | 'tie-break'
+export interface AwardTieBreakGroup {
+  rank: number
+  candidateIds: string[]
+}
 export interface AwardBallotRules {
   loveLimit: number
   likeLimit: number
@@ -40,6 +45,8 @@ export interface WeightedBallotInput {
 }
 export interface AwardCampaign {
   votingRound?: number
+  votingMode?: AwardVotingMode
+  tieBreakGroups?: AwardTieBreakGroup[]
   lockedCandidateIds?: string[]
   ballotRules?: AwardBallotRules
   votingRule?: AwardVotingRule
@@ -97,6 +104,7 @@ export interface AwardBallot {
 }
 
 export interface AwardResult extends AwardCandidate {
+  tieBreakScores?: { round: number; votes: number }[]
   qualifiedRound?: number
   loveVotes?: number
   likeVotes?: number
@@ -113,6 +121,7 @@ export interface AwardPublicRecommendation {
 }
 
 export interface AwardAdminBallot extends AwardBallot {
+  mode?: AwardVotingMode
   accountName: string
   round: number
 }

@@ -44,6 +44,7 @@ test('普通用户添加书库、上传及更换封面、自动署名和重复�
   await expect(page.getByRole('status').filter({ hasText: '作品封面已更新' })).toBeVisible()
   await expect(page.locator('.work-detail-cover img')).not.toHaveAttribute('src', before!)
   await page.goto('/works')
+  await page.getByLabel('搜索作品', { exact: true }).fill(title)
   await expect(page.locator('.work-card').filter({ hasText: title })).toContainText('添加人：browser_member')
   await page.goto('/works/new')
   await page.getByLabel('作品名称', { exact: true }).fill(title + ' 续篇')
@@ -110,7 +111,10 @@ test('活动刷新等待真实数据，不展示默认第二届', async ({ page 
     await expect(page.getByRole('status').filter({ hasText: '正在加载活动' })).toBeVisible()
     await expect(page.locator('.award-edition-pill')).toHaveCount(0)
     release()
-    await expect(page.locator('.award-edition-pill')).toHaveText('第 ' + list[0].edition + ' 届十二橙器')
+    await expect(page.getByLabel('选择活动届次')).toHaveValue(list[0].id)
+    if (list[0].phase === 'archived')
+      await expect(page.locator('.ranking-description')).toContainText('第 ' + list[0].edition + ' 届')
+    else await expect(page.locator('.award-edition-pill')).toHaveText('第 ' + list[0].edition + ' 届十二橙器')
   } finally {
     release()
   }

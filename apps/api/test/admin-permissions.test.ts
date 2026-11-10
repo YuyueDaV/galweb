@@ -25,6 +25,9 @@ function fixture(current:Actor,target=actor('member'),ownerCount=1){
    if(sql.includes('MAX(edition)'))return [{edition:3}]
    if(sql.includes('FROM award_campaigns WHERE id=?'))return [{data:campaign,version:campaign.version}]
    if(sql.includes('FROM award_nominations'))return []
+   if(sql.includes('FROM award_ballots')||sql.includes('FROM award_results'))return []
+   if(sql.includes('FROM notification_broadcasts WHERE event_key=?'))return []
+   if(sql.includes("SELECT id FROM users WHERE status='active'"))return [...users.values()].filter(user=>user.status==='active').map(user=>({id:user.id}))
    throw new Error('Unexpected database read in permission test: '+sql)
   },
   execute:async(sql:string,values:unknown[]=[])=>{
@@ -124,6 +127,7 @@ test('管理员可创建届次及归档结果，普通成员不能执行',async(
  await f.awards.phase(admin,f.campaign.id,'archived',0)
  const archived=f.writes.find(write=>write.sql.startsWith('UPDATE award_campaigns'))
  assert.equal(JSON.parse(String(archived!.values[0])).phase,'archived')
+ assert.ok(f.writes.some(write=>write.sql.startsWith('INSERT INTO notification_broadcasts')&&write.values[2]===`award:${f.campaign.id}:archived`))
  const member=actor('member'),denied=fixture(member)
  await assert.rejects(()=>denied.awards.create(member),/管理员/)
  await assert.rejects(()=>denied.awards.phase(member,denied.campaign.id,'archived',0),/管理员/)

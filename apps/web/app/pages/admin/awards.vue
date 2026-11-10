@@ -11,6 +11,8 @@ import {
   nominationDisplayTime,
   toAwardTimeInput,
   fromAwardTimeInput,
+  awardVotingMode,
+  findAwardTieGroups,
 } from '~/utils/awards'
 const awards = useAwards()
 const identity = usePreviewIdentity()
@@ -49,12 +51,21 @@ const reviewNotes = reactive<Record<string, string>>({})
 const error = ref('')
 const confirmPhase = ref<CampaignPhase | null>(null)
 const confirmRunoff = ref(false)
+const confirmTieBreak = ref(false)
+const tieBreak = computed(() => awardVotingMode(campaign.value) === 'tie-break')
+const unresolvedTies = computed(() => findAwardTieGroups(awards.results.value))
 const scoredCount = computed(() => awards.results.value.filter((item) => item.votes > 0).length)
 const needsRunoff = computed(() => campaign.value.phase === 'voting' && (campaign.value.votingRound || 1) === 1 && scoredCount.value < campaign.value.winnerCount)
 const workTitle = (id: string) => candidates.value.find((item) => item.id === id)?.title || id
+const canStartTieBreak = computed(() => ['voting', 'results', 'archived'].includes(campaign.value.phase) && unresolvedTies.value.length > 0 && !needsRunoff.value)
+async function openTieBreak() {
+  await run(() => awards.startTieBreak(), '同票加赛已开启，并已发送站内通知。')
+  confirmTieBreak.value = false
+}
 async function openRunoff() {
   await run(() => awards.startRunoff(), '二次投票已开启，首轮已得分作品保留。')
   confirmRunoff.value = false
+  confirmTieBreak.value = false
 }
 const settings = ref<AwardCampaign>({ ...campaign.value })
 const times = reactive({ nominationStart: '', nominationEnd: '', votingStart: '', votingEnd: '' })
@@ -360,7 +371,7 @@ function review(id: string, status: 'approved' | 'rejected') {
               <label>每人最多投票<span class="award-number-input"><input v-model.number="settings.voteLimit" aria-label="每人最多投票" type="number" min="1" max="100" required :disabled="rulesLocked || busy || settings.votingRule === 'weighted-v1'" /><span>票</span></span></label>
               <label>计划入选作品<span class="award-number-input"><input v-model.number="settings.winnerCount" aria-label="计划入选作品" type="number" min="1" max="100" required :disabled="rulesLocked || busy" /><span>部</span></span></label>
             </div>
-            <div class="award-time-group"><h3>{{ campaign.votingRound === 2 ? '二次投票时间' : '首轮投票时间' }} <span>UTC+8</span></h3><div>
+            <div class="award-time-group"><h3>{{ tieBreak ? '同票加赛时间' : campaign.votingRound === 2 ? '二次投票时间' : '首轮投票时间' }} <span>UTC+8</span></h3><div>
               <label>投票开始时间<input v-model="times.votingStart" type="datetime-local" :disabled="settingsLocked || busy" /></label>
               <label>投票结束时间<input v-model="times.votingEnd" type="datetime-local" :disabled="settingsLocked || busy" /></label>
             </div></div>
@@ -385,7 +396,7 @@ function review(id: string, status: 'approved' | 'rejected') {
             <div class="award-admin-card-heading">
               <div>
                 <h2>阶段推进</h2>
-                <p>阶段按顺序开放，往届结果保留。</p>
+                <p>阶段按顺序开放，每次推进都会向所有有效账号发送站内通知，往届结果保留。</p>
               </div>
             </div>
             <ol>
@@ -402,18 +413,28 @@ function review(id: string, status: 'approved' | 'rejected') {
               还有 {{ pendingCount }} 条提名待审核，处理完成后才能开放投票。
             </p>
             <div v-if="campaign.phase === 'voting'" class="award-runoff-management">
-              <p>第 {{ campaign.votingRound || 1 }} 轮 · 有效得分 {{ scoredCount }} / {{ campaign.winnerCount }} 部</p>
+              <p>第 {{ campaign.votingRound || 1 }} 轮{{ tieBreak ? ' · 同票加赛' : '' }} · 有效得分 {{ scoredCount }} / {{ campaign.winnerCount }} 部</p>
               <p v-if="needsRunoff">未满计划名额，需先进行二次投票。首轮已得分作品保留。</p>
               <button v-if="needsRunoff && !confirmRunoff" type="button" class="button secondary full" :disabled="busy || dirty" @click="confirmRunoff = true">开启二次投票</button>
               <div v-if="confirmRunoff" class="award-phase-confirm"><strong>确认开启二次投票？</strong><p>保存首轮全部记录，保留已得分作品，其余已提名作品开放补投。所有人获得一份新的本轮选票，补投时间将清空，可重新设置。</p><div class="award-phase-actions"><button type="button" class="button secondary" :disabled="busy" @click="confirmRunoff = false">取消</button><button type="button" class="button primary" :disabled="busy" @click="openRunoff">确认开启二次投票</button></div></div>
-              <p v-if="campaign.votingRound === 2 && !awards.votingCandidates.value.length">没有剩余可补投作品。提名作品数不足时，可公布实际有效结果。</p>
+              <p v-if="!tieBreak && campaign.votingRound === 2 && !awards.votingCandidates.value.length">没有剩余可补投作品。提名作品数不足时，可公布实际有效结果。</p>
               <button type="button" class="text-link" @click="awards.initialize">刷新投票数据</button>
+            </div>
+            <div v-if="canStartTieBreak" class="award-tie-break-management">
+              <strong>还有 {{ unresolvedTies.length }} 组同票，暂不能公布或归档。</strong>
+              <p v-for="group in unresolvedTies" :key="group.rank">第 {{ group.rank }}–{{ group.rank + group.candidateIds.length - 1 }} 名：{{ group.candidateIds.map(workTitle).join('、') }}</p>
+              <p>每组每人一票，仅决定组内名次；仍同票就继续加赛。已公布或归档的本届将重新开放投票，历史记录保留。</p>
+              <button v-if="!confirmTieBreak" type="button" class="button secondary full" :disabled="busy || dirty" @click="confirmTieBreak = true">开启同票加赛</button>
+              <div v-else class="award-phase-confirm">
+                <strong>确认开启下一轮同票加赛？</strong><p>保留本轮选票和得分，仅对以上仍同票的作品重新投票，并向所有有效账号发送通知。加赛时间清空，可重新设置。</p>
+                <div><button type="button" class="button secondary" :disabled="busy" @click="confirmTieBreak = false">取消</button><button type="button" class="button primary" :disabled="busy" @click="openTieBreak">确认开启同票加赛</button></div>
+              </div>
             </div>
             <template
               v-if="
                 nextPhase && identity.can(nextPhase === 'archived' ? 'campaign.archive' : 'campaign.manage')
               "
-              ><button class="button secondary full" :disabled="dirty || busy || (nextPhase === 'results' && needsRunoff)" @click="confirmPhase = nextPhase">
+              ><button class="button secondary full" :disabled="dirty || busy || ((nextPhase === 'results' || nextPhase === 'archived') && (needsRunoff || unresolvedTies.length > 0))" @click="confirmPhase = nextPhase">
                 {{ transitionLabels[nextPhase] }}<AppIcon name="arrowRight" :size="15" />
               </button>
               <p v-if="dirty" class="award-field-help">请先保存当前设置。</p></template
@@ -433,7 +454,7 @@ function review(id: string, status: 'approved' | 'rejected') {
                       : confirmPhase === 'archived'
                         ? '归档后本届设置与结果将保持只读。'
                         : '成员将可以按已保存的规则提交作品提名。'
-                }}
+                }}<br />确认推进后，将向所有有效账号发送本阶段的站内通知。
               </p>
               <div>
                 <button type="button" class="button secondary" :disabled="busy" @click="confirmPhase = null">取消</button><button type="button" class="button primary" :disabled="busy" @click="advance">确认推进</button>
@@ -511,7 +532,7 @@ function review(id: string, status: 'approved' | 'rejected') {
         <div class="award-data-table"><table><thead><tr><th>作品</th><th>分数</th><th>状态</th></tr></thead><tbody><tr v-for="result in awards.results.value" :key="result.id"><td>{{ result.title }}</td><td>{{ result.votes }}</td><td>{{ campaign.lockedCandidateIds?.includes(result.id) ? '首轮保留' : result.votes > 0 ? '有效得分' : '尚未得分' }}</td></tr></tbody></table></div>
         <h3>全部选票 · {{ awards.ballots.value.length }} 条</h3>
         <p v-if="!awards.ballots.value.length">暂无选票记录。</p>
-        <details v-for="ballot in awards.ballots.value" :key="ballot.round + ':' + ballot.id" class="award-ballot-record"><summary>{{ ballot.accountName }} · 第 {{ ballot.round }} 轮 · {{ ballot.candidateIds.length ? ballot.candidateIds.length + ' 部作品' : '已撤回' }} · {{ formatAwardTime(ballot.updatedAt) }}</summary><p>账号编号：{{ ballot.accountId }}</p><p v-if="weightedRule">真爱票：{{ (ballot.loveIds || (ballot.loveId ? [ballot.loveId] : [])).map(workTitle).join('、') || '无' }}</p><p v-if="weightedRule">喜爱票：{{ (ballot.likeIds || []).map(workTitle).join('、') || '无' }}</p><p v-else>投票作品：{{ ballot.candidateIds.map(workTitle).join('、') || '无' }}</p><p v-for="rec in ballot.recommendations || []" :key="rec.candidateId">《{{ workTitle(rec.candidateId) }}》推荐词：{{ rec.text }}</p></details>
+        <details v-for="ballot in awards.ballots.value" :key="ballot.round + ':' + ballot.id" class="award-ballot-record"><summary>{{ ballot.accountName }} · 第 {{ ballot.round }} 轮{{ ballot.mode === 'tie-break' ? '同票加赛' : '' }} · {{ ballot.candidateIds.length ? ballot.candidateIds.length + ' 部作品' : '已撤回' }} · {{ formatAwardTime(ballot.updatedAt) }}</summary><p>账号编号：{{ ballot.accountId }}</p><p v-if="weightedRule && ballot.mode !== 'tie-break'">真爱票：{{ (ballot.loveIds || (ballot.loveId ? [ballot.loveId] : [])).map(workTitle).join('、') || '无' }}</p><p v-if="weightedRule && ballot.mode !== 'tie-break'">喜爱票：{{ (ballot.likeIds || []).map(workTitle).join('、') || '无' }}</p><p v-else>投票作品：{{ ballot.candidateIds.map(workTitle).join('、') || '无' }}</p><p v-for="rec in ballot.recommendations || []" :key="rec.candidateId">《{{ workTitle(rec.candidateId) }}》推荐词：{{ rec.text }}</p></details>
         <details class="award-ballot-record"><summary>全部管理与参与记录 · {{ audit.length }} 条</summary><ol><li v-for="entry in audit" :key="entry.id">{{ entry.actor }} · {{ entry.action }} · {{ formatAwardTime(entry.createdAt) }}</li></ol></details>
       </section>
       <dialog v-if="campaign.edition === 2" ref="qqDialog" class="modal qq-sync-dialog" aria-labelledby="qq-sync-title" @cancel.prevent="closeQqSync">
@@ -583,6 +604,9 @@ function review(id: string, status: 'approved' | 'rejected') {
 </template>
 
 <style scoped>
+.award-tie-break-management { margin-block: 1rem; padding: 1rem; border: 1px solid var(--line); border-radius: .75rem; background: var(--orange-soft); }
+.award-tie-break-management > strong, .award-tie-break-management > p { font-size: max(14px, .7rem); line-height: 1.9; overflow-wrap: anywhere; }
+.award-tie-break-management > p { margin-block: .6rem; color: var(--subtle); }
 .qq-sync-help { margin: 16px 0; padding: 12px 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--orange-soft); color: var(--subtle); font-size: max(14px, 0.75rem); line-height: 1.8; overflow-wrap: anywhere; }
 .qq-sync-record-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-block: 12px; }
 .qq-sync-record-actions .button { min-height: 44px; font-size: 14px; }

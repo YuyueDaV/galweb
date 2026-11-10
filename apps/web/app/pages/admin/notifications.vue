@@ -199,7 +199,7 @@ useSeoMeta({ title: '站点通知管理 · 澄之响', robots: 'noindex,nofollow
             >站内跳转链接（选填）<input v-model.trim="link" maxlength="200" placeholder="例如 /awards"
           /></label>
         </fieldset>
-        <p v-if="!confirming" class="catalog-help">十二橙器开放提名、开放投票时会自动通知，无需重复发送。</p>
+        <p v-if="!confirming" class="catalog-help">十二橙器开放提名、开放投票、二次投票、每轮同票加赛、公布结果及归档时会自动通知，无需重复发送。</p>
         <p v-if="error" class="form-error" role="alert">{{ error }}</p>
         <section v-if="confirming" class="notice-preview" aria-label="通知预览">
           <p class="eyebrow">发送前确认</p>

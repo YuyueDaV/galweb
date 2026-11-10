@@ -18,7 +18,56 @@ import {
   validatePhaseTransition,
   toAwardTimeInput,
   fromAwardTimeInput,
+  findAwardTieGroups,
+  combineAwardTieBreakResults,
+  validateTieBreakBallot,
+  awardVotingCandidates,
 } from '../apps/web/app/utils/awards.ts'
+
+test('同票加赛只重排组内名次，多组独立处理，零票未入选作品不进入加赛', () => {
+  const original = [
+    ['a', 9, 1], ['b', 6, 2], ['c', 6, 2], ['d', 6, 2], ['e', 4, 5],
+    ['f', 2, 6], ['g', 2, 6], ['zero1', 0, 8], ['zero2', 0, 8],
+  ].map(([id, votes, rank]) => ({ id, votes, rank, title: id, studio: '', nominations: [], likeVotes: votes }))
+  const groups = findAwardTieGroups(original)
+  assert.deepEqual(groups, [{ rank: 2, candidateIds: ['b', 'c', 'd'] }, { rank: 6, candidateIds: ['f', 'g'] }])
+  const round2 = combineAwardTieBreakResults(original, [
+    { id: 'b', votes: 1 }, { id: 'c', votes: 1 }, { id: 'd', votes: 0 },
+    { id: 'f', votes: 3 }, { id: 'g', votes: 2 },
+  ], groups, 2)
+  assert.deepEqual(findAwardTieGroups(round2), [{ rank: 2, candidateIds: ['b', 'c'] }])
+  assert.equal(round2.find((item) => item.id === 'd').rank, 4)
+  assert.equal(round2.find((item) => item.id === 'g').rank, 7)
+  const round3 = combineAwardTieBreakResults(round2, [{ id: 'b', votes: 0 }, { id: 'c', votes: 2 }], findAwardTieGroups(round2), 3)
+  assert.deepEqual(findAwardTieGroups(round3), [])
+  assert.deepEqual(round3.filter((item) => item.votes > 0).map((item) => item.id), ['a', 'c', 'b', 'd', 'e', 'f', 'g'])
+  assert.deepEqual(round3.find((item) => item.id === 'b').tieBreakScores, [{ round: 2, votes: 1 }, { round: 3, votes: 0 }])
+  assert.equal(round3.find((item) => item.id === 'd').tieBreakScores.length, 1)
+  for (const item of round3) {
+    const before = original.find((source) => source.id === item.id)
+    assert.equal(item.votes, before.votes)
+    assert.equal(item.likeVotes, before.likeVotes)
+  }
+  assert.equal(original.find((item) => item.id === 'd').rank, 2, '计算不修改原快照')
+  assert.equal(round3.filter((item) => item.votes > 0 && item.rank <= 3).length, 3, '入选边界不会因同票超额')
+})
+
+test('同票加赛每组最多一票，重复同票可持续加赛，没有选票不能凭空决出名次', () => {
+  const groups = [{ rank: 1, candidateIds: ['a', 'b'] }, { rank: 3, candidateIds: ['c', 'd'] }]
+  assert.equal(validateTieBreakBallot(['a', 'c'], groups), '')
+  for (const ids of [[], ['a', 'b'], ['a', 'a'], ['outside']]) assert.notEqual(validateTieBreakBallot(ids, groups), '')
+  const candidates = ['a', 'b', 'c', 'd', 'outside'].map((id) => ({ id }))
+  assert.deepEqual(awardVotingCandidates({ votingMode: 'tie-break', tieBreakGroups: groups, lockedCandidateIds: ['a'] }, candidates).map((item) => item.id), ['a', 'b', 'c', 'd'])
+  let results = ['a', 'b'].map((id) => ({ id, votes: 6, rank: 1 }))
+  for (let round = 2; round <= 12; round++) {
+    results = combineAwardTieBreakResults(results, [], findAwardTieGroups(results), round)
+    assert.equal(findAwardTieGroups(results).length, 1)
+  }
+  assert.equal(results[0].tieBreakScores.length, 11)
+  const resolved = combineAwardTieBreakResults(results, [{ id: 'b', votes: 1 }], findAwardTieGroups(results), 13)
+  assert.deepEqual(resolved.map((item) => [item.id, item.rank]), [['b', 1], ['a', 2]])
+  assert.deepEqual(findAwardTieGroups(resolved), [])
+})
 
 const campaign = {
   id: 'second',
@@ -222,7 +271,7 @@ test('改票只保留每人最新选票，跨届隔离，重复候选不重复�
   assert.equal(result.find((item) => item.id === 'a').votes, 0)
 })
 
-test('结果按实际票数排名，同票并列且后一名跳号', () => {
+test('实时计分保留同票组，供加赛决定最终位次', () => {
   const result = tallyAwardResults(
     candidates,
     [ballot('u1', ['a', 'b', 'c']), ballot('u2', ['a', 'b'])],

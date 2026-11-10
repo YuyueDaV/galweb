@@ -120,6 +120,32 @@ test('管理员创建修改删除活动；自定义分值、互斥选票、推�
         })
       ).status(),
     ).toBe(403)
+    current = await state()
+    expect(
+      (
+        await api.post('/api/admin/award-campaigns/' + id + '/transitions', {
+          headers,
+          data: { phase: 'results', version: current.campaign.version },
+        })
+      ).status(),
+    ).toBe(409)
+    expect(
+      (
+        await api.post('/api/admin/award-campaigns/' + id + '/tie-break', {
+          headers,
+          data: { version: current.campaign.version },
+        })
+      ).ok(),
+    ).toBeTruthy()
+    current = await state()
+    expect(
+      (
+        await member.request.put('/api/award-campaigns/' + id + '/ballot', {
+          headers: memberHeaders,
+          data: { candidateIds: [second.candidateId], version: 0, round: current.campaign.votingRound },
+        })
+      ).ok(),
+    ).toBeTruthy()
     await advance('results')
     current = await state()
     expect(current.results.find((r: { id: string }) => r.id === first.candidateId).votes).toBe(9)

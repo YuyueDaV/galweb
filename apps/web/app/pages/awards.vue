@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { coverUrl as archiveCoverUrl } from '~/data/forum'
-import { ballotRules, phaseNames, formatAwardTime, formatNominationTime, nominationDisplayName, campaignWindowMessage, normalizeWorkTitle } from '~/utils/awards'
+import { ballotRules, phaseNames, formatAwardTime, formatNominationTime, nominationDisplayName, campaignWindowMessage, normalizeWorkTitle, awardVotingMode, findAwardTieGroups } from '~/utils/awards'
 import type { AwardCandidate } from '~/types/awards'
+import type { AwardArchiveEntry } from '~/types/award-archive'
 import type { Work } from '~/types/forum'
 import type { BangumiSubject } from '~/types/catalog'
 
@@ -112,15 +113,43 @@ const canNominate = computed(() => campaign.value.phase === 'nomination' && !nom
 const canVote = computed(() => campaign.value.phase === 'voting' && !votingWindow.value)
 const rules = computed(() => ballotRules(campaign.value))
 const weighted = computed(() => campaign.value.votingRule === 'weighted-v1')
+const tieBreak = computed(() => awardVotingMode(campaign.value) === 'tie-break')
+const unresolvedTies = computed(() => findAwardTieGroups(results.value))
 const ended = computed(() => ['results', 'archived'].includes(campaign.value.phase))
+const archived = computed(() => campaign.value.phase === 'archived')
 const resultById = computed(() => new Map(results.value.map((item) => [item.id, item])))
 const qualifiedCount = computed(() => results.value.filter((item) => item.votes > 0).length)
 const isLocked = (id: string) => !!campaign.value.lockedCandidateIds?.includes(id)
 const winners = computed(() =>
-  results.value.filter((item) => item.votes > 0 && item.rank <= campaign.value.winnerCount),
+  results.value
+    .filter((item) => item.votes > 0 && item.rank <= campaign.value.winnerCount)
+    .sort((a, b) => a.rank - b.rank),
+)
+const archiveEntries = computed<AwardArchiveEntry[]>(() =>
+  winners.value.map((item) => {
+    const work = works.value.find((entry) => entry.rank === item.coverRank)
+    const recommendation = awards.recommendations.value.find((entry) => entry.candidateId === item.id)
+    return {
+      id: item.id,
+      rank: item.rank,
+      title: item.title,
+      subtitle: work?.subtitle || item.studio,
+      studio: item.studio,
+      description: recommendation?.text || item.nominations.find((entry) => entry.reason)?.reason || work?.description || '',
+      recommendationAuthor: recommendation?.authorName,
+      nominator: [...new Set(item.nominations.map(nominationDisplayName))].join('、'),
+      coverUrl: item.coverRank ? coverUrl(item.coverRank) : '/images/work-placeholder.svg',
+      to: work ? `/works/${work.rank}` : undefined,
+      votes: item.votes,
+      tied: winners.value.some((other) => other.id !== item.id && other.rank === item.rank),
+      tieBreakSummary: item.tieBreakScores?.length ? `第 ${item.tieBreakScores.at(-1)!.round} 轮加赛 ${item.tieBreakScores.at(-1)!.votes} 票` : undefined,
+    }
+  }),
 )
 const title = computed(() =>
-  campaign.value.phase === 'voting'
+  campaign.value.phase === 'voting' && tieBreak.value
+    ? ['同票的故事，', '再为喜欢投一票。']
+    : campaign.value.phase === 'voting'
     ? ['把你的喜欢，', '交给这一票。']
     : ended.value
       ? ['每一份喜欢，', '都有了回响。']
@@ -143,11 +172,11 @@ const ballotChanged = computed(
 )
 useSeoMeta({ title: () => activityReady.value?`${campaign.value.title} · 澄之响`:'十二橙器活动 · 澄之响' })
 
-function selectEdition() {
+watch(() => route.query.campaign, () => {
   selected.value = []
   tab.value = 'candidates'
-  awards.persist()
-}
+  void loadActivity()
+})
 function openNomination(title = '', studio = '') {
   if (!canNominate.value) {
     notify(nominationWindow.value || '活动尚未开放提名，请留意后续公告。')
@@ -259,20 +288,19 @@ async function withdrawBallot() {
     <p v-if="!campaigns.length && awards.online.value" class="empty-state">
       暂无开放的活动，欢迎关注后续投票。
     </p>
-    <template v-if="campaigns.length"
-      ><div class="award-page-top">
-        <span class="page-kicker"
-          ><span class="category-dot orange"></span> THE TWELVE ORANGES · COMMUNITY AWARDS</span
-        ><label class="award-edition-select"
-          ><span class="sr-only">选择活动届次</span
-          ><select v-model="selectedCampaignId" @change="selectEdition">
-            <option v-for="item in campaigns" :key="item.id" :value="item.id">
-              第 {{ item.edition }} 届 · {{ phaseNames[item.phase] }}
-            </option>
-          </select></label
-        >
-      </div>
-      <section class="award-hero">
+    <template v-if="campaigns.length">
+      <AwardEditionNavigation :campaigns="campaigns" :selected-campaign-id="selectedCampaignId" />
+      <AwardArchive
+        v-if="archived"
+        :key="campaign.id"
+        :edition="campaign.edition"
+        :entries="archiveEntries"
+        :ballot-count="awards.ballotCount.value"
+        :winner-count="campaign.winnerCount"
+        :weighted="weighted"
+        :pending-ties="unresolvedTies.length > 0"
+      />
+      <section v-else class="award-hero">
         <div>
           <div class="award-hero-label">
             <span class="award-edition-pill">第 {{ campaign.edition }} 届十二橙器</span
@@ -287,7 +315,7 @@ async function withdrawBallot() {
           <div class="award-hero-actions">
             <button v-if="canNominate" class="button primary" @click="openNomination()">
               <AppIcon name="plus" :size="17" />提名我喜欢的作品</button
-            ><a v-else-if="canVote" href="#award-candidates" class="button primary"
+            ><a v-else-if="canVote" :href="tieBreak ? '#award-tie-break' : '#award-candidates'" class="button primary"
               >为喜欢的作品投票<AppIcon name="arrowRight" :size="17" /></a
             ><a v-else-if="ended" href="#award-results" class="button primary"
               >查看本届结果<AppIcon name="trophy" :size="17" /></a
@@ -311,13 +339,13 @@ async function withdrawBallot() {
           <span class="award-art-foot">YOUR FAVOURITE STORY DESERVES TO BE SEEN.</span>
         </div>
       </section>
-      <div class="award-prototype-notice">
+      <div v-if="!archived" class="award-prototype-notice">
         <AppIcon name="info" :size="15" /><span>提名与选票由服务器保存，投票结束后统一公布结果。</span
         ><NuxtLink v-if="identity.can('campaign.manage')" to="/admin/awards"
           >管理活动<AppIcon name="arrowUpRight" :size="14"
         /></NuxtLink>
       </div>
-      <ol class="award-stepper" aria-label="活动流程">
+      <ol v-if="!archived" class="award-stepper" aria-label="活动流程">
         <li
           v-for="(label, index) in ['提名阶段', '投票阶段', '结果公布']"
           :key="label"
@@ -344,16 +372,25 @@ async function withdrawBallot() {
           </div>
         </li>
       </ol>
+      <component :is="archived ? 'details' : 'div'" :key="campaign.id" :class="{ 'award-archive-records': archived }">
+      <summary v-if="archived">查看全部提名、推荐词与我的选票</summary>
+      <NuxtLink v-if="archived && identity.can('campaign.manage')" to="/admin/awards" class="text-link">管理活动<AppIcon name="arrowUpRight" :size="14" /></NuxtLink>
       <div class="awards-layout">
         <div class="award-main">
           <section v-if="campaign.phase === 'voting'" class="award-live-summary" aria-label="投票进度">
-            <h2>{{ campaign.votingRound === 2 ? '二次投票 · 补足入选名额' : '首轮投票' }}</h2>
+            <h2>{{ tieBreak ? `同票加赛 · 第 ${campaign.votingRound} 轮` : campaign.votingRound === 2 ? '二次投票 · 补足入选名额' : '首轮投票' }}</h2>
             <p>有效得分作品 {{ qualifiedCount }} / {{ campaign.winnerCount }} 部 · 分数每 15 秒更新。</p>
-            <p v-if="campaign.votingRound === 2">首轮 {{ campaign.lockedCandidateIds?.length || 0 }} 部已得分作品保留，仅可对其余已提名作品补投。</p>
-            <p v-if="campaign.votingRound === 2 && !awards.votingCandidates.value.length" role="status">所有提名作品均已得分，目前没有可补投的作品。现有提名不足计划名额时，最终只能公布实际有效作品。</p>
+            <p v-if="tieBreak">仅对本轮同票作品投票，每组每人一票；已分出的名次保留，直到全部有效得分作品的位次唯一后公布结果。</p>
+            <p v-else-if="campaign.votingRound === 2">首轮 {{ campaign.lockedCandidateIds?.length || 0 }} 部已得分作品保留，仅可对其余已提名作品补投。</p>
+            <p v-if="!tieBreak && campaign.votingRound === 2 && !awards.votingCandidates.value.length" role="status">所有提名作品均已得分，目前没有可补投的作品。现有提名不足计划名额时，最终只能公布实际有效作品。</p>
             <button class="button secondary" @click="awards.initialize">刷新分数</button>
           </section>
-          <section v-if="ended" id="award-results" class="award-results-section">
+          <TieBreakBallot
+            v-if="tieBreak && (campaign.phase === 'voting' || tab === 'ballot')"
+            :key="campaign.id + ':' + campaign.votingRound"
+            :enabled="canVote"
+          />
+          <section v-if="ended && !archived" id="award-results" class="award-results-section">
             <div class="section-heading">
               <div>
                 <p class="eyebrow">THE STORIES YOU CHOSE</p>
@@ -368,7 +405,7 @@ async function withdrawBallot() {
             </div>
             <div v-else class="award-result-list">
               <article v-for="item in winners" :key="item.id" class="award-result-row">
-                <span class="award-result-rank">{{ String(item.rank).padStart(2, '0') }}</span>
+                <span class="award-result-rank">{{ winners.some(other => other.id !== item.id && other.rank === item.rank) ? '待加赛' : String(item.rank).padStart(2, '0') }}</span>
                 <div class="award-result-cover">
                   <SafeImage
                     v-if="item.coverRank"
@@ -383,8 +420,8 @@ async function withdrawBallot() {
                     }}<small v-if="weighted">
                       · 真爱 {{ item.loveVotes || 0 }} · 喜爱 {{ item.likeVotes || 0 }} · 推荐词
                       {{ item.recommendationCount || 0 }}</small
-                    ><span v-if="winners.filter((other) => other.votes === item.votes).length > 1">
-                      · 同票并列</span
+                    ><span v-if="winners.some((other) => other.id !== item.id && other.rank === item.rank)">
+                      · 待同票加赛</span
                     ></span
                   >
                 </div>
@@ -394,7 +431,7 @@ async function withdrawBallot() {
               </article>
             </div>
             <p class="award-small-note">
-              同票作品按相同名次并列展示；入选名额边界出现同票时，入选数量可能超过计划名额。
+              同票作品需继续加赛，直到名次唯一后才能公布或归档；原始得分保留，加赛仅决定组内顺序。
             </p>
             <p v-if="qualifiedCount < campaign.winnerCount" class="award-small-note">已完成二次投票，有效得分作品共 {{ qualifiedCount }} 部，少于计划的 {{ campaign.winnerCount }} 部；按实际结果公布。</p>
           </section>
@@ -493,7 +530,7 @@ async function withdrawBallot() {
                     <span>{{ item.studio || '成员推荐' }}</span>
                     <h3>{{ item.title }}</h3>
                     <p>{{ item.nominations[0]?.reason }}</p>
-                    <p v-if="campaign.phase === 'voting' || ended" class="award-live-score">{{ resultById.get(item.id)?.votes || 0 }} {{ weighted ? '分' : '票' }}<span v-if="isLocked(item.id)"> · 首轮已保留</span></p>
+                    <p v-if="campaign.phase === 'voting' || ended" class="award-live-score">{{ tieBreak ? '原得分 ' : '' }}{{ resultById.get(item.id)?.votes || 0 }} {{ weighted ? '分' : '票' }}<span v-if="isLocked(item.id) && !tieBreak"> · 首轮已保留</span><span v-if="tieBreak && campaign.tieBreakGroups?.some(group => group.candidateIds.includes(item.id))"> · 本轮加赛 {{ resultById.get(item.id)?.tieBreakScores?.find(score => score.round === campaign.votingRound)?.votes || 0 }} 票</span></p>
                     <details class="award-public-details">
                       <summary>提名人：{{ item.nominations.map(nominationDisplayName).join('、') }}</summary>
                       <div v-for="n in item.nominations" :key="n.id"><strong>{{ nominationDisplayName(n) }}</strong> · {{ statusNames[n.status] }}<time>{{ formatNominationTime(n) }}<span v-if="n.qqSync"> · QQ群提名</span></time><p v-if="n.reason">{{ n.reason }}</p></div>
@@ -502,7 +539,7 @@ async function withdrawBallot() {
                       <summary>查看署名推荐词（{{ awards.recommendations.value.filter((rec) => rec.candidateId === item.id).length }}）</summary>
                       <div v-for="(rec, index) in awards.recommendations.value.filter((rec) => rec.candidateId === item.id)" :key="index"><strong>{{ rec.authorName }}</strong> · 第 {{ rec.round }} 轮<p>{{ rec.text }}</p></div>
                     </details>
-                    <label v-if="campaign.phase === 'voting' && !weighted" class="award-vote-choice"
+                    <label v-if="campaign.phase === 'voting' && !weighted && !tieBreak" class="award-vote-choice"
                       ><input
                         type="checkbox"
                         :checked="selected.includes(item.id)"
@@ -551,7 +588,7 @@ async function withdrawBallot() {
                 </article>
               </div></template
             >
-            <template v-else-if="!weighted"
+            <template v-else-if="!weighted && !tieBreak"
               ><div v-if="!myBallot" class="empty-state">
                 <AppIcon name="check" :size="28" />
                 <h3>你的这一票，还在等候</h3>
@@ -590,12 +627,12 @@ async function withdrawBallot() {
             >
           </section>
           <WeightedAwardBallot
-            v-if="weighted && (campaign.phase === 'voting'||tab==='ballot')"
+            v-if="weighted && !tieBreak && (campaign.phase === 'voting'||tab==='ballot')"
               :key="campaign.id + ':' + (campaign.votingRound || 1)"
               :enabled="canVote && awards.votingCandidates.value.length > 0"
           />
           <section
-            v-if="campaign.phase === 'voting' && !weighted"
+            v-if="campaign.phase === 'voting' && !weighted && !tieBreak"
             class="award-ballot-bar"
             aria-label="我的当前选票"
           >
@@ -638,7 +675,7 @@ async function withdrawBallot() {
             </p>
           </section>
         </div>
-        <aside class="award-rail">
+        <aside v-if="!archived" class="award-rail">
           <section id="award-rules" class="rail-card award-rule-card">
             <p class="eyebrow">HOW TO JOIN</p>
             <h2>这届，怎么参与？</h2>
@@ -661,7 +698,7 @@ async function withdrawBallot() {
                 <div>
                   <strong>为心中的作品投票</strong>
                   <p>
-                    <template v-if="weighted"
+                    <template v-if="tieBreak">同票加赛每组每人最多选择一部作品，每票计 1 票；只决定该组的位次，仍同票就继续加赛。</template><template v-else-if="weighted"
                       >欢迎投票！真爱票最多 {{ rules.loveLimit }} 张、各 {{ rules.lovePoints }} 分，喜爱票最多
                       {{ rules.likeLimit }} 张、各
                       {{ rules.likePoints }} 分，作品不得重复；推荐词选填，每个已投作品最多一份，各额外加
@@ -678,7 +715,7 @@ async function withdrawBallot() {
                 <span>03</span>
                 <div>
                   <strong>一起见证新书单</strong>
-                  <p>计划选出 {{ campaign.winnerCount }} 部作品，同分并列。</p>
+                  <p>计划选出 {{ campaign.winnerCount }} 部作品。有效得分作品若同票，持续加赛直至分出位次。</p>
                 </div>
               </li>
             </ol>
@@ -715,6 +752,7 @@ async function withdrawBallot() {
           ></NuxtLink>
         </aside>
       </div>
+      </component>
       <dialog ref="nominationDialog" class="modal award-nomination-dialog" aria-labelledby="nomination-title">
         <div class="modal-heading">
           <div>
@@ -782,3 +820,21 @@ async function withdrawBallot() {
     </template>
   </div>
 </template>
+
+<style scoped>
+.award-archive-records {
+  margin-top: 2rem;
+  border-top: 1px solid var(--line);
+}
+.award-archive-records > summary {
+  padding-block: 1.25rem;
+  color: var(--subtle);
+  cursor: pointer;
+}
+.award-archive-records > .text-link {
+  margin-bottom: 1rem;
+}
+.award-archive-records .awards-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+</style>

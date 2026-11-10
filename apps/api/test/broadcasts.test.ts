@@ -137,9 +137,11 @@ test(
       )
 
       const campaign = await awards.create(admin)
+      await awards.settings(admin, campaign.id, { ...campaign, winnerCount: 1 })
+      const openingVersion = (await awards.campaign(campaign.id)).version!
       const opening = await Promise.allSettled([
-        awards.phase(admin, campaign.id, 'nomination', 0),
-        awards.phase(owner, campaign.id, 'nomination', 0),
+        awards.phase(admin, campaign.id, 'nomination', openingVersion),
+        awards.phase(owner, campaign.id, 'nomination', openingVersion),
       ])
       assert.equal(opening.filter((r) => r.status === 'fulfilled').length, 1)
       const announced = await db.rows<{ id: string; title: string; link: string }>(
@@ -162,6 +164,59 @@ test(
         ).length,
         1,
       )
+      const votingVersion = (await awards.campaign(campaign.id)).version!
+      await assert.rejects(() => awards.phase(member, campaign.id, 'results', votingVersion), /管理员/)
+      await assert.rejects(() => awards.phase(admin, campaign.id, 'results', votingVersion), /二次投票/)
+      assert.equal(
+        (
+          await db.rows('SELECT id FROM notification_broadcasts WHERE event_key=?', [
+            `award:${campaign.id}:results`,
+          ])
+        ).length,
+        0,
+        '未成功推进的阶段不发送通知',
+      )
+      await awards.vote(member, campaign.id, [nomination.candidateId], 0, {
+        loveId: nomination.candidateId,
+        likeIds: [],
+        recommendations: [],
+      })
+      for (const [phase, action] of [
+        ['results', '结果公布'],
+        ['archived', '本届已归档'],
+      ] as const) {
+        const version = (await awards.campaign(campaign.id)).version!
+        const attempts = await Promise.allSettled([
+          awards.phase(admin, campaign.id, phase, version),
+          awards.phase(owner, campaign.id, phase, version),
+        ])
+        assert.equal(attempts.filter((item) => item.status === 'fulfilled').length, 1)
+        const events = await db.rows<{ id: string; title: string; content: string; link: string }>(
+          'SELECT id,title,content,link FROM notification_broadcasts WHERE event_key=?',
+          [`award:${campaign.id}:${phase}`],
+        )
+        assert.equal(events.length, 1, '并发推进只发送一次通知')
+        const event = events[0]!
+        assert.equal(event.title, campaign.title + ' · ' + action)
+        assert.equal(event.link, '/awards?campaign=' + campaign.id)
+        for (const actor of [admin, owner, member, other, later]) {
+          const received = (await community.inbox(actor, 1)).items.find((item) => item.id === event.id)
+          assert.equal(received?.kind, 'activity')
+          assert.equal(received?.content, event.content)
+          assert.equal(received?.readAt, null)
+        }
+        for (const actor of [disabled, deleted]) {
+          assert.equal(
+            (
+              await db.rows(
+                'SELECT user_id FROM notification_broadcast_recipients WHERE broadcast_id=? AND user_id=?',
+                [event.id, actor.id],
+              )
+            ).length,
+            0,
+          )
+        }
+      }
       await db.transaction((tx) => notifyUser(db, other.id, 'nomination', '个人审核消息', '/awards', tx))
       await community.read(other)
       assert.equal((await community.inbox(other, 1)).unread, 0, '全部已读同时覆盖两类通知')

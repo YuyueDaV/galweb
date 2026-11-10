@@ -10,6 +10,8 @@ import type {
   AwardBallot,
   AwardResult,
   CampaignPhase,
+  AwardVotingMode,
+  AwardTieBreakGroup,
 } from './award-types'
 
 export const roleNames: Record<AccountRole, string> = {
@@ -102,6 +104,65 @@ export function normalizeCampaign(campaign: AwardCampaign): AwardCampaign {
         ? ballotRules(campaign).loveLimit + ballotRules(campaign).likeLimit
         : campaign.voteLimit,
   }
+}
+export function awardVotingMode(campaign: AwardCampaign): AwardVotingMode {
+  return campaign.votingMode || ((campaign.votingRound || 1) > 1 ? 'supplementary' : 'standard')
+}
+export function awardVotingCandidates(campaign: AwardCampaign, candidates: AwardCandidate[]) {
+  if (awardVotingMode(campaign) === 'tie-break') {
+    const ids = new Set(campaign.tieBreakGroups?.flatMap((group) => group.candidateIds) || [])
+    return candidates.filter((item) => ids.has(item.id))
+  }
+  return candidates.filter((item) => !campaign.lockedCandidateIds?.includes(item.id))
+}
+export function findAwardTieGroups(results: AwardResult[]): AwardTieBreakGroup[] {
+  const groups = new Map<number, string[]>()
+  for (const item of results) {
+    if (item.votes <= 0) continue
+    const ids = groups.get(item.rank) || []
+    ids.push(item.id)
+    groups.set(item.rank, ids)
+  }
+  return [...groups]
+    .filter(([, ids]) => ids.length > 1)
+    .sort(([a], [b]) => a - b)
+    .map(([rank, candidateIds]) => ({ rank, candidateIds }))
+}
+export function validateTieBreakBallot(ids: string[], groups: AwardTieBreakGroup[]) {
+  const available = new Set(groups.flatMap((group) => group.candidateIds))
+  if (!ids.length) return '请至少为一组同票作品投票。'
+  if (new Set(ids).size !== ids.length) return '同一部作品只能获得你的一票。'
+  if (ids.some((id) => !available.has(id))) return '选票包含不在本轮加赛名单中的作品。'
+  if (groups.some((group) => group.candidateIds.filter((id) => ids.includes(id)).length > 1))
+    return '同票加赛每组最多选择一部作品。'
+  return ''
+}
+
+// A tie-break only rearranges its frozen group. Original scores and other places stay intact.
+export function combineAwardTieBreakResults(
+  previous: AwardResult[],
+  current: AwardResult[],
+  groups: AwardTieBreakGroup[],
+  round: number,
+): AwardResult[] {
+  const scores = new Map(current.map((item) => [item.id, item.votes]))
+  const updated = new Map<string, AwardResult>()
+  for (const group of groups) {
+    const members = previous
+      .filter((item) => group.candidateIds.includes(item.id))
+      .sort((a, b) => (scores.get(b.id) || 0) - (scores.get(a.id) || 0) || a.id.localeCompare(b.id))
+    let rank = group.rank
+    members.forEach((item, index) => {
+      const votes = scores.get(item.id) || 0
+      if (index && votes !== (scores.get(members[index - 1]!.id) || 0)) rank = group.rank + index
+      updated.set(item.id, {
+        ...item,
+        rank,
+        tieBreakScores: [...(item.tieBreakScores || []), { round, votes }],
+      })
+    })
+  }
+  return previous.map((item) => updated.get(item.id) || item).sort((a, b) => a.rank - b.rank)
 }
 export function validateWeightedBallot(
   input: WeightedBallotInput,

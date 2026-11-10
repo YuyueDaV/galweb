@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-test('公开提名署名、匿名分数和管理员二次投票完整流程', async ({ page, browser }) => {
+test('公开提名署名、匿名分数、二次投票与归档书单完整流程', async ({ page, browser }) => {
   const origin = 'http://127.0.0.1:3117'
   const signed = await page.request.post('/api/auth/login', {
     headers: { Origin: origin },
@@ -133,6 +133,61 @@ test('公开提名署名、匿名分数和管理员二次投票完整流程', as
     const publicState = await (await member.request.get('/api/award-campaigns/' + id)).json()
     expect(publicState.ballots).toBeUndefined()
     expect(publicState.rounds).toBeUndefined()
+    await page.getByRole('button', { name: '活动设置', exact: true }).click()
+    await page.getByRole('button', { name: '归档本届活动', exact: true }).click()
+    await page.getByRole('button', { name: '确认推进', exact: true }).click()
+    await expect(page.locator('.award-stage-management li.active')).toContainText('已归档')
+    await visitor.reload()
+    await expect(visitor.locator('.ranking-hero')).toContainText(`第 ${publicState.campaign.edition} 届`)
+    await expect(visitor.locator('.ranking-subtitle')).toHaveText('3 部作品，3 种难以忘记的感动。')
+    await expect(visitor.locator('.rank-feature')).toHaveCount(3)
+    await expect(visitor.locator('.rank-feature').first()).toContainText(titles[0])
+    await expect(visitor.locator('.rank-feature').first()).toContainText('首轮公开署名推荐词')
+    await expect(visitor.locator('.rank-feature').first()).toContainText('4 分')
+    await expect(visitor.locator('.rank-feature').first()).toHaveAttribute(
+      'href',
+      `/works/${publicState.results.find((r: { id: string }) => r.id === a).coverRank}`,
+    )
+    await expect(visitor.locator('.award-stepper')).toHaveCount(0)
+    await expect(visitor.locator('.award-hero')).toHaveCount(0)
+    await expect(visitor.locator('.award-candidate-card').first()).not.toBeVisible()
+    await visitor.locator('.award-archive-records > summary').click()
+    await expect(visitor.locator('.award-candidate-card')).toHaveCount(3)
+    await expect(visitor.locator('.award-candidate-card').first()).toBeVisible()
+    await visitor.getByRole('button', { name: '我的选票', exact: true }).click()
+    await expect(visitor.getByRole('button', { name: '保存选票修改', exact: true })).toBeDisabled()
+    await expect(visitor.getByRole('button', { name: '撤回选票', exact: true })).toBeDisabled()
+    await visitor.locator('.award-archive-records > summary').click()
+    for (const width of [1440, 390]) {
+      await visitor.setViewportSize({ width, height: 1000 })
+      expect(await visitor.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy()
+      await visitor.screenshot({ path: test.info().outputPath(`award-archive-${width}.png`), fullPage: true })
+    }
+    await visitor.getByLabel('选择活动届次').selectOption('browser-voting')
+    await expect(visitor.locator('.award-hero')).toBeVisible()
+    await visitor.getByLabel('选择活动届次').selectOption(id)
+    await expect(visitor).toHaveURL(new RegExp('campaign=' + id))
+    await expect(visitor.locator('.ranking-hero')).toBeVisible()
+    await visitor.reload()
+    await expect(visitor.getByLabel('选择活动届次')).toHaveValue(id)
+    await expect(visitor.locator('.ranking-hero')).toBeVisible()
+    await visitor.getByLabel('选择活动届次').click()
+    const editionPicker = visitor.getByRole('dialog', { name: '选择活动届次', exact: true })
+    const firstEdition = editionPicker.getByRole('option', { name: '第 1 届 · 已归档', exact: true })
+    await firstEdition.scrollIntoViewIfNeeded()
+    await expect(firstEdition).toBeVisible()
+    await editionPicker.screenshot({ path: test.info().outputPath('award-edition-picker-mobile.png') })
+    await firstEdition.click()
+    await expect(visitor).toHaveURL(/\/ranking$/)
+    await expect(visitor.locator('.ranking-hero')).toContainText('第一届澄之响')
+    await expect(visitor.locator('.rank-feature, .rank-row')).toHaveCount(12)
+    await expect(visitor.getByLabel('选择活动届次')).toHaveValue('orange-awards-1')
+    await expect(visitor.getByLabel('选择活动届次').locator('option[value="orange-awards-1"]')).toHaveCount(1)
+    await visitor.reload()
+    await expect(visitor.getByLabel('选择活动届次')).toHaveValue('orange-awards-1')
+    await visitor.getByLabel('选择活动届次').selectOption(id)
+    await expect(visitor.getByLabel('选择活动届次')).toHaveValue(id)
+    await expect(visitor.locator('.rank-feature')).toHaveCount(3)
   } finally {
     await member.close()
   }

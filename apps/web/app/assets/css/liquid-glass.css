@@ -250,6 +250,7 @@ html .site-wrap [data-liquid-glass='opaque'] {
 }
 .feed-toolbar .feed-sort {
   box-sizing: border-box;
+  font-size: max(14px, 0.7rem);
   min-height: 44px;
   gap: 0.3rem;
   padding: 0.2rem 0.45rem 0.2rem 0.6rem;
@@ -289,10 +290,10 @@ html .site-wrap [data-liquid-glass='opaque'] {
     width: 100%;
     justify-content: center;
     padding-inline: 4px;
-    font-size: 12px;
+    font-size: 14px;
   }
   .section-heading .write-link {
-    font-size: 12px;
+    font-size: 14px;
   }
   .feed-toolbar .feed-sort {
     width: 100%;
@@ -302,7 +303,7 @@ html .site-wrap [data-liquid-glass='opaque'] {
     flex: 1;
     width: 100%;
     max-width: none;
-    font-size: 13px;
+    font-size: 16px;
   }
   .feed-toolbar {
     gap: 8px;

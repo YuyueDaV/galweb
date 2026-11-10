@@ -176,6 +176,7 @@ try {
   // Separate frequently used accounts so the complete suite still exercises real login limits.
   for (const username of [
     'browser_editor',
+    'browser_tiebreak_editor',
     'browser_notices_editor',
     'browser_tiers_editor',
     'browser_background_editor',

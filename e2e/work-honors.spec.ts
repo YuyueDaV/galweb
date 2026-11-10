@@ -22,9 +22,9 @@ test('书架荣誉按届次展示，桌面与手机标记可读，立体书架�
     const summary = card.locator('.work-award-summary')
     await expect(summary).toBeVisible()
     await expect(summary).toHaveAttribute('aria-label', '第2届十二橙器第2名，第1届十二橙器第1名')
-    expect(
-      await summary.evaluate((el) => parseFloat(getComputedStyle(el).fontSize)),
-    ).toBeGreaterThanOrEqual(12)
+    expect(await summary.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(
+      12,
+    )
     if (width === 1440) {
       await summary.hover()
       const options = card.locator('.work-award-options')

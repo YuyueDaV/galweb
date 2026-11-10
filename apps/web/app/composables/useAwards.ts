@@ -9,7 +9,7 @@ import type {
   AwardPublicRecommendation,
   AwardAdminBallot,
 } from '~/types/awards'
-import { loveChoices, collectAwardCandidates } from '~/utils/awards'
+import { loveChoices, collectAwardCandidates, awardVotingCandidates } from '~/utils/awards'
 const fallback: AwardCampaign = {
   id: 'orange-awards-2',
   edition: 2,
@@ -49,9 +49,7 @@ export function useAwards() {
       collectAwardCandidates(nominations.value, campaign.value.id, campaign.value.phase === 'nomination'),
     ),
     votingCandidates = computed(() =>
-      collectAwardCandidates(nominations.value, campaign.value.id).filter(
-        (item) => !campaign.value.lockedCandidateIds?.includes(item.id),
-      ),
+      awardVotingCandidates(campaign.value, collectAwardCandidates(nominations.value, campaign.value.id)),
     ),
     myNominations = computed(() =>
       nominations.value.filter((n) => n.accountId === identity.account.value.id && n.status !== 'withdrawn'),
@@ -158,6 +156,7 @@ export function useAwards() {
     movePhase: (phase: CampaignPhase) =>
       mutate(adminRoot() + '/transitions', { phase, version: campaign.value.version }),
     startRunoff: () => mutate(adminRoot() + '/runoff', { version: campaign.value.version }),
+    startTieBreak: () => mutate(adminRoot() + '/tie-break', { version: campaign.value.version }),
     submitNomination: (
       title: string,
       studio: string,

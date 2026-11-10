@@ -55,6 +55,7 @@ test('第二届QQ群提名人日期编辑：手机弹窗、前台署名和其他
   try {
     const reader = await anonymous.newPage()
     await reader.goto('/awards?campaign=' + second.id)
+    if (state.campaign.phase === 'archived') await reader.locator('.award-archive-records > summary').click()
     const candidate = reader.locator('.award-candidate-card').filter({ hasText: nomination.title })
     await expect(candidate).toContainText(displayName)
     await candidate.locator('.award-public-details summary').first().click()

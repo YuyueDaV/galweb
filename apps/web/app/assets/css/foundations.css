@@ -476,3 +476,139 @@ html {
     gap: 0.5rem;
   }
 }
+
+/* Keep the mobile feed and lower panels readable without scaling the whole page. */
+@media (max-width: 600px) {
+  .site-wrap .post-card {
+    gap: 12px;
+    padding-block: 24px;
+  }
+  .site-wrap .post-meta {
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+    color: var(--subtle);
+    font-size: max(13px, 0.8125rem);
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+  .site-wrap .post-author {
+    font-size: inherit;
+  }
+  .site-wrap .editor-badge {
+    font-size: max(11px, 0.6875rem);
+    line-height: 1.8;
+    padding-inline: 5px;
+  }
+  .site-wrap .post-title,
+  .site-wrap .post-title h3 {
+    font-size: max(18px, 1.125rem);
+    line-height: 1.65;
+    overflow-wrap: anywhere;
+  }
+  .site-wrap .post-label {
+    font-size: max(12px, 0.75rem);
+    line-height: 1.8;
+  }
+  .site-wrap .post-label > .app-icon {
+    width: 14px;
+    height: 14px;
+  }
+  .site-wrap .post-excerpt {
+    margin-top: 10px;
+    color: var(--subtle);
+    font-size: max(16px, 1rem);
+    line-height: 1.85;
+  }
+  .site-wrap .post-bottom {
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .site-wrap .post-tags {
+    gap: 6px;
+  }
+  .site-wrap .post-tags > a {
+    padding: 2px 6px;
+    color: var(--subtle);
+    font-size: max(13px, 0.8125rem);
+    line-height: 1.6;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .site-wrap .post-stats {
+    gap: 12px;
+    margin-left: auto;
+    color: var(--subtle);
+    font-size: max(13px, 0.8125rem);
+  }
+  .site-wrap .post-stats .app-icon {
+    width: 18px;
+    height: 18px;
+  }
+  .site-wrap .community-numbers span {
+    color: var(--subtle);
+    font-size: max(13px, 0.8125rem);
+    line-height: 1.6;
+  }
+  .site-wrap .reading-card {
+    padding: 20px;
+  }
+  .site-wrap .reading-card .rail-heading h2 {
+    font-size: max(18px, 1.125rem);
+    line-height: 1.5;
+  }
+  .site-wrap .reading-card .rail-heading .app-icon {
+    width: 20px;
+    height: 20px;
+  }
+  .site-wrap .reading-item {
+    gap: 14px;
+    margin-top: 18px;
+  }
+  .site-wrap .reading-item > img,
+  .site-wrap .reading-item > .image-fallback {
+    flex: 0 0 64px;
+    width: 64px;
+    height: 84px;
+  }
+  .site-wrap .reading-item strong {
+    margin-bottom: 4px;
+    font-size: max(17px, 1.0625rem);
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+  .site-wrap .reading-item span,
+  .site-wrap .reading-item small {
+    color: var(--subtle);
+    font-size: max(13px, 0.8125rem);
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+  .site-wrap .site-footer {
+    gap: 14px;
+    padding-block: 24px;
+    color: var(--subtle);
+    font-size: max(13px, 0.8125rem);
+    line-height: 1.8;
+  }
+  .site-wrap .site-footer > span {
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+  .site-wrap .site-footer > span:last-child {
+    justify-content: flex-start;
+  }
+  .site-wrap .footer-club-link {
+    min-height: 36px;
+    font-size: max(14px, 0.875rem);
+  }
+  .site-wrap .footer-club-link .app-icon {
+    width: 16px;
+    height: 16px;
+  }
+  .site-wrap .footer-year {
+    margin-left: auto;
+    font-size: max(12px, 0.75rem);
+  }
+}

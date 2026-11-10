@@ -48,7 +48,7 @@ pnpm.cmd build
 - 字体随项目本地提供，不依赖 Google Fonts 在线加载；许可文件位于 `apps/web/public/fonts/`。
 - Markdown 发帖：工具栏、预览、最多 12 张配图、整篇及局部剧透折叠、按账号自动保存与恢复草稿。
 - 公开用户主页 `/user/:id`、针对留言的回复、站内通知 `/notifications`、默认私密的阅读书单 `/library`。
-- 管理员全站通知 `/admin/notifications`：预览群发、正文、站内链接与发送历史；十二橙器开放提名、投票时自动提醒，个人已读独立。更新需迁移新增表，见 [站点通知](docs/site-notifications.md)。
+- 管理员全站通知 `/admin/notifications`：预览群发、正文、站内链接与发送历史；十二橙器开放提名、投票、二次投票、每轮同票加赛、公布结果及归档时自动提醒，个人已读独立。更新需迁移新增表，见 [站点通知](docs/site-notifications.md)。
 - 站点配置 `/admin/site`、社团动态与相册管理 `/admin/community`，公开时间线与相册位于 `/community`。
 - 帖子服务端加载、目录、字号与宽屏阅读偏好、阅读进度及图片放大；支持 sitemap 与 robots。
 
