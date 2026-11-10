@@ -100,6 +100,82 @@ test('管理员群发预览、失败重试和防重；成员收件、独立已�
     await activity.getByRole('button', { name: '查看详情 ↗', exact: true }).click()
     await expect(reader).toHaveURL(/\/awards\?campaign=/)
     expect(new URL(reader.url()).searchParams.get('campaign')).toBe(campaign.id)
+
+    const resource = '/api/admin/notifications/' + notice.id
+    const patch = {
+      title: title + ' 已更正',
+      content: '已修改的通知正文\n第二行',
+      link: '/works',
+      revision: notice.revision,
+    }
+    expect((await member.request.patch(resource, { headers: memberHeaders, data: patch })).status()).toBe(403)
+    expect(
+      (
+        await member.request.delete(resource, { headers: memberHeaders, data: { revision: notice.revision } })
+      ).status(),
+    ).toBe(403)
+    expect((await page.request.patch(resource, { headers: { Origin: origin }, data: patch })).status()).toBe(
+      403,
+    )
+    expect(
+      (await page.request.patch(resource, { headers, data: { ...patch, link: '//evil.test' } })).status(),
+    ).toBe(422)
+    await page.reload()
+    const record = page.locator('.sent-notice').filter({ hasText: title })
+    await record.getByRole('button', { name: '编辑通知', exact: true }).click()
+    const editDialog = page.getByRole('dialog', { name: '编辑通知', exact: true })
+    await editDialog.getByLabel('修改通知标题', { exact: true }).fill(patch.title)
+    await editDialog.getByLabel('修改通知正文', { exact: true }).fill(patch.content)
+    await editDialog.getByLabel('修改站内跳转链接（选填）', { exact: true }).fill(patch.link)
+    await page.route('**' + resource, (route) =>
+      route.request().method() === 'PATCH'
+        ? route.fulfill({ status: 503, json: { message: '测试编辑失败，请重试。' } })
+        : route.continue(),
+    )
+    await editDialog.getByRole('button', { name: '保存通知修改', exact: true }).click()
+    await expect(editDialog.getByRole('alert')).toContainText('测试编辑失败')
+    await expect(editDialog.getByLabel('修改通知标题', { exact: true })).toHaveValue(patch.title)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBeTruthy()
+    await editDialog.screenshot({ path: test.info().outputPath('notice-edit-mobile.png') })
+    await page.unroute('**' + resource)
+    const receipt = (await (await member.request.get('/api/notifications')).json()).items.find(
+      (item: { id: string }) => item.id === notice.id,
+    )
+    await editDialog.getByRole('button', { name: '保存通知修改', exact: true }).click()
+    await expect(editDialog).not.toBeVisible()
+    const updatedRecord = page.locator('.sent-notice').filter({ hasText: patch.title })
+    await expect(updatedRecord).toContainText(patch.content)
+    await reader.goto('/notifications')
+    const updatedInbox = reader.locator('.inbox-item').filter({ hasText: patch.title })
+    await expect(updatedInbox).toContainText(patch.content)
+    await expect(updatedInbox).not.toHaveClass(/unread/)
+    const updated = (await (await member.request.get('/api/notifications')).json()).items.find(
+      (item: { id: string }) => item.id === notice.id,
+    )
+    expect(updated.id).toBe(receipt.id)
+    expect(updated.createdAt).toBe(receipt.createdAt)
+    expect(updated.readAt).toBe(receipt.readAt)
+    expect((await page.request.patch(resource, { headers, data: patch })).status()).toBe(409)
+    await updatedRecord.getByRole('button', { name: '删除通知', exact: true }).click()
+    const deletion = page.getByRole('dialog', { name: '删除通知', exact: true })
+    await expect(deletion).toContainText(patch.title)
+    await deletion.getByRole('button', { name: '取消', exact: true }).click()
+    await expect(updatedRecord).toBeVisible()
+    await page.getByRole('button', { name: '切换深色模式', exact: true }).click()
+    await updatedRecord.getByRole('button', { name: '删除通知', exact: true }).click()
+    await deletion.screenshot({ path: test.info().outputPath('notice-delete-dark-mobile.png') })
+    const unreadBefore = (await (await page.request.get('/api/notifications')).json()).unread
+    await deletion.getByRole('button', { name: '确认删除通知', exact: true }).click()
+    await expect(deletion).not.toBeVisible()
+    await expect(updatedRecord).toHaveCount(0)
+    await reader.reload()
+    await expect(reader.locator('.inbox-item').filter({ hasText: patch.title })).toHaveCount(0)
+    expect((await (await page.request.get('/api/notifications')).json()).unread).toBe(unreadBefore - 1)
+    const deletedRetry = await page.request.post('/api/admin/notifications', {
+      headers,
+      data: response.request().postDataJSON(),
+    })
+    expect(deletedRetry.status()).toBe(409)
   } finally {
     await member.close()
   }

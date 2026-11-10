@@ -7,7 +7,7 @@ import {Platform} from './platform'
 import {Forum} from './forum'
 import {Community,settingsSchema,draftSchema,entrySchema,librarySchema} from './community'
 import {digest,equal} from './security'
-import {Broadcasts,broadcastSchema} from './broadcasts'
+import {Broadcasts,broadcastSchema,broadcastEditSchema,broadcastDeleteSchema} from './broadcasts'
 
 export function communityControllers(db:Database,auth:Auth,platform:Platform,cookieName:string){
  const community=new Community(db,platform),forum=new Forum(db,platform),broadcasts=new Broadcasts(db,platform)
@@ -23,6 +23,8 @@ export function communityControllers(db:Database,auth:Auth,platform:Platform,coo
   @Get('notifications') async inbox(@Req() req:Request,@Query() query:unknown){return community.inbox(await user(req),page(query))}
   @Get('admin/notifications') async notices(@Req() req:Request,@Query() query:unknown){return broadcasts.history(await user(req),page(query))}
   @Post('admin/notifications') async sendNotice(@Req() req:Request,@Body() body:unknown){const actor=await user(req,true);await auth.limit('site-notice-send',actor.id,10,3600000);return broadcasts.send(actor,parse(broadcastSchema,body))}
+  @Patch('admin/notifications/:id') async editNotice(@Req() req:Request,@Param('id') id:string,@Body() body:unknown){return broadcasts.edit(await user(req,true),parse(z.uuid(),id),parse(broadcastEditSchema,body))}
+  @Delete('admin/notifications/:id') async deleteNotice(@Req() req:Request,@Param('id') id:string,@Body() body:unknown){return broadcasts.remove(await user(req,true),parse(z.uuid(),id),parse(broadcastDeleteSchema,body).revision)}
   @Put('notifications/read') async readAll(@Req() req:Request){return community.read(await user(req,true))}
   @Put('notifications/:id/read') async read(@Req() req:Request,@Param('id') id:string){return community.read(await user(req,true),parse(z.uuid(),id))}
   @Get('users/:id') profile(@Param('id') id:string){return community.profile(parse(z.uuid(),id))}

@@ -3,6 +3,7 @@ import type { PoolConnection } from 'mysql2/promise'
 import { z } from 'zod'
 import { Database } from './database'
 import { Platform, staff, reject, type Actor } from './platform'
+import { digest } from './security'
 
 const siteLink = z
   .string()
@@ -24,6 +25,14 @@ export const broadcastSchema = z
     link: siteLink.default(''),
   })
   .strict()
+export const broadcastDeleteSchema = z.object({ revision: z.string().regex(/^[a-f0-9]{64}$/) }).strict()
+export const broadcastEditSchema = broadcastSchema
+  .omit({ requestId: true })
+  .extend({
+    title: z.string().trim().min(1, '请填写通知标题。').max(160),
+    revision: broadcastDeleteSchema.shape.revision,
+  })
+  .strict()
 type Notice = {
   id: string
   kind: string
@@ -32,6 +41,12 @@ type Notice = {
   link: string
   recipientCount: number
   createdAt: number
+}
+function withRevision<T extends Notice>(notice: T) {
+  return {
+    ...notice,
+    revision: digest(JSON.stringify([notice.id, notice.kind, notice.title, notice.content, notice.link])),
+  }
 }
 
 export class Broadcasts {
@@ -60,9 +75,10 @@ export class Broadcasts {
       )
     )[0]
     if (existing) {
+      if (existing.kind === 'deleted') throw reject('这条通知已删除，不会重复发送。请刷新发送记录。', 409)
       if (existing.title !== title || existing.content !== content || existing.link !== link)
         throw reject('这次发送已完成；请刷新后创建新的通知。', 409)
-      return { ...existing, reused: true }
+      return { ...withRevision(existing), reused: true }
     }
     const id = randomUUID(),
       createdAt = Date.now()
@@ -99,15 +115,56 @@ export class Broadcasts {
       tx,
     )
     return {
-      id,
-      kind,
-      title,
-      content,
-      link,
-      createdAt,
-      recipientCount: recipients.length,
+      ...withRevision({ id, kind, title, content, link, createdAt, recipientCount: recipients.length }),
       reused: false,
     }
+  }
+
+  private async manage<T>(
+    actor: Actor,
+    id: string,
+    revision: string,
+    run: (notice: Notice, current: Actor, tx: PoolConnection) => Promise<T>,
+  ) {
+    staff(actor)
+    return this.db.transaction(async (tx) => {
+      await this.platform.lock(`account:${actor.id}`, tx)
+      const current = await this.platform.actor(actor.id, tx)
+      staff(current)
+      await this.platform.lock('site-notifications', tx)
+      const notice = (
+        await this.db.rows<Notice>(
+          'SELECT id,kind,title,content,link,recipient_count AS recipientCount,created_at AS createdAt FROM notification_broadcasts WHERE id=?',
+          [id],
+          tx,
+        )
+      )[0]
+      if (!notice || notice.kind === 'deleted') throw reject('通知不存在或已删除，请刷新记录。', 404)
+      if (withRevision(notice).revision !== revision)
+        throw reject('通知已被其他管理员修改，请刷新记录后重试。', 409)
+      return run(notice, current, tx)
+    })
+  }
+
+  async edit(actor: Actor, id: string, input: z.infer<typeof broadcastEditSchema>) {
+    return this.manage(actor, id, input.revision, async (notice, current, tx) => {
+      await this.db.execute(
+        'UPDATE notification_broadcasts SET title=?,content=?,link=? WHERE id=?',
+        [input.title, input.content, input.link, id],
+        tx,
+      )
+      await this.platform.audit(current, '修改通知 ' + id + '：' + input.title, null, tx)
+      return withRevision({ ...notice, title: input.title, content: input.content, link: input.link })
+    })
+  }
+
+  async remove(actor: Actor, id: string, revision: string) {
+    return this.manage(actor, id, revision, async (notice, current, tx) => {
+      // Keep the event key and delivery receipts as a tombstone: retries must never resend a deleted event.
+      await this.db.execute("UPDATE notification_broadcasts SET kind='deleted' WHERE id=?", [id], tx)
+      await this.platform.audit(current, '删除通知 ' + id + '：' + notice.title, null, tx)
+      return { message: '通知已删除，并从所有用户的收件箱移除。' }
+    })
   }
 
   async send(actor: Actor, input: z.infer<typeof broadcastSchema>) {
@@ -130,14 +187,18 @@ export class Broadcasts {
 
   async history(actor: Actor, page: number) {
     staff(await this.platform.actor(actor.id))
-    const items = await this.db.rows(
-      `SELECT b.id,b.kind,b.title,b.content,b.link,b.recipient_count AS recipientCount,b.created_at AS createdAt,u.nickname AS sender FROM notification_broadcasts b JOIN users u ON u.id=b.actor_id ORDER BY b.created_at DESC,b.id DESC LIMIT 20 OFFSET ${(page - 1) * 20}`,
+    const items = await this.db.rows<Notice & { sender: string }>(
+      `SELECT b.id,b.kind,b.title,b.content,b.link,b.recipient_count AS recipientCount,b.created_at AS createdAt,u.nickname AS sender FROM notification_broadcasts b JOIN users u ON u.id=b.actor_id WHERE b.kind IN ('site','activity') ORDER BY b.created_at DESC,b.id DESC LIMIT 20 OFFSET ${(page - 1) * 20}`,
     )
-    const total = (await this.db.rows<{ n: number }>('SELECT COUNT(*) n FROM notification_broadcasts'))[0]!.n
+    const total = (
+      await this.db.rows<{ n: number }>(
+        "SELECT COUNT(*) n FROM notification_broadcasts WHERE kind IN ('site','activity')",
+      )
+    )[0]!.n
     const active = (
       await this.db.rows<{ n: number }>("SELECT COUNT(*) n FROM users WHERE status='active'")
     )[0]!.n
-    return { items, total: Number(total), activeUsers: Number(active), page }
+    return { items: items.map(withRevision), total: Number(total), activeUsers: Number(active), page }
   }
 }
 
@@ -145,5 +206,5 @@ export class Broadcasts {
 // receipts. No user receives historical broadcasts merely by registering later.
 export function inboxUnion() {
   return `SELECT n.id,n.kind,n.title,n.link,n.read_at AS readAt,n.created_at AS createdAt,LEFT(r.content,160) AS excerpt,NULL AS content FROM notifications n LEFT JOIN forum_posts p ON p.id=n.post_id LEFT JOIN forum_replies r ON r.id=n.reply_id WHERE n.user_id=? AND (n.post_id IS NULL OR (p.status='published' AND (n.reply_id IS NULL OR r.status='published')))
-    UNION ALL SELECT b.id,b.kind,b.title,b.link,r.read_at AS readAt,b.created_at AS createdAt,LEFT(b.content,160) AS excerpt,b.content FROM notification_broadcast_recipients r JOIN notification_broadcasts b ON b.id=r.broadcast_id WHERE r.user_id=?`
+    UNION ALL SELECT b.id,b.kind,b.title,b.link,r.read_at AS readAt,b.created_at AS createdAt,LEFT(b.content,160) AS excerpt,b.content FROM notification_broadcast_recipients r JOIN notification_broadcasts b ON b.id=r.broadcast_id WHERE r.user_id=? AND b.kind IN ('site','activity')`
 }

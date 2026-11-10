@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { Broadcasts, broadcastSchema } from '../src/broadcasts'
+import { Broadcasts, broadcastSchema, broadcastEditSchema, broadcastDeleteSchema } from '../src/broadcasts'
 import { readConfig } from '../src/config'
 import { Database } from '../src/database'
 import { Platform, type Actor } from '../src/platform'
@@ -25,6 +25,20 @@ test('站点通知只接受完整正文、站内路径和防重请求编号', ()
     { userId: randomUUID() },
   ])
     assert.equal(broadcastSchema.safeParse({ ...input, ...patch }).success, false)
+  const edit = { title: '修改标题', content: '修改内容', link: '/works', revision: 'a'.repeat(64) }
+  assert.equal(broadcastEditSchema.safeParse(edit).success, true)
+  for (const patch of [
+    { title: '' },
+    { content: '' },
+    { link: '//evil.test' },
+    { revision: '' },
+    { kind: 'deleted' },
+    { actor_id: randomUUID() },
+    { recipientCount: 0 },
+  ])
+    assert.equal(broadcastEditSchema.safeParse({ ...edit, ...patch }).success, false)
+  assert.equal(broadcastDeleteSchema.safeParse({ revision: edit.revision }).success, true)
+  assert.equal(broadcastDeleteSchema.safeParse({ revision: edit.revision, id: randomUUID() }).success, false)
 })
 
 test(
@@ -158,8 +172,69 @@ test(
       ])
       assert.notEqual(concurrent[0]!.id, concurrent[1]!.id)
       assert.ok((await notices.history(admin, 1)).items.some((n) => n.id === first.id))
+      const edit = {
+        title: '修改后的通知',
+        content: '保留收件人和已读状态\n新正文',
+        link: '/works',
+        revision: first.revision,
+      }
+      await assert.rejects(() => notices.edit(member, first.id, edit), /管理员/)
+      await assert.rejects(() => notices.remove(member, first.id, first.revision), /管理员/)
+      const readBefore = (await community.inbox(member, 1)).items.find((item) => item.id === first.id)!.readAt
+      const edits = await Promise.allSettled([
+        notices.edit(admin, first.id, edit),
+        notices.edit(owner, first.id, { ...edit, title: '另一位管理员同时修改' }),
+      ])
+      assert.equal(edits.filter((item) => item.status === 'fulfilled').length, 1)
+      const saved = edits.find((item) => item.status === 'fulfilled')!.value
+      assert.notEqual(saved.revision, first.revision)
+      for (const actor of [member, other]) {
+        const updated = (await community.inbox(actor, 1)).items.find((item) => item.id === first.id)!
+        assert.equal(updated.title, saved.title)
+        assert.equal(updated.content, edit.content)
+        assert.equal(updated.link, edit.link)
+        assert.equal(Number(updated.createdAt), Number(first.createdAt))
+      }
+      assert.equal(
+        (await community.inbox(member, 1)).items.find((item) => item.id === first.id)!.readAt,
+        readBefore,
+      )
+      assert.ok(!(await community.inbox(later, 1)).items.some((item) => item.id === first.id))
+      await assert.rejects(() => notices.edit(owner, first.id, edit), /其他管理员修改/)
+      await assert.rejects(() => notices.remove(owner, first.id, first.revision), /其他管理员修改/)
+      const beforeRemoval = await community.inbox(owner, 1)
+      await notices.remove(owner, first.id, saved.revision)
+      const afterRemoval = await community.inbox(owner, 1)
+      assert.equal(afterRemoval.total, beforeRemoval.total - 1)
+      assert.equal(afterRemoval.unread, beforeRemoval.unread - 1)
+      assert.ok(!(await notices.history(admin, 1)).items.some((item) => item.id === first.id))
+      assert.equal(
+        (await db.rows("SELECT id FROM notification_broadcasts WHERE id=? AND kind='deleted'", [first.id]))
+          .length,
+        1,
+      )
+      await assert.rejects(() => notices.send(admin, input), /已删除/)
+      await assert.rejects(
+        () => notices.edit(admin, first.id, { ...edit, revision: saved.revision }),
+        /已删除/,
+      )
+      await assert.rejects(() => notices.remove(owner, first.id, saved.revision), /已删除/)
+      const activity = announced[0]!
+      const activityHistory = (await notices.history(admin, 1)).items.find((item) => item.id === activity.id)!
+      const changedActivity = await notices.edit(owner, activity.id, {
+        ...edit,
+        revision: activityHistory.revision,
+      })
+      await notices.remove(owner, activity.id, changedActivity.revision)
+      assert.ok(!(await community.inbox(later, 1)).items.some((item) => item.id === activity.id))
+      const audits = await db.rows<{ action: string }>('SELECT action FROM audit_logs WHERE action LIKE ?', [
+        '%' + first.id + '%',
+      ])
+      assert.ok(audits.some((item) => item.action.startsWith('修改通知')))
+      assert.ok(audits.some((item) => item.action.startsWith('删除通知')))
       await db.execute("UPDATE users SET role='member' WHERE id=?", [admin.id])
       await assert.rejects(() => notices.send(admin, { ...input, requestId: randomUUID() }), /管理员/)
+      await assert.rejects(() => notices.edit(admin, repeated.id, edit), /管理员/)
     } finally {
       await db.pool.end()
     }

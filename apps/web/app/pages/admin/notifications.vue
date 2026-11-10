@@ -8,6 +8,7 @@ type SentNotice = {
   sender: string
   recipientCount: number
   createdAt: number
+  revision: string
 }
 const auth = useAuth(),
   inbox = useNotifications(),
@@ -26,6 +27,51 @@ const items = ref<SentNotice[]>([]),
   page = ref(1),
   total = ref(0),
   activeUsers = ref(0)
+const managementDialog = ref<HTMLDialogElement | null>(null)
+const managedNotice = ref<SentNotice | null>(null)
+const managementMode = ref<'edit' | 'delete'>('edit')
+const managementBusy = ref(false),
+  managementError = ref('')
+const draft = reactive({ title: '', content: '', link: '' })
+async function openManagement(item: SentNotice, mode: 'edit' | 'delete') {
+  if (busy.value || managementBusy.value) return
+  managedNotice.value = { ...item }
+  managementMode.value = mode
+  managementError.value = ''
+  Object.assign(draft, { title: item.title, content: item.content, link: item.link })
+  await nextTick()
+  managementDialog.value?.showModal()
+}
+function closeManagement() {
+  if (managementBusy.value) return
+  managementDialog.value?.close()
+  managedNotice.value = null
+}
+async function saveManagement() {
+  if (managementBusy.value || !managedNotice.value) return
+  managementBusy.value = true
+  managementError.value = ''
+  const item = managedNotice.value,
+    deleting = managementMode.value === 'delete'
+  try {
+    await auth.request(
+      '/admin/notifications/' + item.id,
+      deleting ? { revision: item.revision } : { ...draft, revision: item.revision },
+      deleting ? 'DELETE' : 'PATCH',
+    )
+    success.value = deleting
+      ? '通知已删除，已从所有用户的收件箱移除。'
+      : '通知已更新，用户收件箱已同步，原已读状态保留。'
+    managementDialog.value?.close()
+    managedNotice.value = null
+    await load()
+    await inbox.load(1, true).catch(() => {})
+  } catch (e) {
+    managementError.value = (e as Error).message
+  } finally {
+    managementBusy.value = false
+  }
+}
 let generation = 0
 async function load() {
   const run = ++generation
@@ -44,6 +90,8 @@ async function load() {
     items.value = result.items
     total.value = result.total
     activeUsers.value = result.activeUsers
+    const lastPage = Math.max(1, Math.ceil(result.total / 20))
+    if (page.value > lastPage) page.value = lastPage
   } catch (e) {
     if (run === generation) error.value = (e as Error).message
   } finally {
@@ -99,6 +147,8 @@ watch(
     items.value = []
     confirming.value = false
     requestId.value = ''
+    managementDialog.value?.close()
+    managedNotice.value = null
     void load()
   },
 )
@@ -156,7 +206,7 @@ useSeoMeta({ title: '站点通知管理 · 澄之响', robots: 'noindex,nofollow
           <h3>{{ title }}</h3>
           <p class="notice-content">{{ content }}</p>
           <small v-if="link">跳转至 {{ link }}</small>
-          <p class="catalog-help">将发送给所有正常账号。发送后不可撤回，请确认内容。</p>
+          <p class="catalog-help">将发送给所有正常账号。发送后可在下方记录中编辑或删除。</p>
           <div class="notice-actions">
             <button type="button" class="button secondary" :disabled="busy" @click="confirming = false">
               返回编辑</button
@@ -184,6 +234,24 @@ useSeoMeta({ title: '站点通知管理 · 澄之响', robots: 'noindex,nofollow
           <h3>{{ item.title }}</h3>
           <p class="notice-content">{{ item.content }}</p>
           <NuxtLink v-if="item.link" :to="item.link" class="text-link">查看关联页面 ↗</NuxtLink>
+          <div class="notice-record-actions">
+            <button
+              type="button"
+              class="button secondary"
+              :disabled="loading || busy || managementBusy"
+              @click="openManagement(item, 'edit')"
+            >
+              <AppIcon name="pen" :size="16" />编辑通知
+            </button>
+            <button
+              type="button"
+              class="button secondary danger-outline"
+              :disabled="loading || busy || managementBusy"
+              @click="openManagement(item, 'delete')"
+            >
+              删除通知
+            </button>
+          </div>
         </article>
         <div v-if="total > 20" class="page-controls">
           <button :disabled="page === 1 || loading || busy" @click="page--">上一页</button
@@ -191,6 +259,77 @@ useSeoMeta({ title: '站点通知管理 · 澄之响', robots: 'noindex,nofollow
           ><button :disabled="page * 20 >= total || loading || busy" @click="page++">下一页</button>
         </div>
       </section>
+      <dialog
+        ref="managementDialog"
+        class="modal notice-management-dialog"
+        aria-labelledby="notice-management-title"
+        @cancel.prevent="closeManagement"
+      >
+        <template v-if="managedNotice">
+          <div class="notice-card-heading">
+            <h2 id="notice-management-title">{{ managementMode === 'edit' ? '编辑通知' : '删除通知' }}</h2>
+            <button
+              type="button"
+              class="icon-button"
+              aria-label="关闭通知管理窗口"
+              :disabled="managementBusy"
+              @click="closeManagement"
+            >
+              <AppIcon name="close" />
+            </button>
+          </div>
+          <form @submit.prevent="saveManagement">
+            <template v-if="managementMode === 'edit'">
+              <p class="catalog-help">将同步更新原收件人的消息，保留发送时间和各自已读状态，不会重新群发。</p>
+              <fieldset class="notice-fields" :disabled="managementBusy">
+                <label class="community-field"
+                  >修改通知标题<input v-model.trim="draft.title" required maxlength="160"
+                /></label>
+                <label class="community-field"
+                  >修改通知正文<textarea
+                    v-model.trim="draft.content"
+                    required
+                    maxlength="2000"
+                    rows="6"
+                  ></textarea>
+                </label>
+                <label class="community-field"
+                  >修改站内跳转链接（选填）<input
+                    v-model.trim="draft.link"
+                    maxlength="200"
+                    placeholder="例如 /awards"
+                /></label>
+              </fieldset>
+            </template>
+            <template v-else>
+              <h3 class="notice-deletion-title">{{ managedNotice.title }}</h3>
+              <p class="catalog-help">
+                删除后，这条通知将从所有用户的收件箱和发送列表移除，不再计入未读提醒。操作记录保留用于审计。
+              </p>
+            </template>
+            <p v-if="managementError" class="form-error" role="alert">{{ managementError }}</p>
+            <div class="notice-actions">
+              <button
+                type="button"
+                class="button secondary"
+                :disabled="managementBusy"
+                :autofocus="managementMode === 'delete'"
+                @click="closeManagement"
+              >
+                取消</button
+              ><button
+                type="submit"
+                :class="['button', managementMode === 'delete' ? 'notice-danger' : 'primary']"
+                :disabled="managementBusy"
+              >
+                {{
+                  managementBusy ? '正在处理…' : managementMode === 'edit' ? '保存通知修改' : '确认删除通知'
+                }}
+              </button>
+            </div>
+          </form>
+        </template>
+      </dialog>
     </template>
     <p v-if="error && !allowed" class="form-error" role="alert">{{ error }}</p>
   </div>
@@ -261,6 +400,49 @@ useSeoMeta({ title: '站点通知管理 · 澄之响', robots: 'noindex,nofollow
 .sent-notice:last-of-type {
   border-bottom: 0;
 }
+.notice-record-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+.notice-record-actions .button {
+  min-height: 44px;
+  font-size: max(14px, 0.7rem);
+}
+.notice-record-actions .danger-outline {
+  color: #b84236;
+  border-color: color-mix(in srgb, #b84236 40%, var(--line));
+}
+.notice-management-dialog {
+  box-sizing: border-box;
+  width: min(38rem, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  padding: clamp(20px, 3vw, 32px);
+  border-radius: 24px;
+}
+.notice-management-dialog h2 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+.notice-management-dialog .community-field {
+  font-size: max(14px, 0.8rem);
+}
+.notice-management-dialog .community-field :is(input, textarea) {
+  font-size: max(16px, 0.8rem);
+  border-radius: 16px;
+  min-height: 48px;
+}
+.notice-management-dialog .notice-deletion-title {
+  font-size: 1.1rem;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.notice-management-dialog .notice-danger {
+  background: #b84236;
+  color: #fff;
+}
 @media (max-width: 600px) {
   .notice-actions {
     display: grid;
@@ -273,6 +455,13 @@ useSeoMeta({ title: '站点通知管理 · 澄之响', robots: 'noindex,nofollow
   .notice-fields input,
   .notice-fields textarea {
     font-size: 16px;
+  }
+  .notice-record-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .notice-record-actions .button {
+    justify-content: center;
   }
 }
 </style>
