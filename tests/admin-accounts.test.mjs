@@ -26,7 +26,7 @@ async function renderAccounts(role,customFixtures){
  ]
  const auth={ready:vue.ref(true),user:vue.ref({id:'viewer',role})}
  const identity={selectedId:vue.ref('viewer'),role:vue.ref(role),account:vue.ref({id:'viewer',name:'测试管理员'}),can:permission=>hasAwardPermission(role,permission)}
- const UserAvatar=await component('../apps/web/app/components/UserAvatar.vue',{ref:vue.ref,watch:vue.watch})
+ const UserAvatar=await component('../apps/web/app/components/UserAvatar.vue',{ref:vue.ref,watch:vue.watch,onMounted:vue.onMounted})
  const Accounts=await component('../apps/web/app/pages/admin/accounts.vue',{
   // Supply an already loaded response at the ref boundary. Lifecycle/network
   // behavior is separate; these assertions exercise the actual page template.

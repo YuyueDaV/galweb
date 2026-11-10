@@ -12,7 +12,11 @@ const props = defineProps<{
 }>()
 const editionName = computed(() => (props.edition === 1 ? '第一届' : `第 ${props.edition} 届`))
 const volume = computed(() => String(props.edition).padStart(2, '0'))
-const countLabel = computed(() => (props.entries.length === 12 ? '十二' : `${props.entries.length} `))
+// Keep the edition's planned theme; pending ties must not rename “十二种”.
+const countLabel = computed(() => {
+  const count = props.winnerCount ?? 12
+  return count === 12 ? '十二' : `${count} `
+})
 const scoreUnit = computed(() => (props.weighted ? '分' : '票'))
 </script>
 
@@ -40,13 +44,7 @@ const scoreUnit = computed(() => (props.weighted ? '分' : '票'))
             <path d="M5 23C6 7 22 2 40 4 39 18 24 26 5 23Z" fill="currentColor" /></svg></span
         >器<span class="ranking-star" aria-hidden="true"><DecorativeSpark /></span>
       </h1>
-      <p class="ranking-subtitle">
-        {{
-          entries.length
-            ? `${countLabel}部作品，${countLabel}种难以忘记的感动。`
-            : '每一份喜欢，都值得被珍藏。'
-        }}
-      </p>
+      <p class="ranking-subtitle">{{ countLabel }}部作品，{{ countLabel }}种难以忘记的感动。</p>
       <p class="ranking-description">{{ editionName }}澄之响 Galgame 评选 · 同好会成员共同推荐</p>
       <div class="ranking-hero-bottom">
         <span>南京工程学院 · 澄之响视觉小说同好会</span><span>VOL. {{ volume }} / OUR COLLECTIVE MEMORY</span>

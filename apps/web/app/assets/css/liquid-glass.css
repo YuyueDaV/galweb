@@ -165,14 +165,59 @@ html .site-wrap [data-liquid-glass='opaque'] {
   }
 }
 
-/* Lightweight control treatment: no SVG lenses or per-button observers. */
-.site-wrap :where(button, .button, input[type='submit']) {
+/* Glass belongs to framed controls, not plain text actions, tabs or image buttons. */
+.site-wrap :where(.button, input[type='submit']) {
   background-image: linear-gradient(180deg, rgb(255 255 255 / 12%), transparent 45%);
   box-shadow:
     inset 0 1px 0 var(--liquid-highlight),
     inset 0 -1px 0 var(--liquid-shade);
   -webkit-backdrop-filter: blur(6px) saturate(1.15);
   backdrop-filter: blur(6px) saturate(1.15);
+}
+.site-wrap .experience-tabs:not(.member-tabs) {
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: 100%;
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid var(--liquid-edge);
+  border-radius: 999px;
+  background: rgb(var(--liquid-rgb) / 76%);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  backdrop-filter: blur(10px) saturate(1.2);
+}
+.site-wrap .experience-tabs button {
+  box-sizing: border-box;
+  min-height: 44px;
+  min-width: 0;
+  padding: 10px 18px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--subtle);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.site-wrap .experience-tabs button[aria-pressed='true'] {
+  border-color: color-mix(in srgb, var(--orange) 45%, transparent);
+  background: var(--orange-soft);
+  color: var(--orange);
+  font-weight: 500;
+}
+html[data-theme='dark'] .site-wrap .experience-tabs:not(.member-tabs) {
+  border-color: var(--line);
+  background: var(--surface);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+@media (prefers-reduced-transparency: reduce) {
+  .site-wrap .experience-tabs:not(.member-tabs) {
+    border-color: var(--line);
+    background: var(--surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
 .site-wrap :where(button, .button, select):focus-visible {
   outline: 2px solid var(--orange);

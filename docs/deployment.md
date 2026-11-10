@@ -15,6 +15,8 @@ EdgeOne Pages / Makers 托管 Nuxt、独立服务器托管 API 与 MySQL 的方�
 
 开发的 MAIL_TRANSPORT=capture 将邮件保存在 `apps/api/.data/mail/`。真实 SMTP 需配置服务商账号，验证码不会通过公共接口返回。邮箱注册不代表社团成员资格，当前投票资格为已注册、未禁用的账号。
 
+本机的 `UPLOAD_DIR` 必须指向已有上传文件所在目录。默认从 API 工作目录解析 `.data/uploads`；Windows 可显式设置如 `D:/works/galweb/apps/api/.data/uploads`。不要沿用 Linux 服务器的 `/www/server-data/galweb/uploads`，否则数据库图片记录存在但文件请求会返回 404。修改 `.env` 后重启 API；数据库和图片目录应配套恢复。
+
 ## 数据和权限
 
 - MySQL 保存正式账号、作品、帖子、回复、点赞、收藏、届次、提名、选票、固定结果、文件元信息、审计日志。
