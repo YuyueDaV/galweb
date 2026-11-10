@@ -10,6 +10,8 @@ const mobileOpen = ref(false)
 const themeCookie=useCookie<'light'|'dark'>('czx-theme',{sameSite:'lax',maxAge:31536000})
 const dark = ref(themeCookie.value==='dark')
 const booting=ref(true)
+const loadingIndicator=useLoadingIndicator({throttle:220,hideDelay:160,resetDelay:180})
+const pageLoading=computed(()=>loadingIndicator.isLoading.value&&!loadingIndicator.error.value)
 const headerScrolled = ref(false)
 const searchInput = ref<HTMLInputElement | null>(null)
 const searchExpanded = ref(false)
@@ -56,8 +58,8 @@ function resetFeed() { query.value = ''; category.value = '全部' }
 
 <template>
   <div class="site-wrap">
-    <NuxtLoadingIndicator color="var(--orange)" :throttle="200" />
-    <AppLoading v-if="booting" />
+    <NuxtLoadingIndicator color="var(--orange)" :throttle="220" />
+    <AppLoading v-if="booting||pageLoading" :initial="booting" />
     <SiteBackground />
     <a class="skip-link" href="#main-content">跳转到正文</a>
     <LiquidGlass as="header" class="site-header" :class="{ 'is-scrolled': headerScrolled }" :radius="30" :scale="24" :bevel-depth="12" :aberration="1.2" :tint="0.64" :frost="0.6">
@@ -115,7 +117,7 @@ function resetFeed() { query.value = ''; category.value = '全部' }
         </div>
       </aside>
 
-      <main id="main-content" class="page-content"><NuxtPage /></main>
+      <main id="main-content" class="page-content" :aria-busy="booting||pageLoading"><NuxtPage /></main>
     </div>
 
     <footer class="site-footer shell"><span><span class="footer-mark"><DecorativeSpark /></span> 澄之响 <span class="footer-separator">/</span> 南京工程学院视觉小说同好会</span><span><NuxtLink to="/about#join-club" class="footer-club-link">加入 QQ 群<AppIcon name="arrowUpRight" :size="12" /></NuxtLink>故事有终章，热爱有回响。<span class="footer-year">© {{ new Date().getFullYear() }}</span></span></footer>

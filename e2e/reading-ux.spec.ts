@@ -24,6 +24,7 @@ test('主题在脚本加载前生效；慢请求展示加载提示并在完成�
     await page.goto('/', { waitUntil: 'commit' })
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
     await expect(page.locator('html')).toHaveCSS('color-scheme', 'dark')
+    await expect(page.locator('.app-loading .loading-orange')).toBeVisible()
     start()
     await expect(page.getByRole('status').filter({ hasText: '正在加载故事' })).toBeVisible()
     finish()
