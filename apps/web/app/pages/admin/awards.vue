@@ -39,11 +39,20 @@ async function removeActivity() {
     busy.value = false
   }
 }
+const weightedRule = computed(() => campaign.value.votingRule === 'weighted-v1')
 const tab = ref('settings')
 const reviewFilter = ref('pending')
 const reviewNotes = reactive<Record<string, string>>({})
 const error = ref('')
 const confirmPhase = ref<CampaignPhase | null>(null)
+const confirmRunoff = ref(false)
+const scoredCount = computed(() => awards.results.value.filter((item) => item.votes > 0).length)
+const needsRunoff = computed(() => campaign.value.phase === 'voting' && (campaign.value.votingRound || 1) === 1 && scoredCount.value < campaign.value.winnerCount)
+const workTitle = (id: string) => candidates.value.find((item) => item.id === id)?.title || id
+async function openRunoff() {
+  await run(() => awards.startRunoff(), '二次投票已开启，首轮已得分作品保留。')
+  confirmRunoff.value = false
+}
 const settings = ref<AwardCampaign>({ ...campaign.value })
 const times = reactive({ nominationStart: '', nominationEnd: '', votingStart: '', votingEnd: '' })
 const nextPhase = computed(
@@ -98,7 +107,7 @@ const dirty = computed(
 const recentAudit = computed(() =>
   audit.value
     .filter((item) => item.campaignId === campaign.value.id)
-    .slice(-8)
+    .slice(0, 8)
     .reverse(),
 )
 const statusNames = { pending: '待审核', approved: '已通过', rejected: '已退回', withdrawn: '已撤回' }
@@ -112,6 +121,7 @@ function loadSettings() {
     times[key] = toAwardTimeInput(campaign.value[key])
   error.value = ''
   confirmPhase.value = null
+  confirmRunoff.value = false
   deleteOpen.value = false
   deleteTitle.value = ''
   deleteError.value = ''
@@ -255,28 +265,32 @@ function review(id: string, status: 'approved' | 'rejected') {
         >
           <AppIcon name="check" :size="16" />提名审核<span v-if="pendingCount">{{ pendingCount }}</span>
         </button>
+        <button :class="{ active: tab === 'votes' }" @click="tab = 'votes'; error = ''; awards.initialize()"><AppIcon name="trophy" :size="16" />投票数据</button>
       </nav>
       <p v-if="error" class="award-admin-error" role="alert"><AppIcon name="info" :size="16" />{{ error }}</p>
       <div v-if="tab === 'settings'" class="award-admin-settings-grid">
         <form class="award-admin-card award-form" @submit.prevent="saveSettings">
           <div class="award-admin-card-heading">
             <div>
-              <h2>名额与时间</h2>
+              <h2>按阶段设置活动</h2>
               <p>初始名额为建议值，可在开放活动前调整。</p>
             </div>
             <AppIcon name="calendar" :size="21" />
           </div>
-          <label>活动名称<input v-model="settings.title" maxlength="80" required :disabled="busy" /></label
-          ><label
-            >投票计分规则<select
-              v-model="settings.votingRule"
-              :disabled="rulesLocked || busy"
-              @change="settings.votingRule === 'weighted-v1' && (settings.voteLimit = 3)"
-            >
-              <option value="weighted-v1">自定义加权投票：真爱票、喜爱票与推荐词</option>
-              <option value="legacy">原规则：每部作品一票</option>
-            </select></label
-          >
+          <label>活动名称<input v-model="settings.title" maxlength="80" required :disabled="busy" /></label>
+          <section class="award-settings-stage" aria-labelledby="nomination-settings-heading">
+            <h3 id="nomination-settings-heading">1 · 提名设置</h3>
+            <p>先公开征集并署名展示，再由管理员审核。相同作品合并展示，多位用户可共同提名；同一用户不能重复提名同一作品。</p>
+            <label>每人最多提名<span class="award-number-input"><input v-model.number="settings.nominationLimit" aria-label="每人最多提名" type="number" min="1" max="100" required :disabled="rulesLocked || busy" /><span>部</span></span></label>
+            <div class="award-time-group"><h3>提名时间 <span>UTC+8</span></h3><div>
+              <label>提名开始时间<input v-model="times.nominationStart" type="datetime-local" :disabled="settingsLocked || busy" /></label>
+              <label>提名结束时间<input v-model="times.nominationEnd" type="datetime-local" :disabled="settingsLocked || busy" /></label>
+            </div></div>
+          </section>
+          <section class="award-settings-stage" aria-labelledby="voting-settings-heading">
+            <h3 id="voting-settings-heading">2 · 投票设置</h3>
+            <p>投票名单来自本届审核通过的全部提名作品；前台显示分数和署名推荐词，选票详情仅管理员可见。</p>
+            <label>投票计分规则<select v-model="settings.votingRule" :disabled="rulesLocked || busy" @change="settings.votingRule === 'weighted-v1' && (settings.voteLimit = 3)"><option value="weighted-v1">自定义加权投票：真爱票、喜爱票与推荐词</option><option value="legacy">原规则：每部作品一票</option></select></label>
           <fieldset
             v-if="settings.votingRule === 'weighted-v1' && settings.ballotRules"
             :disabled="rulesLocked || busy"
@@ -302,81 +316,17 @@ function review(id: string, status: 'approved' | 'rejected') {
               推荐词始终选填，每个已投作品最多一份；设份数上限为 0 可关闭推荐词。筹备中可修改，开放后锁定。
             </p>
           </fieldset>
-          <div class="award-quota-fields">
-            <label
-              >每人最多提名<span class="award-number-input"
-                ><input
-                  v-model.number="settings.nominationLimit"
-                  aria-label="每人最多提名"
-                  type="number"
-                  min="1"
-                  max="100"
-                  required
-                  :disabled="rulesLocked"
-                /><span>部</span></span
-              ></label
-            ><label
-              >每人最多投票<span class="award-number-input"
-                ><input
-                  v-model.number="settings.voteLimit"
-                  aria-label="每人最多投票"
-                  type="number"
-                  min="1"
-                  max="100"
-                  required
-                  :disabled="rulesLocked || settings.votingRule === 'weighted-v1'"
-                /><span>票</span></span
-              ></label
-            ><label
-              >计划入选作品<span class="award-number-input"
-                ><input
-                  v-model.number="settings.winnerCount"
-                  aria-label="计划入选作品"
-                  type="number"
-                  min="1"
-                  max="100"
-                  required
-                  :disabled="rulesLocked"
-                /><span>部</span></span
-              ></label
-            >
-          </div>
-          <p class="award-field-help">开放提名后，名额规则锁定，保证参与者使用相同规则。</p>
-          <div class="award-time-group">
-            <h3>提名阶段 <span>UTC+8</span></h3>
-            <div>
-              <label
-                >提名开始时间<input
-                  v-model="times.nominationStart"
-                  type="datetime-local"
-                  :disabled="settingsLocked" /></label
-              ><label
-                >提名结束时间<input
-                  v-model="times.nominationEnd"
-                  type="datetime-local"
-                  :disabled="settingsLocked"
-              /></label>
+            <div class="award-quota-fields">
+              <label>每人最多投票<span class="award-number-input"><input v-model.number="settings.voteLimit" aria-label="每人最多投票" type="number" min="1" max="100" required :disabled="rulesLocked || busy || settings.votingRule === 'weighted-v1'" /><span>票</span></span></label>
+              <label>计划入选作品<span class="award-number-input"><input v-model.number="settings.winnerCount" aria-label="计划入选作品" type="number" min="1" max="100" required :disabled="rulesLocked || busy" /><span>部</span></span></label>
             </div>
-          </div>
-          <div class="award-time-group">
-            <h3>投票阶段 <span>UTC+8</span></h3>
-            <div>
-              <label
-                >投票开始时间<input
-                  v-model="times.votingStart"
-                  type="datetime-local"
-                  :disabled="settingsLocked" /></label
-              ><label
-                >投票结束时间<input
-                  v-model="times.votingEnd"
-                  type="datetime-local"
-                  :disabled="settingsLocked"
-              /></label>
-            </div>
-          </div>
-          <p class="award-field-help">
-            时间可留空，前台显示“时间待公布”；填写时需同时指定开始与结束。阶段由管理员推进，提交操作同时遵守所设时间窗口。
-          </p>
+            <div class="award-time-group"><h3>{{ campaign.votingRound === 2 ? '二次投票时间' : '首轮投票时间' }} <span>UTC+8</span></h3><div>
+              <label>投票开始时间<input v-model="times.votingStart" type="datetime-local" :disabled="settingsLocked || busy" /></label>
+              <label>投票结束时间<input v-model="times.votingEnd" type="datetime-local" :disabled="settingsLocked || busy" /></label>
+            </div></div>
+            <p class="award-field-help">首轮有效得分作品不足计划名额时，需进行二次投票：保留首轮已得分作品，只对其余提名作品补投。</p>
+          </section>
+          <p class="award-field-help">开放提名后，名额与计分规则锁定。时间需同时填写开始与结束，或同时留空；阶段由管理员按顺序推进。</p>
           <div class="award-settings-save">
             <span>{{
               settingsLocked
@@ -411,11 +361,19 @@ function review(id: string, status: 'approved' | 'rejected') {
             <p v-if="pendingCount && campaign.phase === 'nomination'" class="award-field-help">
               还有 {{ pendingCount }} 条提名待审核，处理完成后才能开放投票。
             </p>
+            <div v-if="campaign.phase === 'voting'" class="award-runoff-management">
+              <p>第 {{ campaign.votingRound || 1 }} 轮 · 有效得分 {{ scoredCount }} / {{ campaign.winnerCount }} 部</p>
+              <p v-if="needsRunoff">未满计划名额，需先进行二次投票。首轮已得分作品保留。</p>
+              <button v-if="needsRunoff && !confirmRunoff" type="button" class="button secondary full" :disabled="busy || dirty" @click="confirmRunoff = true">开启二次投票</button>
+              <div v-if="confirmRunoff" class="award-phase-confirm"><strong>确认开启二次投票？</strong><p>保存首轮全部记录，保留已得分作品，其余已提名作品开放补投。所有人获得一份新的本轮选票，补投时间将清空，可重新设置。</p><button type="button" :disabled="busy" @click="confirmRunoff = false">取消</button><button type="button" class="button primary" :disabled="busy" @click="openRunoff">确认开启二次投票</button></div>
+              <p v-if="campaign.votingRound === 2 && !awards.votingCandidates.value.length">没有剩余可补投作品。提名作品数不足时，可公布实际有效结果。</p>
+              <button type="button" class="text-link" @click="awards.initialize">刷新投票数据</button>
+            </div>
             <template
               v-if="
                 nextPhase && identity.can(nextPhase === 'archived' ? 'campaign.archive' : 'campaign.manage')
               "
-              ><button class="button secondary full" :disabled="dirty" @click="confirmPhase = nextPhase">
+              ><button class="button secondary full" :disabled="dirty || busy || (nextPhase === 'results' && needsRunoff)" @click="confirmPhase = nextPhase">
                 {{ transitionLabels[nextPhase] }}<AppIcon name="arrowRight" :size="15" />
               </button>
               <p v-if="dirty" class="award-field-help">请先保存当前设置。</p></template
@@ -504,6 +462,15 @@ function review(id: string, status: 'approved' | 'rejected') {
             <p v-else-if="item.reviewNote" class="award-review-note">审核反馈：{{ item.reviewNote }}</p>
           </article>
         </div>
+      </section>
+      <section v-else-if="tab === 'votes'" class="award-admin-card award-data-panel">
+        <div class="award-admin-card-heading"><div><h2>投票与计分数据</h2><p>管理员可查看全部轮次选票、署名推荐词与操作记录；前台仅公开分数和推荐词作者。</p></div><button class="button secondary" @click="awards.initialize">刷新数据</button></div>
+        <p v-if="campaign.phase === 'draft' || campaign.phase === 'nomination'">请先完成提名审核，再开放投票。候选名单来自本届审核通过的全部提名作品。</p>
+        <div class="award-data-table"><table><thead><tr><th>作品</th><th>分数</th><th>状态</th></tr></thead><tbody><tr v-for="result in awards.results.value" :key="result.id"><td>{{ result.title }}</td><td>{{ result.votes }}</td><td>{{ campaign.lockedCandidateIds?.includes(result.id) ? '首轮保留' : result.votes > 0 ? '有效得分' : '尚未得分' }}</td></tr></tbody></table></div>
+        <h3>全部选票 · {{ awards.ballots.value.length }} 条</h3>
+        <p v-if="!awards.ballots.value.length">暂无选票记录。</p>
+        <details v-for="ballot in awards.ballots.value" :key="ballot.round + ':' + ballot.id" class="award-ballot-record"><summary>{{ ballot.accountName }} · 第 {{ ballot.round }} 轮 · {{ ballot.candidateIds.length ? ballot.candidateIds.length + ' 部作品' : '已撤回' }} · {{ formatAwardTime(ballot.updatedAt) }}</summary><p>账号编号：{{ ballot.accountId }}</p><p v-if="weightedRule">真爱票：{{ (ballot.loveIds || (ballot.loveId ? [ballot.loveId] : [])).map(workTitle).join('、') || '无' }}</p><p v-if="weightedRule">喜爱票：{{ (ballot.likeIds || []).map(workTitle).join('、') || '无' }}</p><p v-else>投票作品：{{ ballot.candidateIds.map(workTitle).join('、') || '无' }}</p><p v-for="rec in ballot.recommendations || []" :key="rec.candidateId">《{{ workTitle(rec.candidateId) }}》推荐词：{{ rec.text }}</p></details>
+        <details class="award-ballot-record"><summary>全部管理与参与记录 · {{ audit.length }} 条</summary><ol><li v-for="entry in audit" :key="entry.id">{{ entry.actor }} · {{ entry.action }} · {{ formatAwardTime(entry.createdAt) }}</li></ol></details>
       </section>
       <section class="award-admin-card campaign-delete-zone">
         <header>

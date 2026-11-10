@@ -17,11 +17,11 @@ export class AccountDeletion {
    // Lock order matches role changes, email verification, and award mutations.
    await this.platform.lock('account-roles',tx)
    await this.platform.lock(`account:${actor.id}`,tx)
-   await this.platform.lock('catalog',tx)
    await this.db.execute('INSERT IGNORE INTO auth_email_locks(email_key) VALUES (?)',[account.email_key],tx)
    await this.db.rows('SELECT email_key FROM auth_email_locks WHERE email_key=? FOR UPDATE',[account.email_key],tx)
-   const campaigns=await this.db.rows<{campaign_id:string}>('SELECT campaign_id FROM award_nominations WHERE user_id=? UNION SELECT campaign_id FROM award_ballots WHERE user_id=?',[actor.id,actor.id],tx)
+   const campaigns=await this.db.rows<{campaign_id:string}>('SELECT campaign_id FROM award_nominations WHERE user_id=? UNION SELECT campaign_id FROM award_ballots WHERE user_id=? UNION SELECT campaign_id FROM award_results WHERE JSON_SEARCH(data,\'one\',?,NULL,\'$.rounds[*].ballots[*].accountId\') IS NOT NULL',[actor.id,actor.id,actor.id],tx)
    for(const id of campaigns.map(c=>c.campaign_id).sort())await this.platform.lock(`campaign:${id}`,tx)
+   await this.platform.lock('catalog',tx)
    const fresh=(await this.db.rows<Account>('SELECT id,email_key,password_hash,status,role FROM users WHERE id=? FOR UPDATE',[actor.id],tx))[0]
    if(!fresh||fresh.status!=='active'||fresh.password_hash!==account.password_hash||fresh.email_key!==account.email_key)throw reject('账号状态已变化，请重新登录后再操作。',401)
    if(fresh.role==='super_admin'){
@@ -48,10 +48,11 @@ export class AccountDeletion {
    const nominations=await this.db.rows<{id:string,data:AwardNomination|string}>('SELECT id,data FROM award_nominations WHERE user_id=? FOR UPDATE',[actor.id],tx)
    for(const row of nominations){const n=decode(row.data);n.accountId='';n.accountName=anonymous;if(n.status==='pending')n.status='withdrawn';await this.db.execute('UPDATE award_nominations SET status=?,data=? WHERE id=?',[n.status,JSON.stringify(n),row.id],tx)}
    for(const campaign of campaigns){
-    const snapshot=(await this.db.rows<{data:{results:AwardResult[],ballotCount:number}|string}>('SELECT data FROM award_results WHERE campaign_id=? FOR UPDATE',[campaign.campaign_id],tx))[0]
+    const snapshot=(await this.db.rows<{data:{results?:AwardResult[],ballotCount?:number,rounds?:{results:AwardResult[],ballots:{accountId:string}[]}[]}|string}>('SELECT data FROM award_results WHERE campaign_id=? FOR UPDATE',[campaign.campaign_id],tx))[0]
     if(!snapshot)continue
     const data=decode(snapshot.data)
-    for(const result of data.results)for(const n of result.nominations)if(n.accountId===actor.id){n.accountId='';n.accountName=anonymous}
+    for(const result of [...(data.results||[]),...(data.rounds||[]).flatMap(round=>round.results)])for(const n of result.nominations)if(n.accountId===actor.id){n.accountId='';n.accountName=anonymous}
+    for(const round of data.rounds||[])for(const ballot of round.ballots)if(ballot.accountId===actor.id)ballot.accountId=''
     await this.db.execute('UPDATE award_results SET data=? WHERE campaign_id=?',[JSON.stringify(data),campaign.campaign_id],tx)
    }
    await this.db.execute('UPDATE audit_logs SET actor=? WHERE actor_id=?',[anonymous,actor.id],tx)

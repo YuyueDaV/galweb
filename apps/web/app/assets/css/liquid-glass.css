@@ -274,6 +274,107 @@ html .site-wrap [data-liquid-glass='opaque'] {
   }
 }
 /* Dialog lives in the top layer, including when opened from another modal. */
+.award-settings-stage {
+  min-width: 0;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.award-settings-stage > h3,
+.award-live-summary h2,
+.award-data-panel > h3 {
+  font-size: max(18px, 1rem);
+  font-weight: 500;
+  margin: 0 0 12px;
+}
+.award-settings-stage > p,
+.award-live-summary p,
+.award-runoff-management p,
+.award-data-panel p {
+  font-size: max(14px, 0.75rem);
+  line-height: 1.8;
+  color: var(--subtle);
+  overflow-wrap: anywhere;
+}
+.award-settings-stage > label {
+  display: block;
+  font-size: max(14px, 0.75rem);
+}
+.award-settings-stage > label select {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+}
+.award-live-summary {
+  margin-bottom: 20px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgb(var(--liquid-rgb) / 88%);
+}
+.award-live-summary .button {
+  min-height: 44px;
+  font-size: 14px;
+}
+.award-runoff-management {
+  padding-block: 12px;
+  border-top: 1px solid var(--line);
+}
+.site-wrap .award-candidate-copy .award-live-score {
+  min-height: 0;
+  margin-block: 12px;
+  color: var(--orange);
+  font-size: max(18px, 1rem);
+  font-weight: 500;
+}
+.award-live-score span {
+  font-size: 13px;
+}
+.award-public-details,
+.award-ballot-record {
+  margin-block: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  font-size: max(14px, 0.7rem);
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.award-public-details summary,
+.award-ballot-record summary {
+  cursor: pointer;
+}
+.award-public-details > div {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  margin-top: 8px;
+}
+.award-public-details time {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+.site-wrap .award-public-details p {
+  min-height: 0;
+  margin-block: 8px;
+  white-space: pre-wrap;
+  font-size: inherit;
+}
+.award-data-table {
+  overflow-x: auto;
+  margin-block: 20px;
+}
+.award-data-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: max(14px, 0.75rem);
+}
+.award-data-table :is(th, td) {
+  text-align: left;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
 .site-wrap .award-nomination-dialog {
   box-sizing: border-box;
   width: min(48rem, calc(100vw - 32px));
@@ -388,6 +489,12 @@ html .site-wrap [data-liquid-glass='opaque'] {
   background: transparent;
 }
 @media (max-width: 599px) {
+  .awards-page .award-candidate-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .awards-page .award-candidate-cover {
+    height: 12rem;
+  }
   .award-nomination-dialog .award-form-bottom {
     align-items: stretch;
     flex-direction: column;

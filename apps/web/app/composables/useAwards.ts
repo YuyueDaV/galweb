@@ -6,6 +6,8 @@ import type {
   AwardResult,
   CampaignPhase,
   WeightedBallotInput,
+  AwardPublicRecommendation,
+  AwardAdminBallot,
 } from '~/types/awards'
 import { loveChoices, collectAwardCandidates } from '~/utils/awards'
 const fallback: AwardCampaign = {
@@ -35,12 +37,22 @@ export function useAwards() {
     ballotVersion = useState('award-ballot-version', () => 0),
     ballotCount = useState('award-ballot-count', () => 0),
     results = useState<AwardResult[]>('award-results', () => []),
+    recommendations = useState<AwardPublicRecommendation[]>('award-recommendations', () => []),
+    ballots = useState<AwardAdminBallot[]>('award-admin-ballots', () => []),
     audit = useState<AwardAuditEntry[]>('award-audit', () => []),
     online = useState('awards-online', () => false),
     revision = useState('award-revision', () => 0)
   const campaign = computed(() => current.value),
     campaignNominations = computed(() => nominations.value),
     candidates = computed(() => collectAwardCandidates(nominations.value, campaign.value.id)),
+    visibleCandidates = computed(() =>
+      collectAwardCandidates(nominations.value, campaign.value.id, campaign.value.phase === 'nomination'),
+    ),
+    votingCandidates = computed(() =>
+      collectAwardCandidates(nominations.value, campaign.value.id).filter(
+        (item) => !campaign.value.lockedCandidateIds?.includes(item.id),
+      ),
+    ),
     myNominations = computed(() =>
       nominations.value.filter((n) => n.accountId === identity.account.value.id && n.status !== 'withdrawn'),
     )
@@ -59,6 +71,8 @@ export function useAwards() {
       ballotVersion.value = 0
       ballotCount.value = 0
       results.value = []
+      recommendations.value = []
+      ballots.value = []
       audit.value = []
       online.value = true
       return
@@ -71,15 +85,19 @@ export function useAwards() {
       ballotVersion?: number
       ballotCount: number
       results: AwardResult[]
+      recommendations?: AwardPublicRecommendation[]
+      ballots?: AwardAdminBallot[]
       audit: AwardAuditEntry[]
     }>('/award-campaigns/' + id)
     if (sequence !== revision.value) return
-    current.value = data.campaign
+    if (JSON.stringify(current.value) !== JSON.stringify(data.campaign)) current.value = data.campaign
     nominations.value = data.nominations
-    myBallot.value = data.myBallot
+    if (JSON.stringify(myBallot.value) !== JSON.stringify(data.myBallot)) myBallot.value = data.myBallot
     ballotVersion.value = data.ballotVersion ?? data.myBallot?.version ?? 0
     ballotCount.value = data.ballotCount
     results.value = data.results
+    recommendations.value = data.recommendations || []
+    ballots.value = data.ballots || []
     audit.value = data.audit.map((a) => ({ ...a, createdAt: new Date(Number(a.createdAt)).toISOString() }))
     online.value = true
   }
@@ -109,9 +127,13 @@ export function useAwards() {
     campaignNominations,
     nominations,
     candidates,
+    visibleCandidates,
+    votingCandidates,
     myNominations,
     myBallot,
     results,
+    recommendations,
+    ballots,
     audit,
     ballotCount,
     online,
@@ -128,12 +150,14 @@ export function useAwards() {
           candidateIds: [...loveChoices(weighted), ...weighted.likeIds],
           weighted,
           version: ballotVersion.value,
+          round: campaign.value.votingRound || 1,
         },
         'PUT',
       ),
     saveSettings: (next: AwardCampaign) => mutate(adminRoot(), next, 'PATCH'),
     movePhase: (phase: CampaignPhase) =>
       mutate(adminRoot() + '/transitions', { phase, version: campaign.value.version }),
+    startRunoff: () => mutate(adminRoot() + '/runoff', { version: campaign.value.version }),
     submitNomination: (
       title: string,
       studio: string,
@@ -145,8 +169,16 @@ export function useAwards() {
     reviewNomination: (id: string, status: 'approved' | 'rejected', note: string) =>
       mutate(root() + '/nominations/' + id, { status, note }, 'PATCH'),
     saveBallot: (candidateIds: string[]) =>
-      mutate(root() + '/ballot', { candidateIds, version: ballotVersion.value }, 'PUT'),
+      mutate(
+        root() + '/ballot',
+        { candidateIds, version: ballotVersion.value, round: campaign.value.votingRound || 1 },
+        'PUT',
+      ),
     withdrawBallot: () =>
-      mutate(root() + '/ballot', { candidateIds: null, version: ballotVersion.value }, 'PUT'),
+      mutate(
+        root() + '/ballot',
+        { candidateIds: null, version: ballotVersion.value, round: campaign.value.votingRound || 1 },
+        'PUT',
+      ),
   }
 }

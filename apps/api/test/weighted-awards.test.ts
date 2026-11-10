@@ -39,7 +39,12 @@ test(
       let c = await awards.create(admin)
       assert.equal(c.votingRule, 'weighted-v1')
       const rules = { ...DEFAULT_BALLOT_RULES, lovePoints: 5, likePoints: 3, recommendationPoints: 4 }
-      await awards.settings(admin, c.id, { ...c, title: '自定义规则测试', ballotRules: rules })
+      await awards.settings(admin, c.id, {
+        ...c,
+        title: '自定义规则测试',
+        ballotRules: rules,
+        winnerCount: 2,
+      })
       c = await awards.campaign(c.id)
       await assert.rejects(
         () => awards.settings(admin, c.id, { ...c, ballotRules: { ...rules, recommendationLimit: 4 } }),

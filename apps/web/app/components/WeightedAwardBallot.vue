@@ -32,7 +32,7 @@ function changed() {
 }
 async function save() {
   if (busy.value || !props.enabled) return
-  error.value = validateWeightedBallot(payload.value, awards.candidates.value, rules.value)
+  error.value = validateWeightedBallot(payload.value, awards.votingCandidates.value, rules.value)
   if (error.value) return
   busy.value = true
   try {
@@ -71,7 +71,7 @@ async function withdraw() {
           >真爱票 {{ index }} · {{ rules.lovePoints }} 分<select v-model="loves[index - 1]" @change="changed">
             <option value="">暂不投这张真爱票</option>
             <option
-              v-for="work in awards.candidates.value"
+              v-for="work in awards.votingCandidates.value"
               :key="work.id"
               :value="work.id"
               :disabled="likes.includes(work.id) || loves.some((id, i) => id === work.id && i !== index - 1)"
@@ -84,7 +84,7 @@ async function withdraw() {
           >喜爱票 {{ index }} · {{ rules.likePoints }} 分<select v-model="likes[index - 1]" @change="changed">
             <option value="">暂不投这张喜爱票</option>
             <option
-              v-for="work in awards.candidates.value"
+              v-for="work in awards.votingCandidates.value"
               :key="work.id"
               :value="work.id"
               :disabled="loves.includes(work.id) || likes.some((id, i) => id === work.id && i !== index - 1)"

@@ -53,6 +53,7 @@ test('注销完整流程：撤销会话、匿名讨论与榜单、删除图片�
   await awards.phase(owner,pending.id,'nomination',(await awards.campaign(pending.id)).version!)
   await awards.nominate(member,pending.id,'尚未审核的作品','测试制作组','这条尚未审核的提名应在注销后自动撤回。')
   const ended=await awards.create(owner)
+  await awards.settings(owner,ended.id,{...ended,winnerCount:1})
   await awards.phase(owner,ended.id,'nomination',(await awards.campaign(ended.id)).version!)
   await awards.nominate(member,ended.id,'已公布的历史作品','测试制作组','这条提名属于历史榜单，应保留得票与名次。')
   const historicalNomination=(await awards.nominations(ended.id))[0]!
@@ -60,6 +61,14 @@ test('注销完整流程：撤销会话、匿名讨论与榜单、删除图片�
   await awards.phase(owner,ended.id,'voting',(await awards.campaign(ended.id)).version!)
   await awards.vote(member,ended.id,[historicalNomination.candidateId],0,{loveId:historicalNomination.candidateId,likeIds:[],recommendations:[]});await awards.vote(other,ended.id,[historicalNomination.candidateId],0,{loveId:historicalNomination.candidateId,likeIds:[],recommendations:[]})
   await awards.phase(owner,ended.id,'results',(await awards.campaign(ended.id)).version!)
+  const runoff=await awards.create(owner)
+  await awards.phase(owner,runoff.id,'nomination',(await awards.campaign(runoff.id)).version!)
+  await awards.nominate(other,runoff.id,'二轮期间注销测试','测试制作组','')
+  const runoffNomination=(await awards.nominations(runoff.id))[0]!
+  await awards.nominationAction(owner,runoff.id,runoffNomination.id,'approved')
+  await awards.phase(owner,runoff.id,'voting',(await awards.campaign(runoff.id)).version!)
+  await awards.vote(member,runoff.id,[runoffNomination.candidateId],0,{loveId:runoffNomination.candidateId,likeIds:[],recommendations:[]})
+  await awards.startRunoff(owner,runoff.id,(await awards.campaign(runoff.id)).version!)
   const before=await awards.state(ended.id,owner)
   await db.execute('INSERT INTO forum_drafts(user_id,data,updated_at) VALUES (?,?,?)',[member.id,JSON.stringify({content:'私密草稿'}),Date.now()])
   await db.execute('INSERT INTO works(id,data) VALUES (?,?)',[79124,JSON.stringify({rank:79124,title:'注销书单测试'})])
@@ -83,6 +92,10 @@ test('注销完整流程：撤销会话、匿名讨论与榜单、删除图片�
   nomination=(await awards.nominations(active.id))[0]!
   assert.equal(nomination.status,'approved');assert.equal(nomination.accountName,'已注销用户');assert.equal(nomination.accountId,'')
   assert.equal((await awards.state(active.id,owner)).ballotCount,1)
+  const runoffAfter=await awards.state(runoff.id,owner)
+  assert.equal(runoffAfter.results[0]!.votes,2)
+  assert.equal(runoffAfter.ballots![0]!.accountId,'')
+  assert.equal(runoffAfter.ballots![0]!.accountName,'已注销用户')
   assert.equal((await awards.nominations(pending.id))[0]!.status,'withdrawn')
   const after=await awards.state(ended.id,owner)
   assert.equal(after.ballotCount,before.ballotCount);assert.equal(after.results[0]!.votes,before.results[0]!.votes);assert.equal(after.results[0]!.rank,before.results[0]!.rank);assert.equal(after.results[0]!.nominations[0]!.accountName,'已注销用户')

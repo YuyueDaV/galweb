@@ -49,7 +49,7 @@ async function loadActivity() {
   activityReady.value = true
 }
 const identity = usePreviewIdentity()
-const { campaign, campaigns, selectedCampaignId, candidates, myNominations, myBallot, results } = awards
+const { campaign, campaigns, selectedCampaignId, visibleCandidates: candidates, myNominations, myBallot, results } = awards
 const { notify } = useForum()
 const tab = ref('candidates')
 const search = ref('')
@@ -67,7 +67,8 @@ onMounted(async () => {
   await loadActivity()
   clock = setInterval(() => {
     now.value = Date.now()
-  }, 30000)
+    if (!document.hidden) void awards.refresh().catch(() => {})
+  }, 15000)
 })
 onBeforeUnmount(() => {
   if (clock) clearInterval(clock)
@@ -96,6 +97,9 @@ const canVote = computed(() => campaign.value.phase === 'voting' && !votingWindo
 const rules = computed(() => ballotRules(campaign.value))
 const weighted = computed(() => campaign.value.votingRule === 'weighted-v1')
 const ended = computed(() => ['results', 'archived'].includes(campaign.value.phase))
+const resultById = computed(() => new Map(results.value.map((item) => [item.id, item])))
+const qualifiedCount = computed(() => results.value.filter((item) => item.votes > 0).length)
+const isLocked = (id: string) => !!campaign.value.lockedCandidateIds?.includes(id)
 const winners = computed(() =>
   results.value.filter((item) => item.votes > 0 && item.rank <= campaign.value.winnerCount),
 )
@@ -298,6 +302,13 @@ async function withdrawBallot() {
       </ol>
       <div class="awards-layout">
         <div class="award-main">
+          <section v-if="campaign.phase === 'voting'" class="award-live-summary" aria-label="投票进度">
+            <h2>{{ campaign.votingRound === 2 ? '二次投票 · 补足入选名额' : '首轮投票' }}</h2>
+            <p>有效得分作品 {{ qualifiedCount }} / {{ campaign.winnerCount }} 部 · 分数每 15 秒更新。普通用户看不到他人的选票，推荐词公开署名。</p>
+            <p v-if="campaign.votingRound === 2">首轮 {{ campaign.lockedCandidateIds?.length || 0 }} 部已得分作品保留，仅可对其余已提名作品补投。</p>
+            <p v-if="campaign.votingRound === 2 && !awards.votingCandidates.value.length" role="status">所有提名作品均已得分，目前没有可补投的作品。现有提名不足计划名额时，最终只能公布实际有效作品。</p>
+            <button class="button secondary" @click="awards.initialize">刷新分数</button>
+          </section>
           <section v-if="ended" id="award-results" class="award-results-section">
             <div class="section-heading">
               <div>
@@ -341,6 +352,7 @@ async function withdrawBallot() {
             <p class="award-small-note">
               同票作品按相同名次并列展示；入选名额边界出现同票时，入选数量可能超过计划名额。
             </p>
+            <p v-if="qualifiedCount < campaign.winnerCount" class="award-small-note">已完成二次投票，有效得分作品共 {{ qualifiedCount }} 部，少于计划的 {{ campaign.winnerCount }} 部；按实际结果公布。</p>
           </section>
           <section id="award-candidates">
             <div class="section-heading">
@@ -356,7 +368,7 @@ async function withdrawBallot() {
                   }}<span class="heading-dot">。</span>
                 </h2>
               </div>
-              <span class="award-candidate-total">{{ candidates.length }} 部已通过审核</span>
+              <span class="award-candidate-total">{{ candidates.length }} 部{{ campaign.phase === 'nomination' ? '已提名作品（含待审核）' : '正式候选作品' }}</span>
             </div>
             <div class="award-board-toolbar">
               <div class="award-tabs" role="group" aria-label="活动列表">
@@ -405,7 +417,7 @@ async function withdrawBallot() {
                       ? '换个关键词试试。'
                       : campaign.phase === 'draft'
                         ? '名额和时间由管理员确认后公布，先翻翻第一届的书单吧。'
-                        : '审核通过的提名会出现在这里，成为本届的正式候选作品。'
+                        : '提交的提名会公开展示并署名，审核通过后进入正式投票名单。'
                   }}
                 </p>
                 <button v-if="canNominate" class="button secondary" @click="openNomination()">
@@ -431,17 +443,26 @@ async function withdrawBallot() {
                     <div v-else class="award-no-cover">
                       <AppIcon name="book" :size="32" /><span>每一个故事，都有它的位置。</span>
                     </div>
-                    <span class="award-nomination-count">{{ item.nominations.length }} 人提名</span>
+                    <span class="award-nomination-count">{{ item.nominations.length }} 次提名</span>
                   </div>
                   <div class="award-candidate-copy">
                     <span>{{ item.studio || '成员推荐' }}</span>
                     <h3>{{ item.title }}</h3>
                     <p>{{ item.nominations[0]?.reason }}</p>
+                    <p v-if="campaign.phase === 'voting' || ended" class="award-live-score">{{ resultById.get(item.id)?.votes || 0 }} {{ weighted ? '分' : '票' }}<span v-if="isLocked(item.id)"> · 首轮已保留</span></p>
+                    <details class="award-public-details">
+                      <summary>提名人：{{ item.nominations.map((n) => n.accountName).join('、') }}</summary>
+                      <div v-for="n in item.nominations" :key="n.id"><strong>{{ n.accountName }}</strong> · {{ statusNames[n.status] }}<time>{{ formatAwardTime(n.createdAt) }}</time><p v-if="n.reason">{{ n.reason }}</p></div>
+                    </details>
+                    <details v-if="awards.recommendations.value.some((rec) => rec.candidateId === item.id)" class="award-public-details">
+                      <summary>查看署名推荐词（{{ awards.recommendations.value.filter((rec) => rec.candidateId === item.id).length }}）</summary>
+                      <div v-for="(rec, index) in awards.recommendations.value.filter((rec) => rec.candidateId === item.id)" :key="index"><strong>{{ rec.authorName }}</strong> · 第 {{ rec.round }} 轮<p>{{ rec.text }}</p></div>
+                    </details>
                     <label v-if="campaign.phase === 'voting' && !weighted" class="award-vote-choice"
                       ><input
                         type="checkbox"
                         :checked="selected.includes(item.id)"
-                        :disabled="!canVote"
+                        :disabled="!canVote || isLocked(item.id)"
                         :aria-label="`投票给${item.title}`"
                         @change="toggleCandidate(item, $event)"
                       /><span>{{ selected.includes(item.id) ? '已加入选票' : '选入我的选票' }}</span></label
@@ -526,8 +547,8 @@ async function withdrawBallot() {
           </section>
           <WeightedAwardBallot
             v-if="weighted && (campaign.phase === 'voting'||tab==='ballot')"
-            :key="campaign.id"
-            :enabled="canVote"
+              :key="campaign.id + ':' + (campaign.votingRound || 1)"
+              :enabled="canVote && awards.votingCandidates.value.length > 0"
           />
           <section
             v-if="campaign.phase === 'voting' && !weighted"

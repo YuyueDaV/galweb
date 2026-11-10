@@ -12,6 +12,7 @@ import {
   validateCampaignSettings,
   campaignWindowMessage,
   collectAwardCandidates,
+  combineAwardRoundResults,
   validateBallot,
   tallyAwardResults,
   validatePhaseTransition,
@@ -53,6 +54,17 @@ const ballot = (accountId, candidateIds, updatedAt = '2026-11-01T00:00:00Z', cam
   campaignId,
   candidateIds,
   updatedAt,
+})
+
+test('二次投票保留首轮作品，新高分不会挤掉首轮名额', () => {
+  const first = candidates.map((item, index) => ({ ...item, votes: index === 0 ? 1 : 0, rank: index + 1 }))
+  const next = candidates.map((item, index) => ({ ...item, votes: index === 1 ? 99 : 0, rank: index + 1 }))
+  const combined = combineAwardRoundResults(first, next)
+  assert.equal(combined[0].id, 'a')
+  assert.equal(combined[0].votes, 1)
+  assert.equal(combined[1].id, 'b')
+  assert.equal(combined[1].votes, 99)
+  assert.equal(combined[1].qualifiedRound, 2)
 })
 
 test('真爱、喜爱与推荐词：分值、互斥、份数与管理员自定义', () => {

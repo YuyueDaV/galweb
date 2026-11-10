@@ -39,6 +39,7 @@ test('管理员创建修改删除活动；自定义分值、互斥选票、推�
   await page.setViewportSize({ width: 1440, height: 900 })
   const title = '自定义加分活动 ' + Date.now().toString(36)
   await page.getByLabel('活动名称', { exact: true }).fill(title)
+  await page.getByLabel('计划入选作品', { exact: true }).fill('3')
   await page.getByLabel('真爱票分值', { exact: true }).fill('5')
   await page.getByLabel('每份推荐词加分', { exact: true }).fill('4')
   await page.getByRole('button', { name: '保存活动设置', exact: true }).click()

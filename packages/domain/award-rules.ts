@@ -183,10 +183,18 @@ export function campaignWindowMessage(
   return ''
 }
 
-export function collectAwardCandidates(nominations: AwardNomination[], campaignId: string): AwardCandidate[] {
+export function collectAwardCandidates(
+  nominations: AwardNomination[],
+  campaignId: string,
+  includePending = false,
+): AwardCandidate[] {
   const grouped = new Map<string, AwardCandidate>()
   for (const item of nominations) {
-    if (item.campaignId !== campaignId || item.status !== 'approved') continue
+    if (
+      item.campaignId !== campaignId ||
+      (item.status !== 'approved' && !(includePending && item.status === 'pending'))
+    )
+      continue
     const existing = grouped.get(item.candidateId)
     if (existing) existing.nominations.push(item)
     else
@@ -267,6 +275,37 @@ export function tallyAwardResults(
     sorted[index]!.rank =
       index > 0 && sorted[index]!.votes === sorted[index - 1]!.votes ? sorted[index - 1]!.rank : index + 1
   return sorted
+}
+
+// Earlier qualified works keep their places; a supplementary round fills the remaining places.
+export function combineAwardRoundResults(previous: AwardResult[], current: AwardResult[]): AwardResult[] {
+  const locked = new Map(previous.filter((item) => item.votes > 0).map((item) => [item.id, item]))
+  const combined = current
+    .map((item) => {
+      const first = locked.get(item.id)
+      return first
+        ? { ...item, ...first, qualifiedRound: 1 }
+        : item.votes > 0
+          ? { ...item, qualifiedRound: 2 }
+          : { ...item }
+    })
+    .sort(
+      (a, b) =>
+        (a.qualifiedRound || 3) - (b.qualifiedRound || 3) ||
+        b.votes - a.votes ||
+        a.title.localeCompare(b.title, 'zh-CN'),
+    )
+  return combined.map((item, index) => ({
+    ...item,
+    rank:
+      index > 0 &&
+      item.votes === combined[index - 1]!.votes &&
+      item.qualifiedRound === combined[index - 1]!.qualifiedRound
+        ? combined.findIndex(
+            (other) => other.votes === item.votes && other.qualifiedRound === item.qualifiedRound,
+          ) + 1
+        : index + 1,
+  }))
 }
 
 export function validatePhaseTransition(

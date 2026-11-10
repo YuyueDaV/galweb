@@ -39,6 +39,8 @@ export interface WeightedBallotInput {
   recommendations: { candidateId: string; text: string }[]
 }
 export interface AwardCampaign {
+  votingRound?: number
+  lockedCandidateIds?: string[]
   ballotRules?: AwardBallotRules
   votingRule?: AwardVotingRule
   version?: number
@@ -93,11 +95,24 @@ export interface AwardBallot {
 }
 
 export interface AwardResult extends AwardCandidate {
+  qualifiedRound?: number
   loveVotes?: number
   likeVotes?: number
   recommendationCount?: number
   votes: number
   rank: number
+}
+
+export interface AwardPublicRecommendation {
+  candidateId: string
+  text: string
+  authorName: string
+  round: number
+}
+
+export interface AwardAdminBallot extends AwardBallot {
+  accountName: string
+  round: number
 }
 
 export interface AwardAuditEntry {
