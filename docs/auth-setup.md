@@ -83,6 +83,24 @@ pnpm --filter @chengzhixiang/api mail:test 你的测试收件邮箱
 
 ## 验证
 
+### 本地 API 启动失败
+
+本地开发使用 `apps/api/.env` 中的 `NODE_ENV=development`、`API_HOST=127.0.0.1`、`API_PORT=3200` 和 `WEB_ORIGIN=http://127.0.0.1:3100`。数据库账号、密码和数据库名填写本机 MySQL 的配置；编辑器中修改后需要保存，再运行 `pnpm --filter @chengzhixiang/api db:check`，预期为 `Database connection OK.`。
+
+启动日志会输出失败阶段和安全错误码：`ER_ACCESS_DENIED_ERROR` / 1045 表示数据库账号或密码未通过验证；`ER_NO_SUCH_TABLE` 表示目标库缺表；`EADDRINUSE` 表示已有进程占用 API 端口。先修正对应问题，不要遇到任何启动失败都重新迁移或更改数据库密码。重启前在旧 API 终端按 Ctrl+C，避免同时运行两个 `dev:api`。
+
+Windows 浏览器使用系统代理时，Node 后端可能仍然直连。如果本地 Bangumi 公开搜索超时，可在 PowerShell 为本次开发进程启用代理，再启动 API（将代理地址替换为本机实际监听地址；Node 需支持 `--use-env-proxy`）：
+
+```powershell
+$env:HTTP_PROXY="http://127.0.0.1:7897"
+$env:HTTPS_PROXY="http://127.0.0.1:7897"
+$env:NO_PROXY="localhost,127.0.0.1,::1"
+$env:NODE_OPTIONS=("$env:NODE_OPTIONS --use-env-proxy").Trim()
+pnpm.cmd dev:api
+```
+
+这些是当前 PowerShell 及其子进程的设置，不会自动保留到新终端。本机回环地址应绕过代理；本地开发的代理地址不用于宝塔服务器。Bangumi 个人令牌仍只放在 API 的 `.env` 中。
+
 帖子卡片的浏览数来自 `forum_post_metrics`，只在前端进入详情页后通过 `POST /api/posts/:id/views` 记录；列表、回复读取和点赞刷新不增加浏览数。`forum_view_receipts` 使用服务端密钥对来源 IP 与 User-Agent 生成 HMAC，同一来源对同一帖子 30 分钟内计一次；不保存原始 IP 或 User-Agent，过期去重记录由小时维护任务清理。此数为浏览次数，不能视为准确的独立访客数。新表通过 `pnpm db:migrate` 创建，旧帖子从 0 开始累计。
 
 回复数只统计已发布回复。收藏通过登录账号持久存储，登录后同步，未登录点击会打开登录弹窗；提交期间禁用重复点击，失败保持原状态并显示错误。

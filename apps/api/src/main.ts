@@ -15,6 +15,7 @@ import {apiError} from './http-errors'
 import {AccountDeletion} from './account-deletion'
 import {Assets} from './assets'
 import {verifiedRequestOrigin} from './request-origin'
+import {startupDiagnostic,type StartupStage} from './startup-diagnostic'
 
 const email=z.string().trim().max(254).email().regex(/^[\x21-\x7e]+$/)
 const password=z.string().min(12).max(128)
@@ -47,8 +48,11 @@ class AuthController {
  @Patch(':id') async update(@Param('id') id:string,@Body() body:unknown,@Req() req:Request){const actor=await auth.session(cookies(req)[cookieName]);if(!equal(digest(req.header('X-CSRF-Token')||''),actor.csrf_hash))throw new HttpException('请求校验失败。',403);const patch=parse(z.object({role:z.enum(['member','admin','super_admin']).optional(),status:z.enum(['active','disabled']).optional()}).strict(),body);return platform.updateAccount(actor,id,patch)}
 }
 @Module({controllers:[AuthController,HealthController,AccountsController,...businessControllers(db,auth,platform,cookieName,c.AUTH_SECRET)]}) class AppModule {}
+let startupStage:StartupStage='database'
 async function bootstrap(){
-  await db.rows('SELECT id FROM users LIMIT 1');await auth.initialize()
+  await db.rows('SELECT id FROM users LIMIT 1')
+  startupStage='authentication';await auth.initialize()
+  startupStage='application'
   const app=await NestFactory.create(AppModule,{bodyParser:false,logger:['error','warn']})
   app.getHttpAdapter().getInstance().set('trust proxy',c.TRUST_PROXY.split(',').filter(Boolean))
   app.use(json({limit:'128kb'}))
@@ -63,6 +67,7 @@ async function bootstrap(){
     next()
   })
   app.useGlobalFilters(new Errors())
+  startupStage='listen'
   await app.listen(c.API_PORT,c.API_HOST)
   console.log(`Auth API listening on ${c.API_HOST}:${c.API_PORT}`)
   void assets.cleanupDeletedAccounts().catch(()=>console.error('Deleted account asset cleanup failed'))
@@ -70,4 +75,4 @@ async function bootstrap(){
   const cleanup=setInterval(()=>{void Promise.all([assets.cleanupDeletedAccounts(),assets.cleanupPendingDeletes(),db.execute('DELETE FROM forum_view_receipts WHERE expires_at<?',[Date.now()]),db.execute('DELETE FROM auth_sessions WHERE expires_at<?',[Date.now()]),db.execute('DELETE FROM auth_rate_limits WHERE expires_at<?',[Date.now()]),db.execute('DELETE FROM email_verification_challenges WHERE expires_at<?',[Date.now()-86400000])]).catch(()=>console.error('Auth cleanup failed'))},3600000);cleanup.unref()
   for(const signal of ['SIGINT','SIGTERM'] as const)process.once(signal,()=>{clearInterval(cleanup);void app.close().then(()=>db.pool.end())})
 }
-bootstrap().catch(()=>{console.error('API startup failed. Check .env, database connectivity and run migrations.');void db.pool.end();process.exitCode=1})
+bootstrap().catch(error=>{console.error('API startup failed.',startupDiagnostic(error,startupStage));void db.pool.end();process.exitCode=1})
