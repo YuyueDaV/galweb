@@ -72,6 +72,36 @@ html[data-theme='dark'] {
   border-color: var(--orange);
   box-shadow: 0 0 0 3px var(--orange-soft);
 }
+.site-wrap .header-search.search-open {
+  background: rgb(var(--liquid-rgb) / 76%);
+  border-color: var(--liquid-edge);
+  border-radius: 999px;
+  -webkit-backdrop-filter: blur(14px) saturate(1.25);
+  backdrop-filter: blur(14px) saturate(1.25);
+}
+.site-wrap .header-search.search-open:focus-within {
+  background: rgb(var(--liquid-rgb) / 88%);
+}
+.site-wrap .header-search :is(.search-trigger, .search-close) {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background-color: rgb(var(--liquid-rgb) / 58%);
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 14%), transparent 55%);
+  border: 1px solid var(--liquid-edge);
+  box-shadow:
+    inset 0 1px 0 var(--liquid-highlight),
+    0 2px 10px var(--liquid-shadow);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  backdrop-filter: blur(10px) saturate(1.2);
+  color: var(--subtle);
+  transition: background-color .18s, color .18s, border-color .18s;
+}
+.site-wrap .header-search.search-open :is(.search-trigger, .search-close):hover {
+  color: var(--orange);
+  border-color: var(--orange);
+  background-color: rgb(var(--liquid-rgb) / 78%);
+}
 .site-wrap :is(.button.secondary, .category-card, .work-card)[data-liquid-glass] {
   transition:
     background-color var(--motion-fast) var(--motion-ease),
@@ -259,6 +289,10 @@ html .site-wrap [data-liquid-glass='opaque'] {
     width: 100%;
     justify-content: center;
     padding-inline: 4px;
+    font-size: 12px;
+  }
+  .section-heading .write-link {
+    font-size: 12px;
   }
   .feed-toolbar .feed-sort {
     width: 100%;
@@ -268,6 +302,7 @@ html .site-wrap [data-liquid-glass='opaque'] {
     flex: 1;
     width: 100%;
     max-width: none;
+    font-size: 13px;
   }
   .feed-toolbar {
     gap: 8px;
@@ -923,4 +958,78 @@ html .site-wrap [data-liquid-glass='opaque'] {
   .site-wrap .glass-select-menu {
     background: var(--surface);
   }
+}
+
+/* Dark theme: the gel sheen reads as smudged glass, so controls stay flat and matte. */
+html[data-theme='dark'] .site-wrap :where(button, .button, input[type='submit'], select) {
+  background-image: none;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+html[data-theme='dark'] .site-wrap .glass-select-menu {
+  background-image: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+html[data-theme='dark'] .site-wrap .award-form :is(input, textarea),
+html[data-theme='dark'] .site-wrap .award-quota-fields input {
+  background-color: rgb(0 0 0 / 24%);
+  border-color: var(--line);
+}
+html[data-theme='dark'] :is(.login-modal, .auth-panel) .auth-tabs {
+  background: rgb(0 0 0 / 24%);
+  border-color: var(--line);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+html[data-theme='dark'] :is(.login-modal, .auth-panel) .auth-tabs button[aria-pressed='true'] {
+  background: var(--orange);
+  color: #fffaf4;
+  box-shadow: none;
+}
+
+/* Gate and admin controls share the site's 44-48px / 13-14px control scale. */
+.site-wrap .award-access-denied > .button {
+  min-height: 48px;
+  padding: 12px 22px;
+  font-size: 14px;
+  gap: 10px;
+  border-radius: 10px;
+  vertical-align: middle;
+}
+.site-wrap .award-access-denied > .text-link {
+  display: inline-flex;
+  margin: 0 0 0 14px;
+  font-size: 14px;
+  vertical-align: middle;
+}
+.site-wrap .award-admin-tabs button {
+  min-height: 46px;
+  padding: 10px 22px;
+  font-size: 14px;
+  gap: 8px;
+}
+.site-wrap .award-admin-role {
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 8px;
+}
+.site-wrap .award-status {
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: 8px;
+}
+.site-wrap .award-admin-summary span,
+.site-wrap .award-admin-summary small {
+  font-size: 12px;
+}
+.site-wrap .award-admin-campaign-bar label > span {
+  font-size: 13px;
+}
+.site-wrap .award-admin-campaign-bar > a {
+  font-size: 13px;
+}
+.site-wrap .award-page-top .text-link {
+  font-size: 13px;
 }

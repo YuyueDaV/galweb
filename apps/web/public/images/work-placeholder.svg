@@ -1,1 +1,46 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 420"><rect width="300" height="420" fill="#eeece3"/><g fill="none" stroke="#b08d70" stroke-width="3"><rect x="80" y="125" width="140" height="175" rx="8"/><path d="M100 125v175m30-140h60m-60 25h45"/></g><text x="150" y="350" text-anchor="middle" fill="#766e62" font-size="14" font-family="sans-serif">A STORY AWAITS</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 420">
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1">
+      <stop class="paper-a" offset="0" stop-color="#faf5ea"/>
+      <stop class="paper-b" offset="1" stop-color="#efe4cf"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.2" cy="0.1" r="0.9">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="26" height="26" patternUnits="userSpaceOnUse">
+      <path class="grid-line" d="M26 0H0V26" fill="none" stroke="#d9c8a9" stroke-opacity="0.3"/>
+    </pattern>
+  </defs>
+  <rect width="300" height="420" fill="url(#paper)"/>
+  <rect width="300" height="420" fill="url(#grid)"/>
+  <rect class="glow" width="300" height="420" fill="url(#glow)"/>
+  <g class="spark" fill="#d7a05f" opacity="0.55">
+    <path d="M56 60l3.5 10L70 74l-10.5 3.5L56 88l-3.5-10.5L42 74l10.5-4z"/>
+    <path d="M232 92l2.5 7 7 2.5-7 2.5-2.5 7-2.5-7-7-2.5 7-2.5z" opacity="0.85"/>
+    <circle cx="250" cy="332" r="3"/>
+    <circle cx="44" cy="306" r="2.5"/>
+  </g>
+  <g>
+    <rect class="book" x="92" y="112" width="116" height="146" rx="12" fill="#fffdf6" stroke="#cfa16d" stroke-width="3"/>
+    <path class="spine" d="M108 112v146" fill="none" stroke="#cfa16d" stroke-width="3"/>
+    <path class="ribbon" d="M172 112v46l11-9 11 9v-46z" fill="#d97542"/>
+    <path class="lines" d="M126 152h34M126 172h44M126 192h30" fill="none" stroke="#d9b88d" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <text class="title" x="150" y="322" text-anchor="middle" fill="#8a6b4a" font-size="15" font-family="Georgia,'Times New Roman',serif" letter-spacing="2">A STORY AWAITS</text>
+  <text class="subtitle" x="150" y="350" text-anchor="middle" fill="#b09a7d" font-size="11" font-family="sans-serif" letter-spacing="3">CHENG ZHI XIANG</text>
+  <style>
+    @media (prefers-color-scheme: dark) {
+      .paper-a { stop-color: #2b3025; }
+      .paper-b { stop-color: #242820; }
+      .grid-line { stroke: #5a614c; }
+      .glow { opacity: 0.2; }
+      .spark { opacity: 0.45; }
+      .book { fill: #30362b; stroke: #8a7a5e; }
+      .spine { stroke: #8a7a5e; }
+      .lines { stroke: #7d7358; }
+      .title { fill: #d9c3a3; }
+      .subtitle { fill: #9a9d8d; }
+    }
+  </style>
+</svg>

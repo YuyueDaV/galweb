@@ -327,4 +327,12 @@ async function copyGroup() {
     font-size: 0.9rem;
   }
 }
+@media (max-width: 600px) {
+  .club-promotion h2 {
+    font-size: 1rem;
+  }
+  .club-group-number > strong {
+    font-size: 1rem;
+  }
+}
 </style>

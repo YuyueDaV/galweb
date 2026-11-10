@@ -25,3 +25,22 @@ useSeoMeta({ title: () => `${work.value?.title || '未找到作品'} · 澄之�
   </div>
   <div v-else class="empty-state"><AppIcon name="book" :size="36" /><h1>这页故事还没有被写下</h1><NuxtLink to="/works" class="button primary">回到作品书架</NuxtLink></div>
 </template>
+
+<style scoped>
+@media (min-width: 600px) {
+  .work-detail-hero {
+    position: relative;
+  }
+  .work-detail-hero :deep(.work-award-badges) {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 5;
+    justify-content: flex-end;
+  }
+  .work-detail-hero :deep(.work-award-options) {
+    right: 0;
+    left: auto;
+  }
+}
+</style>

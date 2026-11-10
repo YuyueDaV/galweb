@@ -19,19 +19,24 @@ test('书架荣誉按届次展示，桌面与手机标记可读，立体书架�
       .click()
     await page.setViewportSize({ width, height: 1000 })
     const card = page.locator('.work-card').first()
-    await expect(card.getByLabel('第2届十二橙器，第2名', { exact: true })).toBeVisible()
-    await expect(card.getByLabel('第1届十二橙器，第1名', { exact: true })).toBeVisible()
+    const summary = card.locator('.work-award-summary')
+    await expect(summary).toBeVisible()
+    await expect(summary).toHaveAttribute('aria-label', '第2届十二橙器第2名，第1届十二橙器第1名')
     expect(
-      await card
-        .locator('.work-award-badge strong')
-        .first()
-        .evaluate((el) => parseFloat(getComputedStyle(el).fontSize)),
+      await summary.evaluate((el) => parseFloat(getComputedStyle(el).fontSize)),
     ).toBeGreaterThanOrEqual(12)
+    if (width === 1440) {
+      await summary.hover()
+      const options = card.locator('.work-award-options')
+      await expect(options).toBeVisible()
+      await expect(options).toContainText('第 2 届')
+      await expect(options).toContainText('第 1 届')
+    }
     await card.screenshot({ path: `.data/visual-checks/award-honors-${width}.png` })
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy()
   }
   await page.getByRole('button', { name: '立体书架', exact: true }).click()
-  await expect(
-    page.locator('.shelf-book').first().getByLabel('第2届十二橙器，第2名', { exact: true }),
-  ).toBeVisible()
+  const shelfSummary = page.locator('.shelf-book').first().locator('.work-award-summary')
+  await expect(shelfSummary).toBeVisible()
+  await expect(shelfSummary).toHaveAttribute('aria-label', '第2届十二橙器第2名，第1届十二橙器第1名')
 })
