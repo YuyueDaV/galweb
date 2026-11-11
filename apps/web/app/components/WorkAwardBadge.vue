@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Work } from '~/types/forum'
-const props = defineProps<{ work: Work; overlay?: boolean }>()
+const props = defineProps<{ work: Work; overlay?: boolean; expanded?: boolean }>()
 const honors = computed(
   () =>
     props.work.awardHonors ??
@@ -14,8 +14,12 @@ const honorLabels = computed(() =>
 const singleHonor = computed(() => (honors.value.length === 1 ? honors.value[0] : undefined))
 </script>
 <template>
-  <span class="work-award-badges" :class="{ 'is-overlay': overlay }" aria-label="作品收录与十二橙器荣誉">
-    <span v-if="honors.length > 1" class="work-award-menu">
+  <span
+    class="work-award-badges"
+    :class="{ 'is-overlay': overlay, 'is-expanded': expanded }"
+    aria-label="作品收录与十二橙器荣誉"
+  >
+    <span v-if="honors.length > 1 && !expanded" class="work-award-menu">
       <span class="work-award-summary" :aria-label="honorLabels.join('，')">
         <AppIcon name="trophy" :size="15" /><span
           ><span class="work-award-name">十二橙器 · </span>{{ honors.length }} 届荣誉</span
@@ -106,6 +110,26 @@ const singleHonor = computed(() => (honors.value.length === 1 ? honors.value[0] 
   font-weight: 400;
   line-height: 1.4;
   white-space: nowrap;
+}
+.is-expanded .work-award-badge {
+  max-width: 100%;
+}
+.is-expanded .work-award-badge > .app-icon {
+  flex-shrink: 0;
+}
+.is-expanded .work-award-badge > span {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.45rem;
+  min-width: 0;
+}
+.is-expanded .work-award-badge strong,
+.is-expanded .work-award-badge small {
+  white-space: nowrap;
+}
+.is-expanded .work-award-badge small {
+  color: inherit;
 }
 .work-award-menu {
   position: relative;
