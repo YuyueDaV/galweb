@@ -189,7 +189,7 @@ useSeoMeta({ title: '作品书架 · 澄之响' })
           <h3>{{ work.title }}</h3>
           <small v-if="work.addedBy" class="catalog-help">添加人：{{ work.addedBy.name }}</small
           ><span>{{ work.description }}</span>
-          <div>
+          <div class="work-card-footer">
             <span>{{ work.bangumi?.score ? `Bangumi ${work.bangumi.score.toFixed(1)}` : '成员推荐' }}</span
             ><AppIcon name="arrowRight" :size="16" />
           </div></div
@@ -214,6 +214,15 @@ useSeoMeta({ title: '作品书架 · 澄之响' })
 </template>
 
 <style scoped>
+.work-card-footer {
+  gap: 0.5rem;
+  font-size: max(14px, 0.7rem);
+  font-weight: 400;
+  line-height: 1.6;
+}
+.work-card-footer > .app-icon {
+  flex-shrink: 0;
+}
 .library-toolbar {
   scroll-margin-top: 8rem;
 }
