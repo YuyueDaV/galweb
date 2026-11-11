@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { InboxItem } from '~/types/community'
 const auth = useAuth(),
   inbox = useNotifications(),
   { loginOpen } = useForum()
@@ -35,6 +36,18 @@ async function open(id: string, link: string) {
   } catch (e) {
     error.value = (e as Error).message
   }
+}
+async function respond(item: InboxItem) {
+  const link =
+    item.postId && item.replyId
+      ? '/post/' +
+        encodeURIComponent(item.postId) +
+        '?replyTo=' +
+        encodeURIComponent(item.replyId) +
+        '#reply-' +
+        item.replyId
+      : item.link
+  await open(item.id, link)
 }
 watch(page, load)
 watch(
@@ -73,42 +86,57 @@ useSeoMeta({ title: '消息通知 · 澄之响', robots: 'noindex,nofollow' })
           v-for="item in inbox.items.value"
           :key="item.id"
           class="inbox-item"
-          :class="{ unread: !item.readAt }"
+          :class="{
+            unread: !item.readAt,
+            'is-reply': item.kind === 'reply' && item.postTitle && item.replyAuthor,
+          }"
         >
-          <header class="notification-meta">
-            <span class="notification-kind"
-              ><span class="category-dot" :class="item.readAt ? 'green' : 'orange'" aria-hidden="true"></span
-              >{{
-                { site: '站点通知', activity: '活动通知', reply: '回复消息', nomination: '提名审核' }[
-                  item.kind
-                ] || '消息通知'
-              }}</span
-            >
-            <span v-if="!item.readAt" class="notification-unread">未读</span>
-          </header>
-          <div class="notification-copy">
-            <button type="button" class="notification-title" @click="open(item.id, item.link)">
-              <span>{{ item.title }}</span
-              ><small v-if="!item.content && item.excerpt" class="notification-excerpt">{{
-                item.excerpt
-              }}</small>
-            </button>
-            <p v-if="item.content" class="notification-body">{{ item.content }}</p>
-          </div>
-          <footer class="notification-footer">
-            <time :datetime="new Date(Number(item.createdAt)).toISOString()">{{
-              new Date(Number(item.createdAt)).toLocaleString('zh-CN')
-            }}</time>
-            <button
-              v-if="item.content"
-              type="button"
-              class="notification-read"
-              :disabled="!!item.readAt && !item.link"
-              @click="open(item.id, item.link)"
-            >
-              {{ item.link ? '查看详情 ↗' : item.readAt ? '已读' : '标为已读' }}
-            </button>
-          </footer>
+          <ReplyNotification
+            v-if="item.kind === 'reply' && item.postTitle && item.replyAuthor"
+            :item="item"
+            @open="open(item.id, item.link)"
+            @reply="respond(item)"
+          />
+          <template v-else>
+            <header class="notification-meta">
+              <span class="notification-kind"
+                ><span
+                  class="category-dot"
+                  :class="item.readAt ? 'green' : 'orange'"
+                  aria-hidden="true"
+                ></span
+                >{{
+                  { site: '站点通知', activity: '活动通知', reply: '回复消息', nomination: '提名审核' }[
+                    item.kind
+                  ] || '消息通知'
+                }}</span
+              >
+              <span v-if="!item.readAt" class="notification-unread">未读</span>
+            </header>
+            <div class="notification-copy">
+              <button type="button" class="notification-title" @click="open(item.id, item.link)">
+                <span>{{ item.title }}</span>
+                <small v-if="!item.content && item.excerpt" class="notification-excerpt">{{
+                  item.excerpt
+                }}</small>
+              </button>
+              <p v-if="item.content" class="notification-body">{{ item.content }}</p>
+            </div>
+            <footer class="notification-footer">
+              <time :datetime="new Date(Number(item.createdAt)).toISOString()">{{
+                new Date(Number(item.createdAt)).toLocaleString('zh-CN')
+              }}</time>
+              <button
+                v-if="item.content"
+                type="button"
+                class="notification-read"
+                :disabled="!!item.readAt && !item.link"
+                @click="open(item.id, item.link)"
+              >
+                {{ item.link ? '查看详情 ↗' : item.readAt ? '已读' : '标为已读' }}
+              </button>
+            </footer>
+          </template>
         </article>
       </div>
       <div class="page-controls">
@@ -260,6 +288,34 @@ useSeoMeta({ title: '消息通知 · 澄之响', robots: 'noindex,nofollow' })
   .inbox-item,
   .notification-empty {
     background: var(--surface);
+  }
+}
+
+.notification-list {
+  gap: 0;
+  padding: 0 1.2rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+.notification-list > .inbox-item {
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 1.2rem 0;
+}
+.notification-list > .inbox-item:last-child {
+  border-bottom: 0;
+}
+.notification-list > .inbox-item.unread {
+  padding-left: 0;
+  border-left: 0;
+}
+@media (max-width: 600px) {
+  .notification-list {
+    padding: 0 0.85rem;
   }
 }
 </style>

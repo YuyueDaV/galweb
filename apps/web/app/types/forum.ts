@@ -49,6 +49,9 @@ export interface Work {
 }
 
 export interface Reply {
+  threadId?: string
+  parentUnavailable?: boolean
+  createdAt?: number
   parentId?: string|null
   parentAuthor?: string|null
   userId?: string

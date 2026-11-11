@@ -205,6 +205,14 @@ export class Broadcasts {
 // Union individual replies/reviews with broadcasts while preserving per-account
 // receipts. No user receives historical broadcasts merely by registering later.
 export function inboxUnion() {
-  return `SELECT n.id,n.kind,n.title,n.link,n.read_at AS readAt,n.created_at AS createdAt,LEFT(r.content,160) AS excerpt,NULL AS content FROM notifications n LEFT JOIN forum_posts p ON p.id=n.post_id LEFT JOIN forum_replies r ON r.id=n.reply_id WHERE n.user_id=? AND (n.post_id IS NULL OR (p.status='published' AND (n.reply_id IS NULL OR r.status='published')))
-    UNION ALL SELECT b.id,b.kind,b.title,b.link,r.read_at AS readAt,b.created_at AS createdAt,LEFT(b.content,160) AS excerpt,b.content FROM notification_broadcast_recipients r JOIN notification_broadcasts b ON b.id=r.broadcast_id WHERE r.user_id=? AND b.kind IN ('site','activity')`
+  return `SELECT n.id,n.kind,n.title,n.link,n.read_at AS readAt,n.created_at AS createdAt,LEFT(r.content,160) AS excerpt,NULL AS content,
+    n.post_id AS postId,p.title AS postTitle,n.reply_id AS replyId,ru.nickname AS replyAuthor,ctx.parent_id AS parentId,pu.nickname AS parentAuthor,LEFT(pr.content,160) AS parentExcerpt,(pr.user_id=n.user_id) AS replyToMe,
+    ru.id AS replyAuthorId,CONCAT('/api/assets/',ru.avatar_asset_id) AS replyAvatarUrl,
+    CASE WHEN JSON_UNQUOTE(JSON_EXTRACT(p.data,'$.spoiler'))='true' THEN NULL ELSE JSON_UNQUOTE(JSON_EXTRACT(p.data,'$.uploadedImage')) END AS postCoverUrl,
+    CASE WHEN JSON_UNQUOTE(JSON_EXTRACT(p.data,'$.spoiler'))='true' THEN NULL ELSE JSON_UNQUOTE(JSON_EXTRACT(p.data,'$.image')) END AS postImage
+    FROM notifications n LEFT JOIN forum_posts p ON p.id=n.post_id LEFT JOIN forum_replies r ON r.id=n.reply_id
+    LEFT JOIN users ru ON ru.id=r.user_id LEFT JOIN forum_reply_context ctx ON ctx.reply_id=r.id
+    LEFT JOIN forum_replies pr ON pr.id=ctx.parent_id AND pr.post_id=n.post_id AND pr.status='published' LEFT JOIN users pu ON pu.id=pr.user_id
+    WHERE n.user_id=? AND (n.post_id IS NULL OR (p.status='published' AND (n.reply_id IS NULL OR (r.status='published' AND r.post_id=n.post_id))))
+    UNION ALL SELECT b.id,b.kind,b.title,b.link,r.read_at AS readAt,b.created_at AS createdAt,LEFT(b.content,160) AS excerpt,b.content,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL FROM notification_broadcast_recipients r JOIN notification_broadcasts b ON b.id=r.broadcast_id WHERE r.user_id=? AND b.kind IN ('site','activity')`
 }

@@ -5,6 +5,7 @@ import type { PoolConnection } from 'mysql2/promise'
 import {notifyUser} from './notifications'
 import {postExcerpt} from './post-content'
 import {recentTopics,topicKey,uniqueTopics} from './post-topics'
+import {replyRootResolver} from './reply-threads'
 export const decode=<T>(data:T|string):T=>typeof data==='string'?JSON.parse(data):data
 type PostData={id:string,title:string,content:string[],excerpt:string,category:string,author:string,avatar:string,avatarColor:string,createdAt:number,tags:string[],pinned?:boolean,featured?:boolean,spoiler?:boolean,image?:number,uploadedImage?:string,format?:'plain'|'markdown',body?:string,assetIds?:string[],workId?:number|null}
 type PostRow={id:string,user_id:string|null,display_name?:string|null,avatar_asset_id?:string|null,data:PostData|string,status:string,likes:number,replies:number,views?:number}
@@ -70,7 +71,13 @@ export class Forum {
   for(const recipient of new Set([post.user_id,parent?.user_id]))if(recipient&&recipient!==actor.id)await notifyUser(this.db,recipient,'reply',current.nickname+' 回复了《'+decode(post.data).title+'》','/post/'+id+'#reply-'+replyId,tx,id,replyId)
   return {id:replyId}
  })}
- async replies(id:string,actor?:Actor){await this.get(id,actor);const rows=await this.db.rows<{avatarAssetId:string|null}>("SELECT r.id,r.post_id AS postId,r.user_id AS userId,u.nickname AS author,u.avatar_asset_id AS avatarAssetId,r.content,r.created_at AS createdAt,pr.id AS parentId,pu.nickname AS parentAuthor FROM forum_replies r JOIN users u ON r.user_id=u.id LEFT JOIN forum_reply_context ctx ON ctx.reply_id=r.id LEFT JOIN forum_replies pr ON pr.id=ctx.parent_id AND pr.status='published' LEFT JOIN users pu ON pu.id=pr.user_id WHERE r.post_id=? AND r.status='published' ORDER BY r.created_at,r.id LIMIT 500",[id]);return rows.map(r=>({...r,avatarUrl:r.avatarAssetId?'/api/assets/'+r.avatarAssetId:null}))}
+ async replies(id:string,actor?:Actor){
+  await this.get(id,actor)
+  const rows=await this.db.rows<{id:string,parentId:string|null,visibleParentId:string|null,avatarAssetId:string|null}>("SELECT r.id,r.post_id AS postId,r.user_id AS userId,u.nickname AS author,u.avatar_asset_id AS avatarAssetId,r.content,r.created_at AS createdAt,ctx.parent_id AS parentId,pr.id AS visibleParentId,pu.nickname AS parentAuthor FROM forum_replies r JOIN users u ON r.user_id=u.id LEFT JOIN forum_reply_context ctx ON ctx.reply_id=r.id LEFT JOIN forum_replies pr ON pr.id=ctx.parent_id AND pr.post_id=r.post_id AND pr.status='published' LEFT JOIN users pu ON pu.id=pr.user_id WHERE r.post_id=? AND r.status='published' ORDER BY r.created_at,r.id LIMIT 500",[id])
+  const edges=rows.some(r=>r.parentId)?await this.db.rows<{id:string,parentId:string|null}>('SELECT ctx.reply_id AS id,ctx.parent_id AS parentId FROM forum_reply_context ctx JOIN forum_replies r ON r.id=ctx.reply_id WHERE r.post_id=?',[id]):[]
+  const root=replyRootResolver(edges)
+  return rows.map(({visibleParentId,...r})=>({...r,threadId:root(r.id),parentUnavailable:!!r.parentId&&!visibleParentId,avatarUrl:r.avatarAssetId?'/api/assets/'+r.avatarAssetId:null}))
+ }
  async reaction(actor:Actor,id:string,kind:'like'|'bookmark',active:boolean){return this.db.transaction(async tx=>{await this.platform.actor(actor.id,tx);await this.get(id,undefined,tx);if(active)await this.db.execute('INSERT IGNORE INTO forum_reactions(post_id,user_id,kind) VALUES (?,?,?)',[id,actor.id,kind],tx);else await this.db.execute('DELETE FROM forum_reactions WHERE post_id=? AND user_id=? AND kind=?',[id,actor.id,kind],tx);return {active}})}
  async mine(actor:Actor){const rows=await this.db.rows<{post_id:string,kind:string}>('SELECT post_id,kind FROM forum_reactions WHERE user_id=?',[actor.id]);return {likes:rows.filter(r=>r.kind==='like').map(r=>r.post_id),bookmarks:rows.filter(r=>r.kind==='bookmark').map(r=>r.post_id)}}
  async edit(actor:Actor,id:string,patch:{title?:string,content?:string,tags?:string[],status?:string,pinned?:boolean,featured?:boolean,format?:'plain'|'markdown',workId?:number|null,assetIds?:string[],spoiler?:boolean}){return this.db.transaction(async tx=>{

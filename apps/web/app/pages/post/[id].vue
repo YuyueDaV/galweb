@@ -2,6 +2,7 @@
 import type {ForumPost,Reply,Work} from '~/types/forum'
 import {coverUrl} from '~/data/forum'
 import {renderMarkdown} from '~/utils/markdown'
+import {groupReplyThreads} from '~/utils/reply-threads'
 const route=useRoute(),api=useRequestFetch(),auth=useAuth(),forum=useForum(),config=useRuntimeConfig()
 const {load:refreshTopics}=useTopics()
 const {bookmarks,likes,username,toggleBookmark,toggleLike,replyCount,recordView,reactionPending,notify}=forum
@@ -11,8 +12,9 @@ const {data:detail,error:loadError,refresh}=await useAsyncData(()=> 'post-page:'
 })
 const {data:catalogWorks}=await useAsyncData('work-catalog',()=>api<Work[]>('/api/works'))
 const post=computed(()=>detail.value?.post),postReplies=computed(()=>detail.value?.replies||[]),relatedWork=computed(()=>catalogWorks.value?.find(w=>w.rank===(post.value?.workId||post.value?.image)))
+const replyThreads=computed(()=>groupReplyThreads(postReplies.value))
 const postActionError=ref('')
-const reply=ref(''),replyTarget=ref<{id:string,author:string}|null>(null),replyInput=ref<HTMLTextAreaElement|null>(null),replyBusy=ref(false),error=ref('')
+const reply=ref(''),replyTarget=ref<{id:string,author:string,content:string}|null>(null),replyInput=ref<HTMLTextAreaElement|null>(null),replyBusy=ref(false),error=ref('')
 const spoilerVisible=ref(false),editing=ref(false),editTitle=ref(''),editContent=ref(''),editAssets=ref<string[]>([]),editBusy=ref(false),editUploading=ref(false),deleteConfirm=ref(false),deleteBusy=ref(false),editTags=ref<string[]>([])
 const canEdit=computed(()=>post.value?.status!=='deleted'&&!!auth.user.value&&(auth.user.value.id===post.value?.userId||auth.user.value.role!=='member'))
 const article=ref<HTMLElement|null>(null),progress=ref(0),fontSize=ref(18),wide=ref(false)
@@ -24,17 +26,18 @@ if(import.meta.server){useResponseHeader('Cache-Control').value='private, no-sto
 watch(detail,value=>{if(!value)return;const index=forum.posts.value.findIndex(p=>p.id===value.post.id);if(index<0)forum.posts.value.push(value.post);else forum.posts.value[index]=value.post},{immediate:true})
 function updateProgress(){const node=article.value;if(!node)return;const rect=node.getBoundingClientRect();progress.value=Math.max(0,Math.min(100,Math.round((120-rect.top)/Math.max(1,node.offsetHeight-innerHeight+120)*100)))}
 async function scrollToHash(){await nextTick();const hash=route.hash;if(/^#(replies|reply-[a-f0-9-]+|read-section-\d+)$/.test(hash))document.getElementById(hash.slice(1))?.scrollIntoView({block:'start'})}
-async function entered(){spoilerVisible.value=false;reply.value='';replyTarget.value=null;deleteConfirm.value=false;editing.value=false;await scrollToHash();if(post.value){try{await recordView(id.value);const cached=forum.posts.value.find(p=>p.id===id.value);if(cached)post.value.views=cached.views}catch(e){error.value=(e as Error).message}}updateProgress()}
+async function replyFromLink(){const targetId=route.query.replyTo;if(typeof targetId!=='string')return;await auth.initialize();const target=postReplies.value.find(item=>item.id===targetId);if(target)await targetReply(target);else error.value='这条留言已不可用，请重新选择回复对象。'}
+async function entered(){spoilerVisible.value=false;reply.value='';replyTarget.value=null;deleteConfirm.value=false;editing.value=false;await scrollToHash();if(post.value){try{await recordView(id.value);const cached=forum.posts.value.find(p=>p.id===id.value);if(cached)post.value.views=cached.views}catch(e){error.value=(e as Error).message}}updateProgress();await replyFromLink()}
 onMounted(()=>{try{const settings=JSON.parse(localStorage.getItem('czx-reader-settings')||'{}');if([16,18,20,22].includes(settings.fontSize))fontSize.value=settings.fontSize;wide.value=settings.wide===true}catch{}window.addEventListener('scroll',updateProgress,{passive:true});window.addEventListener('resize',updateProgress);void entered()})
 onBeforeUnmount(()=>{window.removeEventListener('scroll',updateProgress);window.removeEventListener('resize',updateProgress)})
 watch([fontSize,wide],()=>{try{localStorage.setItem('czx-reader-settings',JSON.stringify({fontSize:fontSize.value,wide:wide.value}))}catch{}nextTick(updateProgress)})
-watch(id,()=>{spoilerVisible.value=false;reply.value='';replyTarget.value=null;editing.value=false});watch(()=>detail.value?.post.id,()=>entered());watch(()=>route.hash,scrollToHash)
+watch(id,()=>{spoilerVisible.value=false;reply.value='';replyTarget.value=null;editing.value=false});watch(()=>detail.value?.post.id,()=>entered());watch(()=>route.hash,scrollToHash);watch(()=>route.query.replyTo,replyFromLink)
 function startEdit(){postActionError.value='';deleteConfirm.value=false;editTags.value=[...post.value?.tags||[]];editTitle.value=post.value?.title||'';editContent.value=post.value?.body||post.value?.content.join('\n\n')||'';editAssets.value=[...post.value?.assetIds||[]];editing.value=true}
 async function saveEdit(){if(editBusy.value||editUploading.value||deleteBusy.value)return;editBusy.value=true;postActionError.value='';try{await auth.request('/posts/'+id.value,{title:editTitle.value,content:editContent.value,format:'markdown',assetIds:editAssets.value,tags:editTags.value},'PATCH');await refresh();await refreshTopics();editing.value=false;notify('修改已保存。')}catch(e){postActionError.value=(e as Error).message}finally{editBusy.value=false}}
 async function likePost(){await toggleLike(id.value);const cached=forum.posts.value.find(p=>p.id===id.value);if(detail.value&&cached)detail.value.post={...detail.value.post,likes:cached.likes}}
 async function deletePost(){if(deleteBusy.value||editBusy.value||editUploading.value)return;if(!deleteConfirm.value){deleteConfirm.value=true;return}deleteBusy.value=true;postActionError.value='';try{await auth.request('/posts/'+id.value,{},'DELETE');forum.forgetPost(id.value);await refreshTopics();notify('帖子已删除。');await navigateTo('/')}catch(e){postActionError.value=(e as Error).message}finally{deleteBusy.value=false}}
-async function targetReply(item:Reply){if(!auth.user.value){forum.loginOpen.value=true;return}replyTarget.value={id:item.id,author:item.author};await nextTick();replyInput.value?.focus();replyInput.value?.scrollIntoView({block:'center',behavior:'smooth'})}
-async function submitReply(){if(!auth.user.value){forum.loginOpen.value=true;return}if(replyBusy.value||!reply.value.trim())return;replyBusy.value=true;error.value='';try{await forum.addReply(id.value,reply.value,replyTarget.value?.id);reply.value='';replyTarget.value=null;await refresh();await scrollToHash()}catch(e){error.value=(e as Error).message}finally{replyBusy.value=false}}
+async function targetReply(item:Reply){if(!auth.user.value){forum.loginOpen.value=true;return}replyTarget.value={id:item.id,author:item.author,content:item.content};await nextTick();replyInput.value?.focus();replyInput.value?.scrollIntoView({block:'center',behavior:'smooth'})}
+async function submitReply(){if(!auth.user.value){forum.loginOpen.value=true;return}if(replyBusy.value||!reply.value.trim())return;replyBusy.value=true;error.value='';try{const created=await forum.addReply(id.value,reply.value,replyTarget.value?.id);reply.value='';replyTarget.value=null;await refresh();await navigateTo({path:route.path,hash:'#reply-'+created.id},{replace:true});await scrollToHash()}catch(e){error.value=(e as Error).message}finally{replyBusy.value=false}}
 </script>
 <template>
  <div v-if="post" class="detail-grid" :class="{'reader-wide':wide}">
@@ -49,8 +52,19 @@ async function submitReply(){if(!auth.user.value){forum.loginOpen.value=true;ret
     <div v-else class="post-prose"><ReadingImage v-if="post.uploadedImage" :src="post.uploadedImage" alt="帖子配图" /><ReadingImage v-if="post.image" :src="coverUrl(post.image)" :alt="relatedWork?.title||'作品配图'" /><MarkdownContent v-if="post.format==='markdown'" :source="post.body||post.content.join('\n\n')" /><template v-else><p v-for="(paragraph,index) in post.content" :key="index">{{ paragraph }}</p></template><PostAttachments :source="post.body||post.content.join('\n\n')" :asset-ids="post.assetIds||[]" :exclude="post.uploadedImage" /><NuxtLink v-if="post.id==='orange-awards'" to="/ranking" class="inline-feature-link"><AppIcon name="trophy" />翻开完整的十二橙器书单</NuxtLink></div>
     <div class="detail-post-tags"><NuxtLink v-for="tag in post.tags" :key="tag" :to="{path:'/',query:{tag},hash:'#discussions'}"># {{ tag }}</NuxtLink></div><div class="detail-actions"><button :class="['button',likes.includes(post.id)?'liked':'secondary']" :aria-pressed="likes.includes(post.id)" :disabled="reactionPending(post.id,'like')" @click="likePost"><AppIcon name="heart" :size="17" />{{ likes.includes(post.id)?'已送出回响':'送出一声回响' }} {{ post.likes }}</button><button class="text-link" :aria-pressed="bookmarks.includes(post.id)" :disabled="reactionPending(post.id,'bookmark')" @click="toggleBookmark(post.id)">{{ bookmarks.includes(post.id)?'已收藏':'收藏这篇故事' }}</button></div>
    </article>
-   <section id="replies" class="replies-section"><div class="section-heading"><h2>故事的回响 <span class="reply-total">{{ replyCount(post) }}</span></h2><span class="muted">认真回应，也是一种温柔。</span></div><p v-if="!postReplies.length" class="reply-empty">想到了什么？留一句话给作者吧。</p><article v-for="item in postReplies" :id="'reply-'+item.id" :key="item.id" class="reply-card"><NuxtLink v-if="item.userId" :to="'/user/'+item.userId" :aria-label="'查看'+item.author+'的主页'"><UserAvatar class="post-avatar" :src="item.userId===auth.user.value?.id?auth.user.value?.avatarUrl:item.avatarUrl" :name="item.author" /></NuxtLink><div><strong><NuxtLink :to="'/user/'+item.userId">{{ item.author }}</NuxtLink><small>{{ new Date(Number(item.createdAt)).toLocaleString('zh-CN') }}</small></strong><p v-if="item.parentId" class="reply-context">回复 {{ item.parentAuthor||'这位同好' }}</p><p>{{ item.content }}</p><button class="text-link" @click="targetReply(item)">回复这条留言</button></div></article>
-    <form class="reply-form" @submit.prevent="submitReply"><label for="reply-content">{{ username||'新来的同好' }}，也来说两句</label><div v-if="replyTarget" class="reply-target">正在回复 {{ replyTarget.author }}<button type="button" @click="replyTarget=null">取消</button></div><textarea id="reply-content" ref="replyInput" v-model="reply" rows="4" required maxlength="3000" :disabled="replyBusy" placeholder="把你的感受，接在故事后面……"></textarea><EmojiPicker v-model="reply" :target="replyInput" :disabled="replyBusy" /><div><span>回复将公开展示在社区</span><button class="button primary" :disabled="replyBusy||!reply.trim()">{{ replyBusy?'发送中…':'发布回复' }}</button></div></form><p v-if="error" class="form-error" role="alert">{{ error }}</p>
+   <section id="replies" class="replies-section"><div class="section-heading"><h2>故事的回响 <span class="reply-total">{{ replyCount(post) }}</span></h2><span class="muted">认真回应，也是一种温柔。</span></div><p v-if="!postReplies.length" class="reply-empty">想到了什么？留一句话给作者吧。</p><ReplyThread v-for="thread in replyThreads" :key="thread.id" :thread="thread" @reply="targetReply" />
+    <form class="reply-form" @submit.prevent="submitReply">
+      <label for="reply-content" class="sr-only">{{ username||'新来的同好' }}，也来说两句</label>
+      <UserAvatar class="reply-composer-avatar" :src="auth.user.value?.avatarUrl" :name="username||'同好'" size="2.25rem" />
+      <div class="reply-compose-main" :class="{'has-target':replyTarget}">
+        <div v-if="replyTarget" class="reply-target"><span class="reply-target-label">回复 {{ replyTarget.author }}</span><span class="reply-target-excerpt">{{ replyTarget.content.slice(0,120) }}</span><button type="button" @click="replyTarget=null">取消</button></div>
+        <div class="reply-input-row">
+          <textarea id="reply-content" ref="replyInput" v-model="reply" rows="2" required maxlength="3000" :disabled="replyBusy" :placeholder="replyTarget?'回复 @'+replyTarget.author+'……':'发一条友善的评论……'"></textarea>
+          <button class="button primary" :disabled="replyBusy||!reply.trim()">{{ replyBusy?'发送中…':'发布回复' }}</button>
+        </div>
+        <div class="reply-compose-tools"><EmojiPicker v-model="reply" :target="replyInput" :disabled="replyBusy" /><span>{{ reply.length }} / 3000</span></div>
+      </div>
+    </form><p v-if="error" class="form-error" role="alert">{{ error }}</p>
    </section>
   </div>
   <aside class="detail-rail"><section v-if="headings.length&&(!post.spoiler||spoilerVisible)" class="rail-card reading-toc"><h2>这篇故事的目录</h2><a v-for="heading in headings" :key="heading.id" :href="'#'+heading.id" :class="{'toc-child':heading.level>2}">{{ heading.text }}</a></section><section v-if="relatedWork" class="rail-card related-work"><p class="eyebrow">STORY IN THIS POST</p><WorkCover :rank="relatedWork.rank" :src="relatedWork.rank>12 ? relatedWork.bangumi?.coverUrl || '/images/work-placeholder.svg' : undefined" variant="cover" :alt="relatedWork.title+'封面'" /><h2>{{ relatedWork.title }}</h2><p>{{ relatedWork.description }}</p><NuxtLink :to="'/works/'+relatedWork.rank" class="text-link">前往作品书架<AppIcon name="arrowRight" :size="15" /></NuxtLink></section><section class="rail-card conversation-note"><AppIcon name="leaf" :size="23" /><h2>让讨论，多一点温柔。</h2><p>尊重不同感受，标记关键剧透。</p><NuxtLink to="/post/welcome" class="text-link">社区小约定</NuxtLink></section></aside>
@@ -58,4 +72,17 @@ async function submitReply(){if(!auth.user.value){forum.loginOpen.value=true;ret
  <div v-else class="empty-state"><h1>这篇故事暂时找不到了</h1><p>{{ loadError?'帖子可能已隐藏、删除，或服务暂不可用。':'' }}</p><button class="button secondary" @click="refresh()">重试加载</button><NuxtLink to="/" class="text-link">回到社区广场</NuxtLink></div>
 </template>
 
-<style scoped>.detail-post-tags{flex-wrap:wrap}.detail-post-tags>a{font-size:.5625rem;color:var(--muted);border:1px solid var(--line);border-radius:.25rem;padding:.1875rem .5rem;overflow-wrap:anywhere}.detail-post-tags>a:hover{color:var(--orange)}</style>
+<style scoped>.detail-post-tags{flex-wrap:wrap}.detail-post-tags>a{font-size:.5625rem;color:var(--muted);border:1px solid var(--line);border-radius:.25rem;padding:.1875rem .5rem;overflow-wrap:anywhere}.detail-post-tags>a:hover{color:var(--orange)}
+.replies-section{padding:1.3rem;border:1px solid var(--line);border-radius:var(--radius-card);background:var(--surface)}
+@media(max-width:600px){.replies-section{padding:1rem .8rem}}
+.replies-section .reply-form{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;gap:.85rem;margin-top:.8rem;padding:1rem 0 0;border:0;border-radius:0;background:transparent;box-shadow:none}
+.reply-form>.reply-compose-main{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:'input send' 'tools tools';gap:.45rem .65rem;min-width:0;margin:0}
+.reply-form>.reply-compose-main.has-target{grid-template-areas:'target target' 'input send' 'tools tools'}
+.reply-input-row{display:contents}.reply-input-row>textarea{grid-area:input;min-width:0;min-height:4rem;max-height:12rem;resize:vertical;padding:.65rem .8rem;border-radius:.55rem;font-size:max(14px,.75rem);line-height:1.7}
+.reply-input-row>.button{grid-area:send;align-self:stretch;min-width:4.2rem;font-size:.65rem;border-radius:.55rem}
+.reply-compose-tools{grid-area:tools;display:flex;align-items:center;justify-content:space-between;gap:.6rem;min-width:0;color:var(--muted);font-size:.55rem}
+.reply-compose-tools :deep(.emoji-picker){margin:0}.reply-compose-tools :deep(.emoji-picker>button){border:0;background:transparent;box-shadow:none;padding:.25rem 0;font-size:.65rem;color:var(--muted)}
+.reply-compose-main .reply-target{grid-area:target;display:flex;align-items:center;justify-content:flex-start;gap:.5rem;padding:.35rem .55rem;border-radius:.35rem;background:var(--orange-soft);min-width:0;font-size:.65rem;line-height:1.7}
+.reply-target-label{flex-shrink:0;color:var(--orange)}.reply-target-excerpt{min-width:0;color:var(--subtle);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.reply-target>button{flex-shrink:0;margin-left:auto;color:var(--muted)}
+@media(max-width:600px){.replies-section .reply-form{gap:.6rem}.reply-form>.reply-compose-main{grid-template-areas:'input input' 'tools send';gap:.4rem}.reply-form>.reply-compose-main.has-target{grid-template-areas:'target target' 'input input' 'tools send'}.reply-input-row>.button{min-height:2rem;padding:.3rem .65rem;font-size:12px;min-width:4rem}.reply-compose-tools>span{display:none}.reply-target-excerpt{display:none}.reply-compose-tools :deep(.emoji-picker>button){font-size:12px}}
+</style>

@@ -153,7 +153,15 @@ try {
   // Integration tests leave historical users in this isolated database. Keep exactly
   // two active owners for the self-demotion and last-owner browser checks.
   await connection.query('UPDATE `' + database + "`.users SET role='admin' WHERE role='super_admin'")
-  for (const username of ['browser_owner', 'browser_owner_other', 'browser_member', 'browser_auth']) {
+  for (const username of [
+    'browser_owner',
+    'browser_owner_other',
+    'browser_member',
+    'browser_auth',
+    'browser_thread_author',
+    'browser_thread_member',
+    'browser_thread_other',
+  ]) {
     const email = username + '@example.com'
     await connection.query(
       'INSERT INTO `' +
@@ -167,7 +175,11 @@ try {
         email,
         username,
         await hashPassword('Isolated moderator password 123!'),
-        username.startsWith('browser_owner') ? 'super_admin' : 'member',
+        username.startsWith('browser_owner')
+          ? 'super_admin'
+          : username === 'browser_thread_author'
+            ? 'admin'
+            : 'member',
         Date.now(),
         Date.now(),
       ],

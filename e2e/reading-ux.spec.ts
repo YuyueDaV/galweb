@@ -110,7 +110,7 @@ test('配图独立保存、内嵌去重与链接删除回退；Emoji 回复和�
     const item = page.locator('.inbox-item').filter({ hasText: '独立配图与表情回复测试' }).first()
     await expect(item.locator('.notification-excerpt')).toHaveText('喜欢👍这个故事')
     await page.screenshot({ path: test.info().outputPath('notification-excerpt.png') })
-    await item.getByRole('button').click()
+    await item.getByRole('button', { name: '查看回复', exact: true }).click()
     await expect(page).toHaveURL(/#reply-/)
   } finally {
     await member.close()
