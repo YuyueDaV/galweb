@@ -84,7 +84,8 @@ export class Auth {
     // Usernames cannot contain @. Email matching must preserve dots and + tags.
     const byEmail=identifier.includes('@'),key=byEmail?emailKey(identifier):usernameKey(identifier)
     await this.limit('login-ip',ip,30,60000);await this.limit(byEmail?'login-email':'login-username',key,10,600000)
-    const user=(await this.db.rows<User>(byEmail?'SELECT * FROM users WHERE email_key=?':'SELECT * FROM users WHERE username_key=?',[key]))[0]
+    // Email keys use ascii_bin; unsupported input must fail normally before SQL conversion.
+    const user=byEmail&&!/^[\x21-\x7e]+$/.test(key)?undefined:(await this.db.rows<User>(byEmail?'SELECT * FROM users WHERE email_key=?':'SELECT * FROM users WHERE username_key=?',[key]))[0]
     // Both login names share the same account budget, including failed passwords.
     if(user)await this.limit('login-account',user.id,10,600000)
     const matches=await checkPassword(password,user?.password_hash||this.dummyHash)

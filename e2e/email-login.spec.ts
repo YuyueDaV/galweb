@@ -3,9 +3,10 @@ import { test, expect } from '@playwright/test'
 test('手机登录框同时支持用户名和邮箱，大小写空白兼容、登录持久化及失败提示', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')
+  const loginEntry = page.getByRole('banner').getByRole('button', { name: '登录 / 加入', exact: true })
   let accountId = ''
   for (const identifier of ['browser_auth', '  BROWSER_AUTH@EXAMPLE.COM  ']) {
-    await page.getByRole('button', { name: '登录 / 加入', exact: true }).click()
+    await loginEntry.click()
     const dialog = page.getByRole('dialog', { name: '账号与登录' })
     const account = dialog.getByLabel('用户名或邮箱', { exact: true })
     await expect(account).toHaveAttribute('maxlength', '254')
@@ -23,9 +24,9 @@ test('手机登录框同时支持用户名和邮箱，大小写空白兼容、�
     accountId = profile.user.id
     await page.goto('/account')
     await page.getByRole('button', { name: '退出登录', exact: true }).click()
-    await expect(page.getByRole('button', { name: '登录 / 加入', exact: true })).toBeVisible()
+    await expect(loginEntry).toBeVisible()
   }
-  await page.getByRole('button', { name: '登录 / 加入', exact: true }).click()
+  await loginEntry.click()
   const dialog = page.getByRole('dialog', { name: '账号与登录' })
   await dialog.getByLabel('用户名或邮箱', { exact: true }).fill('browser_auth@example.com')
   await dialog.getByLabel('密码', { exact: true }).fill('wrong password')

@@ -72,6 +72,8 @@ test(
       await assert.rejects(() => auth.login(email.replace('+tag', ''), password, id), unauthorized)
       await assert.rejects(() => auth.login(email.replace('member.', 'member'), password, id), unauthorized)
       await assert.rejects(() => auth.login('missing-' + email, password, id), unauthorized)
+      await assert.rejects(() => auth.login('中文@example.com', password, id), unauthorized)
+      await assert.rejects(() => auth.login('tést@example.com', password, id), unauthorized)
       await assert.rejects(() => auth.login('仅展示的昵称', password, id), unauthorized)
       for (const status of ['disabled', 'deleted']) {
         await db.execute('UPDATE users SET status=? WHERE id=?', [status, id])

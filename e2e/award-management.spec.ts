@@ -10,12 +10,22 @@ test('管理员创建修改删除活动；自定义分值、互斥选票、推�
   const headers = { Origin: origin, 'X-CSRF-Token': (await login.json()).csrfToken }
   await page.goto('/admin/awards')
   await expect(page.getByLabel('当前活动')).toBeVisible()
+  const existingCampaigns = await (await page.request.get('/api/award-campaigns')).json()
+  const usedEditions = new Set(existingCampaigns.map((item: { edition: number }) => item.edition))
+  const edition = Array.from({ length: 99 }, (_, index) => index + 1).find(
+    (value) => !usedEditions.has(value),
+  )!
+  expect(edition).toBeDefined()
   const created = page.waitForResponse(
     (r) => r.url().endsWith('/api/admin/award-campaigns') && r.request().method() === 'POST',
   )
   await page.getByRole('button', { name: '新建一届', exact: true }).click()
+  const createDialog = page.getByRole('dialog', { name: '新建一届活动', exact: true })
+  await createDialog.getByRole('spinbutton', { name: /活动届数/ }).fill(String(edition))
+  await createDialog.getByRole('button', { name: '创建草稿', exact: true }).click()
   const campaign = await (await created).json(),
     id = campaign.id
+  expect(campaign.edition).toBe(edition)
   await expect(page.getByLabel('当前活动')).toHaveValue(id)
   await expect(page.getByLabel('真爱票张数', { exact: true })).toHaveValue('1')
   await expect(page.getByLabel('喜爱票张数', { exact: true })).toHaveValue('2')
@@ -151,6 +161,7 @@ test('管理员创建修改删除活动；自定义分值、互斥选票、推�
     expect(current.results.find((r: { id: string }) => r.id === first.candidateId).votes).toBe(9)
     expect(current.results.find((r: { id: string }) => r.id === second.candidateId).votes).toBe(1)
     await page.reload()
+    await page.getByLabel('当前活动').selectOption(id)
     await expect(page.getByLabel('当前活动')).toHaveValue(id)
     await page.getByRole('button', { name: '删除本届活动', exact: true }).click()
     await page.getByLabel('输入活动名称确认删除').fill('错误名称')
