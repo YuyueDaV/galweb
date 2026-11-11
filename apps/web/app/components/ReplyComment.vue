@@ -58,10 +58,19 @@ onMounted(() => {
 .reply-card > a {
   flex-shrink: 0;
 }
-.reply-card:target,
 .reply-card.is-target {
-  background: var(--orange-soft);
-  box-shadow: inset 3px 0 var(--orange);
+  animation: reply-target-fade 1s ease-out both;
+}
+@keyframes reply-target-fade {
+  0%,
+  15% {
+    background-color: var(--orange-soft);
+    box-shadow: inset 3px 0 var(--orange);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: inset 3px 0 transparent;
+  }
 }
 .reply-main {
   min-width: 0;

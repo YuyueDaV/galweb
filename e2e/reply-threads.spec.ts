@@ -135,8 +135,16 @@ test('评论回复在原评论下聚合，通知显示原留言并定位新回�
     await expect(other.page).toHaveURL(new RegExp('/post/' + post.id + '#reply-' + fifth.id + '$'))
     await expect(other.page.locator('.reply-card.is-target')).toHaveAttribute('id', 'reply-' + fifth.id)
     await expect(other.page.locator('#reply-' + fifth.id)).toBeInViewport()
+    const highlighted = other.page.locator('#reply-' + fifth.id)
+    await expect(highlighted).toHaveCSS('animation-duration', '1s')
+    await expect(highlighted).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)', { timeout: 2500 })
+    await expect(highlighted).toHaveCSS('box-shadow', /rgba\(0, 0, 0, 0\)/)
+    await expect(highlighted).toHaveCSS('opacity', '1')
+    await other.page.emulateMedia({ reducedMotion: 'reduce' })
     await other.page.reload()
     await expect(other.page.locator('.reply-card.is-target')).toHaveAttribute('id', 'reply-' + fifth.id)
+    await expect(highlighted).toHaveCSS('animation-name', 'none')
+    await expect(highlighted).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)', { timeout: 2500 })
     for (const id of [first.id, second.id, fourth.id]) {
       const response = await author.context.request.patch('/api/admin/replies/' + id, {
         headers: author.headers,
