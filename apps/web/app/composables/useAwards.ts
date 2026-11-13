@@ -113,10 +113,7 @@ export function useAwards() {
   const root = () => `/award-campaigns/${campaign.value.id}`,
     adminRoot = () => `/admin/award-campaigns/${campaign.value.id}`
   async function createCampaign(edition?: number) {
-    const c = await auth.request<AwardCampaign>(
-      '/admin/award-campaigns',
-      edition ? { edition } : {},
-    )
+    const c = await auth.request<AwardCampaign>('/admin/award-campaigns', edition ? { edition } : {})
     selectedCampaignId.value = c.id
     await refresh()
     return c
@@ -170,8 +167,9 @@ export function useAwards() {
       mutate(root() + '/nominations/' + id, { status: 'withdrawn' }, 'PATCH'),
     reviewNomination: (id: string, status: 'approved' | 'rejected', note: string) =>
       mutate(root() + '/nominations/' + id, { status, note }, 'PATCH'),
-    syncQqNomination: (id: string, input: { nominatorName: string; nominatedAt: string; revision: string }) =>
-      mutate(adminRoot() + '/qq-nominations/' + id, input, 'PATCH'),
+    editNominationDetails: (
+      entries: { id: string; nominatorName: string; nominatedAt: string; reason: string; revision: string }[],
+    ) => mutate(adminRoot() + '/nomination-details', { entries }, 'PATCH'),
     saveBallot: (candidateIds: string[]) =>
       mutate(
         root() + '/ballot',

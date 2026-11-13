@@ -7,7 +7,7 @@ export const qqNominationSchema = z
     nominatorName: z
       .string()
       .trim()
-      .min(1, '请填写QQ群提名人。')
+      .min(1, '请填写提名人。')
       .max(64)
       .refine(
         (value) =>
@@ -30,7 +30,9 @@ export function qqNominationRevision(nomination: AwardNomination) {
       nomination.accountId,
       nomination.accountName,
       nomination.createdAt,
+      nomination.reason,
       nomination.qqSync || null,
+      nomination.displayOverride || null,
     ]),
   )
 }

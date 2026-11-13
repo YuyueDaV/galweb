@@ -181,14 +181,26 @@ export class Catalog {
       throw reject('同名作品已关联其他 Bangumi 条目，请确认作品版本或联系管理员。', 409)
     if (input.coverAssetId && existing)
       throw reject('该作品已在书库中，请使用现有封面；如需修改，请前往作品页面。', 409)
-    if (existing && existing.catalogVisible !== false) return existing
+    if (existing && existing.catalogVisible !== false) {
+      if (!existing.studio?.trim() && input.studio.trim()) {
+        const completed = { ...existing, studio: input.studio.trim(), version: existing.version + 1 }
+        await this.db.execute(
+          'UPDATE works SET data=? WHERE id=?',
+          [JSON.stringify(completed), existing.rank],
+          tx,
+        )
+        await this.platform.audit(actor, '提名补全书库作品制作组 ' + existing.rank, null, tx)
+        return completed
+      }
+      return existing
+    }
     if (input.coverAssetId) await this.requireCover(actor, input.coverAssetId, tx)
     const work: CatalogWork = {
       ...existing,
       rank: existing?.rank || Math.max(12, ...all.map((work) => work.rank)) + 1,
       title: existing?.title || proposed.title,
       subtitle: existing?.subtitle || input.subject?.originalTitle || '',
-      studio: existing?.studio || input.subject?.studio || input.studio,
+      studio: input.studio.trim() || existing?.studio || input.subject?.studio || '',
       description: existing?.description || input.subject?.summary || '',
       nominator: existing?.nominator || '成员收录',
       color: existing?.color || '#91a893',

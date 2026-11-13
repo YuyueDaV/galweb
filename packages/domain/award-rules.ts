@@ -193,11 +193,17 @@ export function normalizeWorkTitle(title: string) {
 }
 
 export function nominationDisplayName(nomination: AwardNomination) {
-  return nomination.qqSync?.nominatorName || nomination.accountName
+  return (
+    nomination.displayOverride?.nominatorName || nomination.qqSync?.nominatorName || nomination.accountName
+  )
 }
 
 export function nominationDisplayTime(nomination: AwardNomination) {
-  return nomination.qqSync?.nominatedAt || nomination.createdAt
+  return nomination.displayOverride?.nominatedAt || nomination.qqSync?.nominatedAt || nomination.createdAt
+}
+
+export function nominationDisplayReason(nomination: AwardNomination) {
+  return nomination.displayOverride?.reason ?? nomination.reason
 }
 
 export function validateCampaignSettings(campaign: AwardCampaign) {

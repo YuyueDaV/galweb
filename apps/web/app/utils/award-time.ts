@@ -10,8 +10,13 @@ export function formatAwardTime(value: string | null) {
   }).format(new Date(value))
 }
 
-export function formatNominationTime(nomination: { createdAt: string; qqSync?: { nominatedAt: string } }) {
-  if (!nomination.qqSync) return formatAwardTime(nomination.createdAt)
+export function formatNominationTime(nomination: {
+  createdAt: string
+  qqSync?: { nominatedAt: string }
+  displayOverride?: { nominatedAt: string }
+}) {
+  const nominatedAt = nomination.displayOverride?.nominatedAt || nomination.qqSync?.nominatedAt
+  if (!nominatedAt) return formatAwardTime(nomination.createdAt)
   return new Intl.DateTimeFormat('zh-CN', {
     timeZone: 'Asia/Shanghai',
     year: 'numeric',
@@ -20,7 +25,7 @@ export function formatNominationTime(nomination: { createdAt: string; qqSync?: {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-  }).format(new Date(nomination.qqSync.nominatedAt))
+  }).format(new Date(nominatedAt))
 }
 
 export function toAwardTimeInput(value: string | null) {

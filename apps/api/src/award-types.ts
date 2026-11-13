@@ -67,6 +67,8 @@ export interface AwardCampaign {
 }
 
 export interface AwardNomination {
+  displayOverride?: { nominatorName: string; nominatedAt: string; reason: string }
+  detailsRevision?: string
   qqSync?: { nominatorName: string; nominatedAt: string }
   qqSyncRevision?: string
   id: string

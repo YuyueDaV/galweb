@@ -39,6 +39,7 @@ import type {
 } from './award-types'
 import { Catalog } from './catalog'
 import { qqNominationRevision, qqNominationSchema } from './qq-nominations'
+import { nominationDetailsRevision, nominationDetailsSchema } from './nomination-details'
 import type { z } from 'zod'
 type Row<T> = { data: T | string; version: number }
 type RoundArchive = {
@@ -188,11 +189,13 @@ export class Awards {
       const sanitize = (n: AwardNomination) => {
         const latest = currentNominations.get(n.id) || n
         // Only presentation metadata changes; historical scores and original submissions stay intact.
-        const displayed = campaign.edition === 2 && latest.qqSync ? { ...n, qqSync: latest.qqSync } : n
+        const displayed = { ...n, qqSync: latest.qqSync, displayOverride: latest.displayOverride }
         if (isStaff)
-          return campaign.edition === 2
-            ? { ...displayed, qqSyncRevision: qqNominationRevision(latest) }
-            : displayed
+          return {
+            ...displayed,
+            detailsRevision: nominationDetailsRevision(latest),
+            ...(campaign.edition === 2 ? { qqSyncRevision: qqNominationRevision(latest) } : {}),
+          }
         return n.accountId === actor?.id
           ? displayed
           : { ...displayed, accountId: '', reviewedBy: undefined, reviewNote: undefined }
@@ -290,8 +293,7 @@ export class Awards {
           tx,
         )
         if (occupied.length) {
-          const archived = !!(decode(occupied[0]!.data) as AwardCampaign & { deletedAt?: string })
-            .deletedAt
+          const archived = !!(decode(occupied[0]!.data) as AwardCampaign & { deletedAt?: string }).deletedAt
           if (!archived) throw reject(`第 ${edition} 届已存在，请换一个届数。`, 422)
           await this.db.execute('DELETE FROM award_nominations WHERE campaign_id=?', [occupied[0]!.id], tx)
           await this.db.execute('DELETE FROM award_ballots WHERE campaign_id=?', [occupied[0]!.id], tx)
@@ -647,8 +649,12 @@ export class Awards {
         mine = nominations.filter(
           (n) => n.accountId === actor.id && !['withdrawn', 'rejected'].includes(n.status),
         )
-      if (mine.length >= c.nominationLimit) throw reject('已达到本届提名上限。')
-      if (mine.some((n) => n.coverRank === known.rank || normalizeWorkTitle(n.title) === normalized))
+      if (current.role !== 'super_admin' && mine.length >= c.nominationLimit)
+        throw reject('已达到本届提名上限。')
+      if (
+        current.role !== 'super_admin' &&
+        mine.some((n) => n.coverRank === known.rank || normalizeWorkTitle(n.title) === normalized)
+      )
         throw reject('你已提名过这部作品，同一用户不能重复提交。', 409)
       const previous = nominations.find((n) => n.coverRank === known.rank)
       let candidate = previous
@@ -699,6 +705,50 @@ export class Awards {
       return { id: n.id }
     })
   }
+  async editNominationDetails(actor: Actor, id: string, input: z.infer<typeof nominationDetailsSchema>) {
+    return this.mutate(actor, id, 'admin', async (_campaign, tx, current) => {
+      const nominations = new Map((await this.nominations(id, tx)).map((item) => [item.id, item]))
+      const updates = input.entries.map((entry) => {
+        const nomination = nominations.get(entry.id)
+        if (!nomination) throw reject('提名不存在或不属于当前活动。', 404)
+        if (nominationDetailsRevision(nomination) !== entry.revision)
+          throw reject('提名信息已被修改，请刷新记录后重新编辑；本次未保存任何修改。', 409)
+        return { entry, nomination }
+      })
+      for (const { entry, nomination } of updates) {
+        const previous = nomination.displayOverride || {
+          nominatorName: nomination.qqSync?.nominatorName || nomination.accountName,
+          nominatedAt: nomination.qqSync?.nominatedAt || nomination.createdAt,
+          reason: nomination.reason,
+        }
+        nomination.displayOverride = {
+          nominatorName: entry.nominatorName,
+          nominatedAt: new Date(entry.nominatedAt).toISOString(),
+          reason: entry.reason,
+        }
+        await this.db.execute(
+          'UPDATE award_nominations SET data=? WHERE id=? AND campaign_id=?',
+          [JSON.stringify(nomination), nomination.id, id],
+          tx,
+        )
+        await this.platform.audit(
+          current,
+          `编辑提名展示 ${nomination.id}：${previous.nominatorName} → ${entry.nominatorName}；更新${
+            [
+              previous.nominatorName !== entry.nominatorName ? '姓名' : '',
+              previous.nominatedAt !== nomination.displayOverride.nominatedAt ? '时间' : '',
+              previous.reason !== entry.reason ? '提名词' : '',
+            ]
+              .filter(Boolean)
+              .join('、') || '展示信息'
+          }`,
+          id,
+          tx,
+        )
+      }
+      return { message: `已保存 ${updates.length} 条提名信息。` }
+    })
+  }
   async syncQqNomination(
     actor: Actor,
     id: string,
@@ -719,6 +769,8 @@ export class Awards {
         nominatorName: input.nominatorName,
         nominatedAt: new Date(input.nominatedAt).toISOString(),
       }
+      if (nomination.displayOverride)
+        nomination.displayOverride = { ...nomination.displayOverride, ...nomination.qqSync }
       await this.db.execute(
         'UPDATE award_nominations SET data=? WHERE id=? AND campaign_id=?',
         [JSON.stringify(nomination), nomination.id, id],

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { coverUrl as archiveCoverUrl } from '~/data/forum'
-import { ballotRules, phaseNames, formatAwardTime, formatNominationTime, nominationDisplayName, campaignWindowMessage, normalizeWorkTitle, awardVotingMode, findAwardTieGroups } from '~/utils/awards'
+import { ballotRules, phaseNames, formatAwardTime, formatNominationTime, nominationDisplayName, nominationDisplayReason, campaignWindowMessage, normalizeWorkTitle, awardVotingMode, findAwardTieGroups } from '~/utils/awards'
 import type { AwardCandidate } from '~/types/awards'
 import type { AwardArchiveEntry } from '~/types/award-archive'
 import type { Work } from '~/types/forum'
@@ -99,6 +99,8 @@ watch(
   },
   { immediate: true, deep: true },
 )
+const canRepeatNominations = computed(() => auth.user.value?.role === 'super_admin')
+const canEditStudio = computed(() => sourceMode.value === 'manual' || (sourceMode.value === 'bangumi' && !selectedWork.value?.studio?.trim()))
 const nominationCount = computed(
   () => myNominations.value.filter((item) => item.status !== 'rejected').length,
 )
@@ -135,7 +137,7 @@ const archiveEntries = computed<AwardArchiveEntry[]>(() =>
       title: item.title,
       subtitle: work?.subtitle || item.studio,
       studio: item.studio,
-      description: recommendation?.text || item.nominations.find((entry) => entry.reason)?.reason || work?.description || '',
+      description: recommendation?.text || item.nominations.map(nominationDisplayReason).find(Boolean) || work?.description || '',
       recommendationAuthor: recommendation?.authorName,
       nominator: [...new Set(item.nominations.map(nominationDisplayName))].join('、'),
       coverUrl: item.coverRank ? coverUrl(item.coverRank) : '/images/work-placeholder.svg',
@@ -196,6 +198,7 @@ function openNomination(title = '', studio = '') {
 }
 async function submitNomination() {
   if (submitting.value || uploadingCover.value) return
+  formError.value = ''
   if (sourceMode.value === 'catalog' && !selectedWork.value) { formError.value = '请先选择书库作品。'; return }
   if (sourceMode.value === 'bangumi' && !selectedWork.value && !selectedSubject.value) { formError.value = '请先搜索并选择 Bangumi 作品。'; return }
   submitting.value = true
@@ -531,11 +534,11 @@ async function withdrawBallot() {
                   <div class="award-candidate-copy">
                     <span>{{ item.studio || '成员推荐' }}</span>
                     <h3>{{ item.title }}</h3>
-                    <p>{{ item.nominations[0]?.reason }}</p>
+                    <p>{{ item.nominations[0] ? nominationDisplayReason(item.nominations[0]) : '' }}</p>
                     <p v-if="campaign.phase === 'voting' || ended" class="award-live-score">{{ tieBreak ? '原得分 ' : '' }}{{ resultById.get(item.id)?.votes || 0 }} {{ weighted ? '分' : '票' }}<span v-if="isLocked(item.id) && !tieBreak"> · 首轮已保留</span><span v-if="tieBreak && campaign.tieBreakGroups?.some(group => group.candidateIds.includes(item.id))"> · 本轮加赛 {{ resultById.get(item.id)?.tieBreakScores?.find(score => score.round === campaign.votingRound)?.votes || 0 }} 票</span></p>
                     <details class="award-public-details">
                       <summary>提名人：{{ item.nominations.map(nominationDisplayName).join('、') }}</summary>
-                      <div v-for="n in item.nominations" :key="n.id"><strong>{{ nominationDisplayName(n) }}</strong> · {{ statusNames[n.status] }}<time>{{ formatNominationTime(n) }}<span v-if="n.qqSync"> · QQ群提名</span></time><p v-if="n.reason">{{ n.reason }}</p></div>
+                      <div v-for="n in item.nominations" :key="n.id"><strong>{{ nominationDisplayName(n) }}</strong> · {{ statusNames[n.status] }}<time>{{ formatNominationTime(n) }}<span v-if="n.qqSync && !n.displayOverride"> · QQ群提名</span></time><p v-if="nominationDisplayReason(n)">{{ nominationDisplayReason(n) }}</p></div>
                     </details>
                     <details v-if="awards.recommendations.value.some((rec) => rec.candidateId === item.id)" class="award-public-details">
                       <summary>查看署名推荐词（{{ awards.recommendations.value.filter((rec) => rec.candidateId === item.id).length }}）</summary>
@@ -563,7 +566,7 @@ async function withdrawBallot() {
               ><div v-if="!myNominations.length" class="empty-state">
                 <AppIcon name="pen" :size="28" />
                 <h3>让你的喜欢，被更多人看见</h3>
-                <p>本届每人可提名 {{ campaign.nominationLimit }} 部作品，提交后由管理员审核。</p>
+                <p v-if="canRepeatNominations">超级管理员可重复提交作品提名，不受个人提名数量限制，提交后仍需审核。</p><p v-else>本届每人可提名 {{ campaign.nominationLimit }} 部作品，提交后由管理员审核。</p>
                 <button v-if="canNominate" class="button secondary" @click="openNomination()">
                   写下第一份提名<AppIcon name="plus" :size="15" />
                 </button>
@@ -574,10 +577,10 @@ async function withdrawBallot() {
                     <h3>{{ item.title }}</h3>
                     <span :class="['award-status', item.status]">{{ statusNames[item.status] }}</span>
                   </div>
-                  <p>{{ item.reason }}</p>
+                  <p>{{ nominationDisplayReason(item) }}</p>
                   <p v-if="item.reviewNote" class="award-review-note">管理员反馈：{{ item.reviewNote }}</p>
                   <div>
-                    <span>{{ formatNominationTime(item) }}{{ item.qqSync ? ' · QQ群提名' : '' }}</span
+                    <span>{{ formatNominationTime(item) }}{{ item.qqSync && !item.displayOverride ? ' · QQ群提名' : '' }}</span
                     ><button v-if="canNominate && item.status !== 'rejected'" @click="withdraw(item.id)">
                       撤回提名</button
                     ><button
@@ -728,7 +731,7 @@ async function withdrawBallot() {
           <section class="rail-card award-my-progress">
             <h2>我的参与进度</h2>
             <div>
-              <span>本届提名</span><strong>{{ nominationCount }} / {{ campaign.nominationLimit }}</strong>
+              <span>本届提名</span><strong v-if="canRepeatNominations">{{ nominationCount }} 条</strong><strong v-else>{{ nominationCount }} / {{ campaign.nominationLimit }}</strong>
             </div>
             <div>
               <span>我的选票</span><strong>{{ myBallot ? '已提交' : '未提交' }}</strong>
@@ -773,7 +776,7 @@ async function withdrawBallot() {
           <option :value="null">请选择作品</option><option v-for="work in works" :key="work.rank" :value="work.rank">{{ work.title }}{{ work.studio ? ' · ' + work.studio : '' }}</option>
         </select></label>
         <BangumiSearch v-if="sourceMode === 'bangumi'" :works="works" selectable :selecting="submitting" selection-label="选择此作品提名" @selected="chooseBangumi" />
-        <p class="nomination-help">已有作品复用书库资料；新作品将在提交提名时一并收录并记录添加人，提名仍需审核。</p>
+        <p class="nomination-help">已有作品复用书库资料；新作品将在提交提名时一并收录并记录添加人，提名仍需审核。</p><p v-if="canRepeatNominations" class="nomination-help nomination-owner-help">超级管理员可重复提名同一作品，不受个人提名数量上限限制；每条记录仍需审核。</p>
         <p v-if="selectedWork || selectedSubject" class="nomination-selection" role="status">已选择：{{ formTitle }}{{ selectedWork ? ' · 已在书库' : ' · 来自 Bangumi' }}</p>
         <form class="award-form" @submit.prevent="submitNomination">
           <label
@@ -789,7 +792,7 @@ async function withdrawBallot() {
             <option v-for="work in works" :key="work.rank" :value="work.title" /></datalist
           ><label
             >制作组 <span>选填</span
-            ><input v-model="formStudio" maxlength="200" :readonly="sourceMode !== 'manual'" :disabled="submitting" placeholder="例如：Key、TYPE-MOON" /></label
+            ><input v-model="formStudio" maxlength="200" :readonly="!canEditStudio" :disabled="submitting" placeholder="例如：Key、TYPE-MOON" /><small v-if="sourceMode === 'bangumi'" class="nomination-help">{{ canEditStudio ? '可补充或更正制作组／会社，提交时保存到书库；留空则沿用 Bangumi 资料。' : '该作品已有会社资料，沿用书库记录；如需更正，请通过书库管理修改。' }}</small></label
           ><label
             >提名说明 <span>选填，最多 600 字，不计推荐词分数</span
             ><textarea
@@ -814,7 +817,7 @@ async function withdrawBallot() {
           </section>
           <p v-if="formError" class="form-error" role="alert">{{ formError }}</p>
           <div class="award-form-bottom">
-            <span>已提名 {{ nominationCount }} / {{ campaign.nominationLimit }} 部 · 提交后进入审核</span
+            <span v-if="canRepeatNominations">已提交 {{ nominationCount }} 条提名 · 可重复提交 · 仍需审核</span><span v-else>已提名 {{ nominationCount }} / {{ campaign.nominationLimit }} 部 · 提交后进入审核</span
             ><button class="button primary" type="submit" :disabled="submitting || uploadingCover">{{ submitting ? '正在提交…' : uploadingCover ? '正在上传封面…' : '提交提名' }}<AppIcon name="send" :size="16" /></button>
           </div>
         </form>

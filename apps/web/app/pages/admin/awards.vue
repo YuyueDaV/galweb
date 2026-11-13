@@ -9,6 +9,7 @@ import {
   formatNominationTime,
   nominationDisplayName,
   nominationDisplayTime,
+  nominationDisplayReason,
   toAwardTimeInput,
   fromAwardTimeInput,
   awardVotingMode,
@@ -161,45 +162,66 @@ const recentAudit = computed(() =>
     .reverse(),
 )
 const statusNames = { pending: '待审核', approved: '已通过', rejected: '已退回', withdrawn: '已撤回' }
-const qqDialog = ref<HTMLDialogElement | null>(null)
-const qqEditing = ref<AwardNomination | null>(null)
-const qqName = ref(''), qqDate = ref(''), qqError = ref(''), qqBusy = ref(false)
-async function openQqSync(item: AwardNomination) {
-  if (campaign.value.edition !== 2 || busy.value || qqBusy.value) return
-  qqEditing.value = { ...item }
-  qqName.value = nominationDisplayName(item)
-  qqDate.value = toAwardTimeInput(nominationDisplayTime(item))
-  qqError.value = ''
+const detailsDialog = ref<HTMLDialogElement | null>(null)
+const editingTitle = ref('')
+const detailsCampaignId = ref('')
+const detailEntries = ref<{ original: AwardNomination; name: string; date: string; reason: string }[]>([])
+const detailsError = ref(''), detailsBusy = ref(false)
+function sameWorkCount(item: AwardNomination) {
+  return campaignNominations.value.filter((n) => n.candidateId === item.candidateId).length
+}
+async function openNominationDetails(item: AwardNomination) {
+  if (busy.value || detailsBusy.value) return
+  editingTitle.value = item.title
+  detailsCampaignId.value = campaign.value.id
+  detailEntries.value = campaignNominations.value
+    .filter((n) => n.candidateId === item.candidateId)
+    .map((n) => ({ original: { ...n }, name: nominationDisplayName(n), date: toAwardTimeInput(nominationDisplayTime(n)), reason: nominationDisplayReason(n) }))
+  detailsError.value = ''
   await nextTick()
-  qqDialog.value?.showModal()
+  detailsDialog.value?.showModal()
 }
-function closeQqSync() {
-  if (qqBusy.value) return
-  qqDialog.value?.close()
-  qqEditing.value = null
+function closeNominationDetails() {
+  if (detailsBusy.value) return
+  detailsDialog.value?.close()
+  detailEntries.value = []
 }
-async function saveQqSync() {
-  if (!qqEditing.value || qqBusy.value) return
-  if (!qqEditing.value.qqSyncRevision) { qqError.value = '提名版本信息缺失，请刷新记录后重试。'; return }
-  qqBusy.value = true
-  qqError.value = ''
+async function saveNominationDetails() {
+  if (!detailEntries.value.length || detailsBusy.value) return
+  detailsBusy.value = true
+  detailsError.value = ''
   try {
-    const nominatedAt = fromAwardTimeInput(qqDate.value)
-    if (!nominatedAt) { qqError.value = '请填写实际提名时间。'; return }
-    await awards.syncQqNomination(qqEditing.value.id, { nominatorName: qqName.value, nominatedAt, revision: qqEditing.value.qqSyncRevision })
-    qqDialog.value?.close()
-    qqEditing.value = null
-    notify('第二届QQ群提名信息已同步。')
+    if (detailsCampaignId.value !== campaign.value.id) throw new Error('当前届次已切换，请重新打开编辑窗口。')
+    const entries = detailEntries.value.filter((entry) =>
+      entry.name.trim() !== nominationDisplayName(entry.original) ||
+      entry.date !== toAwardTimeInput(nominationDisplayTime(entry.original)) ||
+      entry.reason.trim() !== nominationDisplayReason(entry.original),
+    ).map((entry) => {
+      if (!entry.original.detailsRevision) throw new Error('提名版本信息缺失，请刷新记录后重试。')
+      const nominatedAt = entry.date === toAwardTimeInput(nominationDisplayTime(entry.original))
+        ? nominationDisplayTime(entry.original)
+        : fromAwardTimeInput(entry.date)
+      if (!nominatedAt) throw new Error('请填写实际提名时间。')
+      return { id: entry.original.id, nominatorName: entry.name.trim(), nominatedAt, reason: entry.reason.trim(), revision: entry.original.detailsRevision }
+    })
+    if (!entries.length) { detailsError.value = '尚未修改提名信息。'; return }
+    await awards.editNominationDetails(entries)
+    detailsDialog.value?.close()
+    detailEntries.value = []
+    notify(`已保存 ${entries.length} 条提名信息。`)
   } catch (e) {
-    qqError.value = (e as Error).message
+    detailsError.value = (e as Error).message
   } finally {
-    qqBusy.value = false
+    detailsBusy.value = false
   }
 }
 
 function loadSettings() {
-  qqDialog.value?.close()
-  qqEditing.value = null
+  // Refreshes may replace the campaign object; only changing editions closes an edit in progress.
+  if (detailsCampaignId.value !== campaign.value.id) {
+    detailsDialog.value?.close()
+    detailEntries.value = []
+  }
   settings.value = {
     ...campaign.value,
     ballotRules: { ...(campaign.value.ballotRules || DEFAULT_BALLOT_RULES) },
@@ -517,7 +539,7 @@ function review(id: string, status: 'approved' | 'rejected') {
             <option value="all">全部记录</option>
           </select>
         </div>
-        <p v-if="campaign.edition === 2" class="qq-sync-help">第二届临时同步：可在每条记录中填写QQ群提名人和实际提名时间。前台按同步信息显示；原网站提交账号、时间、审核状态与票数保留。已通过的记录请选择“全部记录”查看。</p>
+        <p class="nomination-edit-help">各届均可按作品编辑多条提名，分别修改提名人、实际时间和提名词，一次保存。原始提交记录、审核状态和票数保留；已审核的记录请选择“全部记录”查看。</p>
         <div v-if="!reviewItems.length" class="empty-state">
           <AppIcon name="check" :size="30" />
           <h3>暂时没有待处理的提名</h3>
@@ -530,13 +552,13 @@ function review(id: string, status: 'approved' | 'rejected') {
                 <h3>{{ item.title }}</h3>
                 <span
                   >{{ nominationDisplayName(item) }} · {{ item.studio || '制作组未填写' }} ·
-                  {{ formatNominationTime(item) }}{{ item.qqSync ? ' · QQ群已同步' : '' }}</span
+                  {{ formatNominationTime(item) }}{{ item.displayOverride ? ' · 展示信息已编辑' : item.qqSync ? ' · QQ群已同步' : '' }}</span
                 >
               </div>
               <span :class="['award-status', item.status]">{{ statusNames[item.status] }}</span>
             </div>
-            <blockquote>{{ item.reason }}</blockquote>
-            <div v-if="campaign.edition === 2" class="qq-sync-record-actions"><button type="button" class="button secondary" :disabled="busy || qqBusy" @click="openQqSync(item)">同步提名人和日期</button><span v-if="item.qqSync">原网站提交：{{ item.accountName }} · {{ formatAwardTime(item.createdAt) }}</span></div>
+            <blockquote>{{ nominationDisplayReason(item) || '未填写提名词' }}</blockquote>
+            <div class="nomination-record-actions"><button type="button" class="button secondary" :disabled="busy || detailsBusy" @click="openNominationDetails(item)">编辑本作提名（{{ sameWorkCount(item) }} 条）</button><span v-if="item.displayOverride || item.qqSync">原网站提交：{{ item.accountName }} · {{ formatAwardTime(item.createdAt) }}</span></div>
             <template v-if="item.status === 'pending' && campaign.phase === 'nomination'"
               ><label :for="`review-note-${item.id}`">审核备注 <span>退回时必填</span></label
               ><textarea
@@ -566,17 +588,19 @@ function review(id: string, status: 'approved' | 'rejected') {
         <details v-for="ballot in awards.ballots.value" :key="ballot.round + ':' + ballot.id" class="award-ballot-record"><summary>{{ ballot.accountName }} · 第 {{ ballot.round }} 轮{{ ballot.mode === 'tie-break' ? '同票加赛' : '' }} · {{ ballot.candidateIds.length ? ballot.candidateIds.length + ' 部作品' : '已撤回' }} · {{ formatAwardTime(ballot.updatedAt) }}</summary><p>账号编号：{{ ballot.accountId }}</p><p v-if="weightedRule && ballot.mode !== 'tie-break'">真爱票：{{ (ballot.loveIds || (ballot.loveId ? [ballot.loveId] : [])).map(workTitle).join('、') || '无' }}</p><p v-if="weightedRule && ballot.mode !== 'tie-break'">喜爱票：{{ (ballot.likeIds || []).map(workTitle).join('、') || '无' }}</p><p v-else>投票作品：{{ ballot.candidateIds.map(workTitle).join('、') || '无' }}</p><p v-for="rec in ballot.recommendations || []" :key="rec.candidateId">《{{ workTitle(rec.candidateId) }}》推荐词：{{ rec.text }}</p></details>
         <details class="award-ballot-record"><summary>全部管理与参与记录 · {{ audit.length }} 条</summary><ol><li v-for="entry in audit" :key="entry.id">{{ entry.actor }} · {{ entry.action }} · {{ formatAwardTime(entry.createdAt) }}</li></ol></details>
       </section>
-      <dialog v-if="campaign.edition === 2" ref="qqDialog" class="modal qq-sync-dialog" aria-labelledby="qq-sync-title" @cancel.prevent="closeQqSync">
-        <template v-if="qqEditing">
-          <div class="qq-sync-heading"><div><p class="eyebrow">仅第二届 · QQ群临时同步</p><h2 id="qq-sync-title">同步提名人和日期</h2></div><button type="button" class="icon-button" aria-label="关闭QQ群同步窗口" :disabled="qqBusy" @click="closeQqSync"><AppIcon name="close" /></button></div>
-          <h3>{{ qqEditing.title }}</h3>
-          <p class="qq-sync-help">填写QQ群内的提名人昵称及实际时间（北京时间 UTC+8）。此操作只更正展示信息，不改变网站账号归属、原始提交记录、候选作品或得分。</p>
-          <form class="award-form" @submit.prevent="saveQqSync">
-            <label>QQ群提名人<input v-model.trim="qqName" required maxlength="64" :disabled="qqBusy" placeholder="填写群内提名人的昵称" /></label>
-            <label>实际提名时间（北京时间）<input v-model="qqDate" type="datetime-local" required :disabled="qqBusy" /></label>
-            <p class="qq-sync-original">原网站提交：{{ qqEditing.accountName }} · {{ formatAwardTime(qqEditing.createdAt) }}</p>
-            <p v-if="qqError" class="form-error" role="alert">{{ qqError }}</p>
-            <div class="qq-sync-buttons"><button type="button" class="button secondary" :disabled="qqBusy" @click="closeQqSync">取消</button><button type="submit" class="button primary" :disabled="qqBusy">{{ qqBusy ? '正在同步…' : '保存QQ群提名信息' }}</button></div>
+      <dialog ref="detailsDialog" class="modal nomination-details-dialog" aria-labelledby="nomination-details-title" @cancel.prevent="closeNominationDetails">
+        <template v-if="detailEntries.length">
+          <header class="nomination-details-heading"><div><p class="eyebrow">第 {{ campaign.edition }} 届 · {{ detailEntries.length }} 条提名</p><h2 id="nomination-details-title">编辑提名人和提名词</h2><h3>{{ editingTitle }}</h3></div><button type="button" class="icon-button" aria-label="关闭提名编辑窗口" :disabled="detailsBusy" @click="closeNominationDetails"><AppIcon name="close" /></button></header>
+          <p class="nomination-edit-help">同一作品的每条提名可分别编辑。时间按北京时间 UTC+8 填写；提名词选填，最多 600 字，不参与投票推荐词加分。</p>
+          <form class="award-form" @submit.prevent="saveNominationDetails">
+            <fieldset v-for="(entry, index) in detailEntries" :key="entry.original.id" class="nomination-detail-entry" :disabled="detailsBusy">
+              <legend>提名 {{ index + 1 }} · {{ statusNames[entry.original.status] }}</legend>
+              <div class="nomination-details-fields"><label>提名人<input v-model="entry.name" required maxlength="64" placeholder="填写实际提名人的昵称" /></label><label>实际提名时间（北京时间）<input v-model="entry.date" type="datetime-local" required /></label></div>
+              <label>提名词<textarea v-model="entry.reason" rows="3" maxlength="600" placeholder="写下这位提名人想推荐它的理由，可留空"></textarea></label>
+              <div class="nomination-original"><span>{{ entry.reason.length }} / 600</span><details><summary>查看原始提交</summary><p>{{ entry.original.accountName }} · {{ formatAwardTime(entry.original.createdAt) }}</p><p>{{ entry.original.reason || '未填写提名词' }}</p></details></div>
+            </fieldset>
+            <p v-if="detailsError" class="form-error" role="alert">{{ detailsError }}</p>
+            <footer class="nomination-details-buttons"><button type="button" class="button secondary" :disabled="detailsBusy" @click="closeNominationDetails">取消</button><button type="submit" class="button primary" :disabled="detailsBusy">{{ detailsBusy ? '正在保存…' : '保存全部修改' }}</button></footer>
           </form>
         </template>
       </dialog>
@@ -678,21 +702,31 @@ function review(id: string, status: 'approved' | 'rejected') {
 .award-tie-break-management { margin-block: 1rem; padding: 1rem; border: 1px solid var(--line); border-radius: .75rem; background: var(--orange-soft); }
 .award-tie-break-management > strong, .award-tie-break-management > p { font-size: max(14px, .7rem); line-height: 1.9; overflow-wrap: anywhere; }
 .award-tie-break-management > p { margin-block: .6rem; color: var(--subtle); }
-.qq-sync-help { margin: 16px 0; padding: 12px 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--orange-soft); color: var(--subtle); font-size: max(14px, 0.75rem); line-height: 1.8; overflow-wrap: anywhere; }
-.qq-sync-record-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-block: 12px; }
-.qq-sync-record-actions .button { min-height: 44px; font-size: 14px; }
-.qq-sync-record-actions span, .qq-sync-original { color: var(--subtle); font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
-.qq-sync-dialog { box-sizing: border-box; width: min(38rem, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; padding: clamp(20px, 3vw, 32px); border-radius: 24px; }
-.qq-sync-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.qq-sync-heading h2 { margin: 8px 0 0; font-size: 24px; line-height: 1.5; }
-.qq-sync-heading .icon-button { flex-shrink: 0; }
-.qq-sync-dialog > h3 { font-size: 20px; line-height: 1.6; margin-block: 16px; overflow-wrap: anywhere; }
-.qq-sync-dialog .award-form > label { display: block; margin-block: 16px; }
-.qq-sync-buttons { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
-.qq-sync-buttons .button { min-height: 44px; font-size: 16px; }
+.nomination-edit-help { margin: 16px 0; padding: 12px 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--orange-soft); color: var(--subtle); font-size: max(14px, 0.75rem); line-height: 1.8; overflow-wrap: anywhere; }
+.nomination-record-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-block: 12px; }
+.nomination-record-actions .button { min-height: 44px; font-size: 14px; }
+.nomination-record-actions span, .nomination-original { color: var(--subtle); font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
+.nomination-details-dialog { box-sizing: border-box; width: min(48rem, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; padding: clamp(20px, 3vw, 32px); border-radius: 24px; }
+.nomination-details-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.nomination-details-heading h2 { margin: 8px 0; font-size: 24px; line-height: 1.5; }
+.nomination-details-heading .icon-button { flex-shrink: 0; }
+.nomination-details-heading h3 { font-size: 18px; line-height: 1.6; margin: 0; overflow-wrap: anywhere; }
+.nomination-detail-entry { min-width: 0; margin: 16px 0; padding: 16px; border: 1px solid var(--line); border-radius: 16px; }
+.nomination-detail-entry legend { padding-inline: 8px; color: var(--text); font-size: 15px; }
+.nomination-details-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.nomination-detail-entry label { display: block; min-width: 0; margin-bottom: 12px; }
+.nomination-detail-entry input, .nomination-detail-entry textarea { box-sizing: border-box; width: 100%; min-width: 0; font-size: 16px; }
+.nomination-original { display: flex; justify-content: space-between; gap: 16px; }
+.nomination-original > span { flex-shrink: 0; }
+.nomination-original details { text-align: right; }
+.nomination-original p { white-space: pre-wrap; }
+.nomination-details-buttons { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.nomination-details-buttons .button { min-height: 44px; font-size: 16px; }
 @media (max-width: 599px) {
-  .qq-sync-buttons { display: grid; grid-template-columns: 1fr; }
-  .qq-sync-buttons .button { justify-content: center; }
+  .nomination-details-fields { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .nomination-detail-entry { padding: 12px; }
+  .nomination-details-buttons { display: grid; grid-template-columns: 1fr; }
+  .nomination-details-buttons .button { justify-content: center; }
 }
 .campaign-delete-zone {
   margin-top: 1.5rem;
