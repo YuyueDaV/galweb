@@ -540,7 +540,7 @@ async function withdrawBallot() {
                       <summary>提名人：{{ item.nominations.map(nominationDisplayName).join('、') }}</summary>
                       <div v-for="n in item.nominations" :key="n.id"><strong>{{ nominationDisplayName(n) }}</strong> · {{ statusNames[n.status] }}<time>{{ formatNominationTime(n) }}<span> · 来源：{{ nominationDisplaySource(n) }}</span></time><p v-if="nominationDisplayReason(n)">{{ nominationDisplayReason(n) }}</p></div>
                     </details>
-                    <AwardCandidateEditor v-if="canRepeatNominations" :candidate="item" :campaign-id="campaign.id" @updated="refreshWorks()" />
+                    <AwardCandidateEditor v-if="canRepeatNominations" :candidate="item" :campaign-id="campaign.id" :catalog="works" @updated="refreshWorks()" />
                     <details v-if="awards.recommendations.value.some((rec) => rec.candidateId === item.id)" class="award-public-details">
                       <summary>查看署名推荐词（{{ awards.recommendations.value.filter((rec) => rec.candidateId === item.id).length }}）</summary>
                       <div v-for="(rec, index) in awards.recommendations.value.filter((rec) => rec.candidateId === item.id)" :key="index"><strong>{{ rec.authorName }}</strong> · 第 {{ rec.round }} 轮<p>{{ rec.text }}</p></div>

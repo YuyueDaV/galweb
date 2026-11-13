@@ -40,8 +40,9 @@ export const workContributionSchema = z
   })
   .strict()
 const publicWorkSelect =
-  "SELECT w.id,w.data,u.id AS contributorId,u.nickname AS contributorName,u.status AS contributorStatus,a.id AS activeCover FROM works w LEFT JOIN users u ON u.id=JSON_UNQUOTE(JSON_EXTRACT(w.data,'$.addedById')) LEFT JOIN assets a ON a.id=JSON_UNQUOTE(JSON_EXTRACT(w.data,'$.coverAssetId')) AND a.status='active'"
+  "SELECT w.id,w.data,u.id AS contributorId,u.nickname AS contributorName,u.status AS contributorStatus,a.id AS activeCover,EXISTS(SELECT 1 FROM award_nominations n WHERE JSON_UNQUOTE(JSON_EXTRACT(n.data,'$.coverRank'))=CAST(w.id AS CHAR)) AS submittedForAwards FROM works w LEFT JOIN users u ON u.id=JSON_UNQUOTE(JSON_EXTRACT(w.data,'$.addedById')) LEFT JOIN assets a ON a.id=JSON_UNQUOTE(JSON_EXTRACT(w.data,'$.coverAssetId')) AND a.status='active'"
 type PublicWorkRow = {
+  submittedForAwards?: number
   id: number
   data: unknown
   contributorId?: string
@@ -151,6 +152,15 @@ export class Catalog {
       await this.db.rows<{ id: number; data: unknown }>('SELECT id,data FROM works ORDER BY id', [], tx)
     ).map((row) => this.work(row))
   }
+  async requireWorkManager(actor: Actor, id: number, tx: PoolConnection) {
+    if (actor.role === 'super_admin') return
+    const submitted = await this.db.rows(
+      "SELECT id FROM award_nominations WHERE JSON_UNQUOTE(JSON_EXTRACT(data,'$.coverRank'))=? LIMIT 1",
+      [String(id)],
+      tx,
+    )
+    if (submitted.length) throw reject('该作品已提交提名，资料、封面与书库关联仅限超级管理员修改。', 403)
+  }
   // Called inside the nomination transaction: a failed nomination must not leave a new work behind.
   async nominationWork(
     actor: Actor,
@@ -183,6 +193,7 @@ export class Catalog {
       throw reject('该作品已在书库中，请使用现有封面；如需修改，请前往作品页面。', 409)
     if (existing && existing.catalogVisible !== false) {
       if (!existing.studio?.trim() && input.studio.trim()) {
+        await this.requireWorkManager(actor, existing.rank, tx)
         const completed = { ...existing, studio: input.studio.trim(), version: existing.version + 1 }
         await this.db.execute(
           'UPDATE works SET data=? WHERE id=?',
@@ -195,6 +206,7 @@ export class Catalog {
       return existing
     }
     if (input.coverAssetId) await this.requireCover(actor, input.coverAssetId, tx)
+    if (existing) await this.requireWorkManager(actor, existing.rank, tx)
     const work: CatalogWork = {
       ...existing,
       rank: existing?.rank || Math.max(12, ...all.map((work) => work.rank)) + 1,
@@ -222,6 +234,7 @@ export class Catalog {
     const { addedById, ...work } = this.work(row)
     return {
       ...work,
+      submittedForAwards: !!row.submittedForAwards,
       awardHonors: workAwardHonors(work.rank, work.archiveRank, published),
       coverUrl: row.activeCover ? '/api/assets/' + row.activeCover : undefined,
       addedBy: addedById
@@ -285,6 +298,7 @@ export class Catalog {
       const work = (await this.works(tx)).find((work) => work.rank === id)
       if (!work || work.catalogVisible === false || work.catalogDeleted)
         throw reject('作品不存在或已移出书库。', 404)
+      await this.requireWorkManager(current, id, tx)
       if (work.version !== version) throw reject('作品已更新，请刷新后再删除。', 409)
       await this.db.execute(
         'UPDATE works SET data=? WHERE id=?',
@@ -328,6 +342,7 @@ export class Catalog {
           throw reject('书库已存在《' + existing.title + '》，请直接查看已有作品。', 409)
         if (existing?.bangumi && subject && existing.bangumi.id !== subject.id)
           throw reject('已有同名作品，请核对作品及 Bangumi 编号。', 409)
+        if (existing) await this.requireWorkManager(current, existing.rank, tx)
         if (input.coverAssetId) await this.requireCover(current, input.coverAssetId, tx)
         const id = existing?.rank || Math.max(12, ...all.map((work) => work.rank)) + 1
         if (id > 2147483647) throw reject('书库编号已达上限。')
@@ -378,6 +393,7 @@ export class Catalog {
         const work = (await this.works(tx)).find((work) => work.rank === id)
         if (!work) throw reject('作品不存在。', 404)
         if (work.catalogDeleted) throw reject('作品已移出书库，请刷新后重试。', 409)
+        await this.requireWorkManager(current, id, tx)
         if (current.role === 'member' && work.addedById !== current.id)
           throw reject('只能修改自己添加作品的封面。', 403)
         if (work.version !== version) throw reject('作品已更新，请刷新后重试。', 409)
@@ -409,6 +425,7 @@ export class Catalog {
               )
             : undefined)
       if (duplicate && (duplicate.catalogVisible === false || duplicate.catalogDeleted) && !existingWorkId) {
+        await this.requireWorkManager(current, duplicate.rank, tx)
         const work = {
           ...duplicate,
           catalogVisible: true,
@@ -430,6 +447,7 @@ export class Catalog {
         return { work: duplicate, reused: true }
       const existing = existingWorkId ? all.find((work) => work.rank === existingWorkId) : undefined
       if (existingWorkId && !existing) throw reject('待关联的书库作品不存在。', 404)
+      if (existing) await this.requireWorkManager(current, existing.rank, tx)
       if (existing && existing.version !== version) throw reject('作品已被其他管理员修改，请刷新后重试。')
       if (existing?.bangumi && existing.bangumi.id !== subjectId)
         throw reject('该作品已关联其他 Bangumi 条目，请核对后使用新作品导入。')
@@ -498,6 +516,7 @@ export class Catalog {
         )
       )[0]
       if (!row) throw reject('作品不存在。', 404)
+      await this.requireWorkManager(current, id, tx)
       const previous = this.work(row)
       if (previous.version !== input.version) throw reject('作品已被其他管理员修改，请刷新后重试。')
       const work = { ...previous, ...input, version: input.version + 1 }

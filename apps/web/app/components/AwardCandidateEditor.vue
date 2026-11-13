@@ -1,35 +1,54 @@
 <script setup lang="ts">
-import type { AwardCandidate } from '~/types/awards'
+import type { AwardCandidate, AwardNomination } from '~/types/awards'
 import type { Work } from '~/types/forum'
+import { formatAwardTime } from '~/utils/awards'
 
-const props = defineProps<{ candidate: AwardCandidate; campaignId: string }>()
+const props = defineProps<{ candidate: AwardCandidate; campaignId: string; catalog: Work[] }>()
 const emit = defineEmits<{ updated: [] }>()
 const auth = useAuth(),
   awards = useAwards(),
   { notify } = useForum()
 const dialog = ref<HTMLDialogElement | null>(null)
 const work = ref<Work | null>(null)
+const submissions = ref<
+  { id: string; accountName: string; createdAt: string; workSource: AwardNomination['workSource'] | null }[]
+>([])
+const linkWorkId = ref<number | null>(null),
+  linkConfirmed = ref(false),
+  linking = ref(false)
+const linkError = ref('')
+const linkTarget = computed(() => props.catalog.find((item) => item.rank === linkWorkId.value))
+const canLink = computed(() => ['draft', 'nomination'].includes(awards.campaign.value.phase))
+const sourceNames = { catalog: '从书库选择', bangumi: '从 Bangumi 导入', manual: '手动填写后匹配书库' }
 const loading = ref(false),
   saving = ref(false),
   coverBusy = ref(false),
   error = ref('')
-const locked = computed(() => loading.value || saving.value || coverBusy.value)
+const locked = computed(() => loading.value || saving.value || coverBusy.value || linking.value)
 const allowed = computed(() => auth.user.value?.role === 'super_admin')
 const form = reactive({ title: '', subtitle: '', studio: '', description: '' })
 async function open() {
   if (!allowed.value || locked.value) return
   error.value = ''
   work.value = null
+  submissions.value = []
+  linkWorkId.value = null
+  linkConfirmed.value = false
+  linkError.value = ''
   dialog.value?.showModal()
   loading.value = true
   try {
     if (!props.candidate.coverRank) throw new Error('该候选作品尚未关联书库资料。')
-    const data = await auth.request<Work>('/works/' + props.candidate.coverRank)
+    const info = await auth.request<{ work: Work; submissions: typeof submissions.value }>(
+      '/admin/award-campaigns/' + props.campaignId + '/candidates/' + props.candidate.id,
+    )
+    const data = info.work
     work.value = data
+    submissions.value = info.submissions
     Object.assign(form, {
-      title: props.candidate.title,
+      title: data.title,
       subtitle: data.subtitle || '',
-      studio: props.candidate.studio,
+      studio: data.studio,
       description: data.description || '',
     })
   } catch (e) {
@@ -48,7 +67,7 @@ async function save() {
   try {
     await auth.request(
       '/admin/award-campaigns/' + props.campaignId + '/candidates/' + props.candidate.id,
-      { ...form, version: work.value.version || 0 },
+      { ...form, workId: work.value.rank, version: work.value.version || 0 },
       'PATCH',
     )
     await awards.refresh()
@@ -65,6 +84,38 @@ function coverUpdated(data: Work) {
   work.value = { ...work.value, ...data }
   emit('updated')
 }
+async function linkWork() {
+  const target = linkTarget.value,
+    current = work.value
+  if (!target || !current || !linkConfirmed.value || locked.value || !canLink.value) return
+  linking.value = true
+  linkError.value = ''
+  try {
+    const result = await auth.request<{ merged: boolean }>(
+      '/admin/award-campaigns/' + props.campaignId + '/candidates/' + props.candidate.id + '/work',
+      {
+        currentWorkId: current.rank,
+        currentVersion: current.version || 0,
+        workId: target.rank,
+        version: target.version || 0,
+      },
+      'PATCH',
+    )
+    await awards.refresh()
+    emit('updated')
+    dialog.value?.close()
+    notify(
+      result.merged ? '已关联已有书库作品，并合并本届提名记录。' : '已更正书库关联，提名人和审核状态保留。',
+    )
+  } catch (e) {
+    linkError.value = (e as Error).message
+  } finally {
+    linking.value = false
+  }
+}
+watch(linkWorkId, () => {
+  linkConfirmed.value = false
+})
 </script>
 
 <template>
@@ -97,6 +148,34 @@ function coverUpdated(data: Work) {
         名称与会社同步到本届提名，作品资料同步到书库；作品编号、审核状态和已有选票保留。
       </p>
       <p v-if="loading" role="status">正在加载作品资料…</p>
+      <section v-if="work" class="candidate-source-panel">
+        <h3>作品来源</h3>
+        <p>
+          当前关联：<NuxtLink :to="'/works/' + work.rank">书库 #{{ work.rank }} · {{ work.title }}</NuxtLink>
+        </p>
+        <p>收录人：{{ work.addedBy?.name || '历史书库资料' }}</p>
+        <p v-if="work.bangumi">
+          Bangumi 条目：<a
+            :href="'https://bgm.tv/subject/' + work.bangumi.id"
+            target="_blank"
+            rel="noopener noreferrer"
+            >#{{ work.bangumi.id }} · {{ work.bangumi.originalTitle || work.bangumi.title }} ↗</a
+          >
+        </p>
+        <p v-else>尚未关联 Bangumi，当前以书库编号识别作品。</p>
+        <details>
+          <summary>查看原提交来源（{{ submissions.length }} 条）</summary>
+          <p v-for="submission in submissions" :key="submission.id">
+            {{ submission.accountName }} · {{ formatAwardTime(submission.createdAt) }}<br />{{
+              submission.workSource
+                ? `${sourceNames[submission.workSource.kind]} · 原关联书库 #${submission.workSource.workId} · ${submission.workSource.title}`
+                : '旧记录未保存提交方式，当前关联以上方书库编号为准。'
+            }}<span v-if="submission.workSource?.subjectId">
+              · Bangumi #{{ submission.workSource.subjectId }}</span
+            >
+          </p>
+        </details>
+      </section>
       <form v-if="work" class="candidate-edit-form" @submit.prevent="save">
         <fieldset class="plain-fieldset" :disabled="locked">
           <label class="community-field"
@@ -118,10 +197,43 @@ function coverUpdated(data: Work) {
       </form>
       <p v-else-if="error" class="form-error" role="alert">{{ error }}</p>
       <template v-if="work">
+        <form class="candidate-source-panel" @submit.prevent="linkWork">
+          <h3>更正书库关联</h3>
+          <p class="candidate-edit-help">
+            重复或来源选错时，选择已有作品复用。本届已有该作品时合并提名人及提名词；原书库条目保留，不新增作品。
+          </p>
+          <fieldset class="plain-fieldset" :disabled="locked || !canLink">
+            <label class="community-field"
+              >关联已有书库作品<select v-model="linkWorkId">
+                <option :value="null">请选择正确的书库作品</option>
+                <option
+                  v-for="item in catalog.filter((item) => item.rank !== work!.rank)"
+                  :key="item.rank"
+                  :value="item.rank"
+                >
+                  {{ item.title }} · 书库 #{{ item.rank
+                  }}{{ item.bangumi ? ` · Bangumi #${item.bangumi.id}` : '' }}
+                </option>
+              </select></label
+            >
+            <label v-if="linkTarget" class="inline-check"
+              ><input v-model="linkConfirmed" type="checkbox" />确认将本作全部提名关联到《{{
+                linkTarget.title
+              }}》，如本届已有该作品则合并。</label
+            >
+            <button type="submit" class="button secondary" :disabled="!linkTarget || !linkConfirmed">
+              {{ linking ? '正在更正…' : '保存书库关联' }}
+            </button>
+          </fieldset>
+          <p v-if="!canLink" class="candidate-edit-help">
+            投票已开始，只能修改作品资料，不能更换作品身份或合并候选。
+          </p>
+          <p v-if="linkError" class="form-error" role="alert">{{ linkError }}</p>
+        </form>
         <WorkCoverEditor
           :work="work"
           embedded
-          :disabled="loading || saving"
+          :disabled="loading || saving || linking"
           @updated="coverUpdated"
           @busy="coverBusy = $event"
         />
@@ -172,6 +284,36 @@ function coverUpdated(data: Work) {
   color: var(--subtle);
   font-size: 14px;
   line-height: 1.8;
+}
+.candidate-source-panel {
+  margin-block: 20px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow-wrap: anywhere;
+}
+.candidate-source-panel h3 {
+  margin: 0 0 12px;
+  font-size: 17px;
+}
+.candidate-source-panel p,
+.candidate-source-panel summary,
+.candidate-source-panel label {
+  font-size: 14px;
+  line-height: 1.8;
+}
+.candidate-source-panel a {
+  color: var(--orange);
+}
+.candidate-source-panel .button {
+  margin-top: 12px;
+  min-height: 44px;
+  font-size: 14px;
+}
+.candidate-source-panel select {
+  width: 100%;
+  min-width: 0;
+  font-size: 16px;
 }
 .candidate-edit-form input,
 .candidate-edit-form textarea {

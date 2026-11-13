@@ -111,6 +111,7 @@ test('超管编辑已提名作品与后台提名人增删：失败保留、撤�
     const memberHeaders = { Origin: origin, 'X-CSRF-Token': (await signed.json()).csrfToken }
     const input = {
       title: newTitle,
+      workId: original.coverRank,
       subtitle: '',
       studio: '越权会社',
       description: '',

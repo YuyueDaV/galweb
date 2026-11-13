@@ -39,7 +39,12 @@ import type {
 } from './award-types'
 import { Catalog } from './catalog'
 import { qqNominationRevision, qqNominationSchema } from './qq-nominations'
-import { nominationDetailsRevision, nominationDetailsSchema, candidateEditSchema } from './nomination-details'
+import {
+  nominationDetailsRevision,
+  nominationDetailsSchema,
+  candidateEditSchema,
+  candidateLinkSchema,
+} from './nomination-details'
 import type { z } from 'zod'
 type Row<T> = { data: T | string; version: number }
 type RoundArchive = {
@@ -700,6 +705,12 @@ export class Awards {
         title: known.title,
         studio: known.studio,
         coverRank: known.rank,
+        workSource: {
+          kind: source.workId ? 'catalog' : source.subjectId ? 'bangumi' : 'manual',
+          workId: known.rank,
+          ...(source.subjectId ? { subjectId: source.subjectId } : {}),
+          title,
+        },
         reason,
         accountId: actor.id,
         accountName: current.nickname,
@@ -812,6 +823,9 @@ export class Awards {
           title: target!.title,
           studio: target!.studio,
           coverRank: target!.coverRank,
+          ...(target!.coverRank
+            ? { workSource: { kind: 'catalog' as const, workId: target!.coverRank, title: target!.title } }
+            : {}),
           reason: entry.reason,
           accountId: current.id,
           accountName: current.nickname,
@@ -845,6 +859,108 @@ export class Awards {
       }
     })
   }
+  private async candidateWork(id: string, candidateId: string, tx: PoolConnection) {
+    const nominations = (await this.nominations(id, tx, true)).filter((n) => n.candidateId === candidateId)
+    const target = nominations.find((n) => !n.deletedAt)
+    if (!target?.coverRank) throw reject('候选作品不存在或未关联书库，请先补齐作品资料。', 404)
+    const works = await this.catalog.works(tx)
+    const work = works.find((item) => item.rank === target.coverRank)
+    if (!work || work.catalogDeleted) throw reject('书库作品不存在或已删除。', 404)
+    return { nominations, work, works }
+  }
+  async candidateInfo(actor: Actor, id: string, candidateId: string) {
+    return this.mutate(actor, id, 'admin', async (_campaign, tx, current) => {
+      owner(current)
+      await this.platform.lock('catalog', tx)
+      const { nominations, work } = await this.candidateWork(id, candidateId, tx)
+      const publicWork = (await this.catalog.publicWorks(tx)).find((item) => item.rank === work.rank)
+      return {
+        work: publicWork || work,
+        submissions: nominations
+          .filter((n) => !n.deletedAt)
+          .map((n) => ({
+            id: n.id,
+            accountName: n.accountName,
+            createdAt: n.createdAt,
+            workSource: n.workSource || null,
+          })),
+      }
+    })
+  }
+  async linkCandidateWork(
+    actor: Actor,
+    id: string,
+    candidateId: string,
+    input: z.infer<typeof candidateLinkSchema>,
+  ) {
+    return this.mutate(actor, id, 'admin', async (campaign, tx, current) => {
+      owner(current)
+      if (!['draft', 'nomination'].includes(campaign.phase))
+        throw reject('投票开始后不可更换作品或合并候选；仍可编辑资料与提名人。', 409)
+      await this.platform.lock('catalog', tx)
+      const { nominations, work, works } = await this.candidateWork(id, candidateId, tx)
+      if (work.rank !== input.currentWorkId || work.version !== input.currentVersion)
+        throw reject('当前作品关联或资料已变更，请重新打开窗口。', 409)
+      const target = works.find(
+        (item) => item.rank === input.workId && item.catalogVisible !== false && !item.catalogDeleted,
+      )
+      if (!target) throw reject('所选书库作品不存在或已移除。', 404)
+      if (target.version !== input.version) throw reject('所选书库作品已被修改，请刷新后重试。', 409)
+      if (target.rank === work.rank) throw reject('当前已关联这部书库作品。', 409)
+      const normalized = normalizeWorkTitle(target.title)
+      if (!normalized) throw reject('所选书库作品名称无效，请先修正书库资料。', 422)
+      const active = await this.nominations(id, tx)
+      const known = active.find((n) => n.candidateId !== candidateId && n.coverRank === target.rank)
+      const sameTitle = (
+        await this.db.rows<{ id: string }>(
+          'SELECT id FROM award_candidates WHERE campaign_id=? AND normalized_title=?',
+          [id, normalized],
+          tx,
+        )
+      )[0]
+      if (
+        sameTitle &&
+        sameTitle.id !== candidateId &&
+        active.some((n) => n.candidateId === sameTitle.id && n.coverRank !== target.rank)
+      )
+        throw reject('同名候选关联了另一部书库作品，请先核对作品版本。', 409)
+      const nextId = known?.candidateId || sameTitle?.id || candidateId
+      if (nextId !== candidateId)
+        await this.db.execute(
+          "UPDATE award_candidates SET normalized_title=?,data=JSON_SET(data,'$.mergedInto',?) WHERE id=? AND campaign_id=?",
+          ['@merged:' + candidateId, nextId, candidateId, id],
+          tx,
+        )
+      await this.db.execute(
+        'UPDATE award_candidates SET normalized_title=?,data=? WHERE id=? AND campaign_id=?',
+        [
+          normalized,
+          JSON.stringify({ title: target.title, studio: target.studio, coverRank: target.rank }),
+          nextId,
+          id,
+        ],
+        tx,
+      )
+      for (const n of nominations) {
+        n.candidateId = nextId
+        n.title = target.title
+        n.studio = target.studio
+        n.coverRank = target.rank
+        await this.db.execute(
+          'UPDATE award_nominations SET candidate_id=?,data=? WHERE id=? AND campaign_id=?',
+          [nextId, JSON.stringify(n), n.id, id],
+          tx,
+        )
+      }
+      await this.platform.audit(
+        current,
+        `更正候选书库来源 ${candidateId}：#${work.rank} → #${target.rank}${nextId !== candidateId ? '，合并到候选 ' + nextId : ''}`,
+        id,
+        tx,
+      )
+      return { candidateId: nextId, workId: target.rank, merged: nextId !== candidateId }
+    })
+  }
   async editCandidate(
     actor: Actor,
     id: string,
@@ -854,12 +970,8 @@ export class Awards {
     return this.mutate(actor, id, 'admin', async (_campaign, tx, current) => {
       owner(current)
       await this.platform.lock('catalog', tx)
-      const nominations = (await this.nominations(id, tx, true)).filter((n) => n.candidateId === candidateId)
-      const target = nominations.find((n) => !n.deletedAt)
-      if (!target?.coverRank) throw reject('候选作品不存在或未关联书库，请先补齐作品资料。', 404)
-      const works = await this.catalog.works(tx)
-      const previous = works.find((work) => work.rank === target.coverRank)
-      if (!previous || previous.catalogDeleted) throw reject('书库作品不存在或已删除。', 404)
+      const { nominations, work: previous, works } = await this.candidateWork(id, candidateId, tx)
+      if (previous.rank !== input.workId) throw reject('作品关联已变更，请重新打开窗口后编辑。', 409)
       if (previous.version !== input.version) throw reject('作品已被其他管理员修改，请刷新后重试。', 409)
       const normalized = normalizeWorkTitle(input.title)
       if (!normalized) throw reject('作品名称无效。', 422)
@@ -873,7 +985,8 @@ export class Awards {
         works.some((work) => work.rank !== previous.rank && normalizeWorkTitle(work.title) === normalized)
       )
         throw reject('该名称已对应其他作品，不能通过修改名称合并候选。', 409)
-      const work = { ...previous, ...input, version: previous.version + 1 }
+      const { workId: _workId, ...changes } = input
+      const work = { ...previous, ...changes, version: previous.version + 1 }
       await this.db.execute('UPDATE works SET data=? WHERE id=?', [JSON.stringify(work), work.rank], tx)
       await this.db.execute(
         'UPDATE award_candidates SET normalized_title=?,data=? WHERE id=? AND campaign_id=?',

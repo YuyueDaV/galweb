@@ -35,10 +35,20 @@ export const nominationDetailsSchema = z
 
 export const candidateEditSchema = z
   .object({
+    workId: z.number({ error: '作品来源信息缺失，请刷新页面后重试。' }).int().positive().max(2147483647),
     title: z.string().trim().min(1, '请填写作品名称。').max(160),
     subtitle: z.string().trim().max(160),
     studio: z.string().trim().max(200),
     description: z.string().trim().max(8000),
+    version: z.number().int().min(0),
+  })
+  .strict()
+
+export const candidateLinkSchema = z
+  .object({
+    currentWorkId: z.number().int().positive().max(2147483647),
+    currentVersion: z.number().int().min(0),
+    workId: z.number().int().positive().max(2147483647),
     version: z.number().int().min(0),
   })
   .strict()

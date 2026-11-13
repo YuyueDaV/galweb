@@ -3,6 +3,9 @@ import type { Work } from '~/types/forum'
 const auth = useAuth(),
   { loginOpen } = useForum()
 const allowed = computed(() => ['admin', 'super_admin'].includes(auth.user.value?.role || ''))
+const canEditSelected = computed(
+  () => !!selected.value && (auth.user.value?.role === 'super_admin' || !selected.value.submittedForAwards),
+)
 const works = ref<Work[]>([]),
   query = ref(''),
   selected = ref<Work | null>(null),
@@ -16,13 +19,13 @@ const originalOrder = ref<number[]>([]),
 const deleteOpen = ref(false),
   deleteTarget = ref<Work | null>(null)
 function confirmDelete() {
-  if (locked.value || !selected.value) return
+  if (locked.value || !selected.value || !canEditSelected.value) return
   deleteTarget.value = { ...selected.value }
   deleteOpen.value = true
 }
 async function removeWork() {
   const target = deleteTarget.value
-  if (!target || locked.value) return
+  if (!target || locked.value || !canEditSelected.value) return
   busy.value = true
   error.value = ''
   success.value = ''
@@ -144,7 +147,7 @@ async function load() {
   }
 }
 async function save() {
-  if (!selected.value || locked.value) return
+  if (!selected.value || locked.value || !canEditSelected.value) return
   busy.value = true
   error.value = ''
   success.value = ''
@@ -161,7 +164,7 @@ async function save() {
 }
 async function syncBangumi() {
   const work = selected.value
-  if (!work?.bangumi || locked.value) return
+  if (!work?.bangumi || locked.value || !canEditSelected.value) return
   busy.value = true
   error.value = ''
   success.value = ''
@@ -281,7 +284,11 @@ useSeoMeta({ title: '书库管理 · 澄之响', robots: 'noindex,nofollow' })
           </div>
         </section>
         <form v-if="selected" class="experience-card settings-form" @submit.prevent="save">
-          <fieldset class="plain-fieldset" :disabled="locked">
+          <p v-if="selected.submittedForAwards" class="catalog-help" role="status">
+            已提交提名 · 由超级管理员维护作品资料。
+          </p>
+          <p v-else class="catalog-help">尚未提交提名 · 管理员可维护资料。</p>
+          <fieldset class="plain-fieldset" :disabled="locked || !canEditSelected">
             <h2>编辑作品</h2>
             <p class="catalog-help">
               编号 {{ selected.rank
@@ -292,7 +299,7 @@ useSeoMeta({ title: '书库管理 · 澄之响', robots: 'noindex,nofollow' })
               :key="selected.rank"
               :work="selected"
               embedded
-              :disabled="busy"
+              :disabled="busy || !canEditSelected"
               @busy="coverBusy = $event"
               @updated="coverUpdated"
             />

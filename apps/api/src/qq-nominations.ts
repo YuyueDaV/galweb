@@ -36,6 +36,9 @@ export function qqNominationRevision(nomination: AwardNomination) {
       nomination.deletedAt || null,
       nomination.title,
       nomination.studio,
+      nomination.candidateId,
+      nomination.coverRank || null,
+      nomination.workSource || null,
     ]),
   )
 }

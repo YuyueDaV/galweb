@@ -51,7 +51,7 @@ test(
     const catalog = new Catalog(db, platform, bangumi)
     try {
       const actors: Actor[] = []
-      for (const role of ['admin', 'member', 'member'] as const) {
+      for (const role of ['admin', 'member', 'member', 'super_admin'] as const) {
         const id = randomUUID()
         await db.execute(
           'INSERT INTO users(id,email,email_key,nickname,password_hash,role,email_verified_at,created_at) VALUES (?,?,?,?,?,?,?,?)',
@@ -163,7 +163,8 @@ test(
         /上限/,
       )
       assert.equal((await catalog.works()).length, beforeFailure)
-      await catalog.remove(admin, manual.rank, manual.version)
+      await assert.rejects(() => catalog.remove(admin, manual.rank, manual.version), /仅限超级管理员/)
+      await catalog.remove(actors[3]!, manual.rank, manual.version)
       await assert.rejects(() => awards.nominate(other, campaign.id, manual.title, '', ''), /移出书库/)
       await db.execute('UPDATE users SET nickname=? WHERE id=?', ['新昵称', member.id])
       assert.equal((await catalog.detail(work.rank)).addedBy?.name, '新昵称')

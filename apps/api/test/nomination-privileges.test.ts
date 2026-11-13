@@ -292,6 +292,7 @@ test(
       assert.ok(!(await awards.state(campaign.id, member)).nominations.some((n) => n.id === added.id))
       const work = await catalog.detail(original.coverRank!)
       const input = {
+        workId: work.rank,
         title: '修正标题 ' + marker,
         studio: '修正会社',
         subtitle: '原名',
