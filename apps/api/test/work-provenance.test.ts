@@ -7,7 +7,8 @@ import { Platform, type Actor } from '../src/platform'
 import { Awards } from '../src/awards'
 import { Catalog, workContributionSchema } from '../src/catalog'
 import { Bangumi } from '../src/bangumi'
-import { collectAwardCandidates } from '../src/award-rules'
+import { collectAwardCandidates, normalizeWorkTitle } from '../src/award-rules'
+import type { AwardNomination } from '../src/award-types'
 
 test(
   '作品来源、提交前后管理权限、书库复用与候选合并保持原始提名和跨届隔离',
@@ -197,6 +198,121 @@ test(
       assert.equal((await catalog.works()).length, count)
       assert.equal(collectAwardCandidates(await awards.nominations(imported.id), imported.id, true).length, 1)
       assert.equal((await awards.nominations(imported.id)).length, 3)
+
+      const legacy = await awards.create(owner)
+      await awards.phase(owner, legacy.id, 'nomination', legacy.version!)
+      const seedLegacy = async (title: string, coverRank?: number) => {
+        const n: AwardNomination = {
+          id: randomUUID(),
+          candidateId: randomUUID(),
+          campaignId: legacy.id,
+          title,
+          studio: '',
+          reason: '旧提名说明',
+          accountId: member.id,
+          accountName: member.nickname,
+          createdAt: new Date().toISOString(),
+          status: 'pending',
+          ...(coverRank ? { coverRank } : {}),
+        }
+        await db.execute(
+          'INSERT INTO award_candidates(id,campaign_id,normalized_title,data) VALUES (?,?,?,?)',
+          [
+            n.candidateId,
+            legacy.id,
+            normalizeWorkTitle(title),
+            JSON.stringify({ title, studio: n.studio, coverRank }),
+          ],
+        )
+        await db.execute(
+          'INSERT INTO award_nominations(id,campaign_id,candidate_id,user_id,status,data) VALUES (?,?,?,?,?,?)',
+          [n.id, legacy.id, n.candidateId, member.id, n.status, JSON.stringify(n)],
+        )
+        return n
+      }
+      const missing = await seedLegacy('需要补录的旧提名 ' + marker)
+      const workCount = (await catalog.works()).length
+      await assert.rejects(
+        () => awards.ensureCandidateLibrary(admin, legacy.id, missing.candidateId),
+        /超级管理员/,
+      )
+      const prepared = await awards.ensureCandidateLibrary(owner, legacy.id, missing.candidateId)
+      assert.equal(prepared.created, true)
+      assert.equal(prepared.candidateId, missing.candidateId)
+      assert.equal((await catalog.works()).length, workCount + 1)
+      const preparedVersion = (await catalog.detail(prepared.workId)).version
+      const again = await awards.ensureCandidateLibrary(owner, legacy.id, missing.candidateId)
+      assert.equal(again.created, false)
+      assert.equal(again.workId, prepared.workId)
+      assert.equal((await catalog.detail(prepared.workId)).version, preparedVersion)
+      assert.equal(
+        (await awards.nominations(legacy.id)).find((n) => n.id === missing.id)!.reason,
+        missing.reason,
+      )
+
+      const reuse = await seedLegacy(b.title)
+      const reused = await awards.ensureCandidateLibrary(owner, legacy.id, reuse.candidateId)
+      assert.equal(reused.workId, b.rank)
+      assert.equal(reused.created, false)
+      assert.equal((await catalog.works()).length, workCount + 1)
+      const alias = '另一个旧标题 ' + marker
+      const bLatest = await catalog.detail(b.rank)
+      await catalog.edit(owner, b.rank, {
+        title: bLatest.title,
+        subtitle: alias,
+        studio: bLatest.studio,
+        description: bLatest.description,
+        nominator: bLatest.nominator,
+        version: bLatest.version,
+      })
+      const duplicatedLegacy = await seedLegacy(alias)
+      const mergedLegacy = await awards.ensureCandidateLibrary(owner, legacy.id, duplicatedLegacy.candidateId)
+      assert.equal(mergedLegacy.candidateId, reuse.candidateId)
+      assert.equal(mergedLegacy.workId, b.rank)
+      assert.equal(
+        (await awards.nominations(legacy.id)).filter((n) => n.candidateId === reuse.candidateId).length,
+        2,
+      )
+      const late = await seedLegacy('投票前已存在的缺失书库旧稿 ' + marker)
+      for (const n of await awards.nominations(legacy.id))
+        await awards.nominationAction(owner, legacy.id, n.id, 'approved')
+      await awards.phase(owner, legacy.id, 'voting', (await awards.campaign(legacy.id)).version!)
+      await awards.vote(member, legacy.id, [late.candidateId], 0, {
+        loveId: late.candidateId,
+        likeIds: [],
+        recommendations: [],
+      })
+      const lateBallots = await awards.ballots(legacy.id)
+      const lateScore = (await awards.state(legacy.id)).results.find((r) => r.id === late.candidateId)!.votes
+      assert.equal(
+        (await awards.ensureCandidateLibrary(owner, legacy.id, late.candidateId)).candidateId,
+        late.candidateId,
+      )
+      assert.deepEqual(await awards.ballots(legacy.id), lateBallots)
+      assert.equal(
+        (await awards.state(legacy.id)).results.find((r) => r.id === late.candidateId)!.votes,
+        lateScore,
+      )
+      const postVoteDuplicate = await seedLegacy(alias)
+      await assert.rejects(
+        () => awards.ensureCandidateLibrary(owner, legacy.id, postVoteDuplicate.candidateId),
+        /投票开始后不能自动合并/,
+      )
+      assert.equal(
+        (await awards.nominations(legacy.id)).find((n) => n.id === postVoteDuplicate.id)!.coverRank,
+        undefined,
+      )
+      const removedWork = await catalog.contribute(
+        owner,
+        workContributionSchema.parse({ title: '已移除不可自动恢复 ' + marker }),
+      )
+      await catalog.remove(owner, removedWork.rank, removedWork.version)
+      const removedSource = await seedLegacy(removedWork.title, removedWork.rank)
+      await assert.rejects(
+        () => awards.ensureCandidateLibrary(owner, legacy.id, removedSource.candidateId),
+        /已移出书库/,
+      )
+      assert.equal((await catalog.detail(removedWork.rank)).catalogDeleted, true)
     } finally {
       await db.pool.end()
     }

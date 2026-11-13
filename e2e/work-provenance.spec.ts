@@ -84,15 +84,53 @@ test('提交前普通管理员编辑，提交后只读；超管核对来源、�
     const count = (await (await page.request.get('/api/works')).json()).length
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/awards?campaign=' + campaign.id)
+    const infoEndpoint = '/api/admin/award-campaigns/' + campaign.id + '/candidates/' + initial.candidateId
+    let simulateMissingAssociation = true
+    await page.route('**' + infoEndpoint, (route) => {
+      if (route.request().method() === 'GET' && simulateMissingAssociation) {
+        simulateMissingAssociation = false
+        return route.fulfill({ status: 404, json: { message: '旧提名尚未关联书库' } })
+      }
+      return route.continue()
+    })
+    const preparedResponse = page.waitForResponse(
+      (response) =>
+        response.url().endsWith(infoEndpoint + '/library') && response.request().method() === 'POST',
+    )
     await page
       .locator('.award-candidate-card')
       .filter({ hasText: title })
       .filter({ hasNotText: canonicalTitle })
       .getByRole('button', { name: '编辑作品', exact: true })
       .click()
+    expect((await preparedResponse).ok()).toBeTruthy()
     const editor = page.getByRole('dialog', { name: '编辑作品资料', exact: true })
     await expect(editor).toContainText('书库 #' + a.rank)
     await expect(editor).toContainText('收录人：browser_member')
+    await expect(editor.getByRole('link', { name: '查看书库作品', exact: true })).toHaveAttribute(
+      'href',
+      '/works/' + a.rank,
+    )
+    await editor.getByLabel('作品名称', { exact: true }).fill(title + '未保存')
+    const [bookTab] = await Promise.all([
+      page.waitForEvent('popup'),
+      editor.getByRole('link', { name: '查看书库作品', exact: true }).click(),
+    ])
+    await expect(bookTab).toHaveURL(new RegExp('/works/' + a.rank + '$'))
+    await expect(bookTab.getByRole('heading', { name: title, exact: true })).toBeVisible()
+    await bookTab.close()
+    const [libraryTab] = await Promise.all([
+      page.waitForEvent('popup'),
+      editor.getByRole('link', { name: '编辑书库资料', exact: true }).click(),
+    ])
+    await expect(libraryTab).toHaveURL(new RegExp('/admin/works\\?work=' + a.rank + '$'))
+    await expect(libraryTab.locator('.settings-form').getByLabel('作品名称', { exact: true })).toHaveValue(
+      title,
+    )
+    await expect(libraryTab.locator('.settings-form').getByLabel('作品名称', { exact: true })).toBeEditable()
+    await libraryTab.close()
+    await expect(editor.getByLabel('作品名称', { exact: true })).toHaveValue(title + '未保存')
+    await editor.getByLabel('作品名称', { exact: true }).fill(title)
     await editor.getByText('查看原提交来源（1 条）', { exact: true }).click()
     await expect(editor).toContainText('从书库选择 · 原关联书库 #' + a.rank)
     await editor.getByRole('combobox', { name: '关联已有书库作品', exact: true }).click()

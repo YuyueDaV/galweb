@@ -38,10 +38,29 @@ async function open() {
   dialog.value?.showModal()
   loading.value = true
   try {
-    if (!props.candidate.coverRank) throw new Error('该候选作品尚未关联书库资料。')
-    const info = await auth.request<{ work: Work; submissions: typeof submissions.value }>(
-      '/admin/award-campaigns/' + props.campaignId + '/candidates/' + props.candidate.id,
-    )
+    const endpoint = '/admin/award-campaigns/' + props.campaignId + '/candidates/' + props.candidate.id
+    type CandidateInfo = { work: Work; submissions: typeof submissions.value }
+    let info: CandidateInfo
+    try {
+      info = await auth.request<CandidateInfo>(endpoint)
+    } catch (e) {
+      if ((e as { statusCode?: number }).statusCode !== 404) throw e
+      const prepared = await auth.request<{ workId: number; candidateId: string; created: boolean }>(
+        endpoint + '/library',
+        {},
+      )
+      if (prepared.candidateId !== props.candidate.id) {
+        await awards.refresh()
+        emit('updated')
+        dialog.value?.close()
+        notify('已关联已有书库并合并重复候选，请从合并后的作品打开编辑。')
+        return
+      }
+      info = await auth.request<CandidateInfo>(endpoint)
+      await awards.refresh()
+      emit('updated')
+      notify(prepared.created ? '已自动补录书库并关联这部作品。' : '已找到并关联已有书库作品。')
+    }
     const data = info.work
     work.value = data
     submissions.value = info.submissions
@@ -148,6 +167,23 @@ watch(linkWorkId, () => {
         名称与会社同步到本届提名，作品资料同步到书库；作品编号、审核状态和已有选票保留。
       </p>
       <p v-if="loading" role="status">正在加载作品资料…</p>
+      <nav v-if="work" class="candidate-library-links" aria-label="书库快捷入口">
+        <NuxtLink
+          class="button secondary"
+          :to="'/works/' + work.rank"
+          target="_blank"
+          rel="noopener noreferrer"
+          ><AppIcon name="book" :size="16" />查看书库作品<AppIcon name="arrowUpRight" :size="15"
+        /></NuxtLink>
+        <NuxtLink
+          class="button secondary"
+          :to="{ path: '/admin/works', query: { work: work.rank } }"
+          target="_blank"
+          rel="noopener noreferrer"
+          ><AppIcon name="pen" :size="16" />编辑书库资料<AppIcon name="arrowUpRight" :size="15"
+        /></NuxtLink>
+        <small>在新标签页打开，保留当前窗口的未保存内容。</small>
+      </nav>
       <section v-if="work" class="candidate-source-panel">
         <h3>作品来源</h3>
         <p>
@@ -285,6 +321,23 @@ watch(linkWorkId, () => {
   font-size: 14px;
   line-height: 1.8;
 }
+.candidate-library-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-block: 16px;
+}
+.candidate-library-links .button {
+  min-height: 44px;
+  font-size: 14px;
+  justify-content: center;
+}
+.candidate-library-links small {
+  flex-basis: 100%;
+  color: var(--subtle);
+  font-size: 13px;
+  line-height: 1.7;
+}
 .candidate-source-panel {
   margin-block: 20px;
   padding: 16px;
@@ -332,6 +385,9 @@ watch(linkWorkId, () => {
   font-size: 14px;
 }
 @media (max-width: 599px) {
+  .candidate-library-links .button {
+    width: 100%;
+  }
   .candidate-edit-form footer {
     display: grid;
     grid-template-columns: 1fr;

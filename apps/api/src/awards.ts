@@ -868,6 +868,88 @@ export class Awards {
     if (!work || work.catalogDeleted) throw reject('书库作品不存在或已删除。', 404)
     return { nominations, work, works }
   }
+  async ensureCandidateLibrary(actor: Actor, id: string, candidateId: string) {
+    return this.mutate(actor, id, 'admin', async (campaign, tx, current) => {
+      owner(current)
+      await this.platform.lock('catalog', tx)
+      const active = await this.nominations(id, tx)
+      const nomination = active.find((n) => n.candidateId === candidateId)
+      if (!nomination) throw reject('候选作品不存在或不属于当前活动。', 404)
+      const works = await this.catalog.works(tx)
+      const linked = works.find((work) => work.rank === nomination.coverRank)
+      if (linked?.catalogDeleted)
+        throw reject('关联作品已移出书库，请先由超级管理员在后台恢复或更正关联。', 409)
+      if (linked && linked.catalogVisible !== false)
+        return { candidateId, workId: linked.rank, created: false }
+      const fromBangumi = nomination.workSource?.subjectId
+        ? works.find((work) => work.bangumi?.id === nomination.workSource!.subjectId && !work.catalogDeleted)
+        : undefined
+      const work = await this.catalog.nominationWork(current, tx, {
+        title: nomination.title,
+        studio: nomination.studio,
+        workId: linked?.rank || fromBangumi?.rank,
+      })
+      const normalized = normalizeWorkTitle(work.title)
+      if (!normalized) throw reject('作品名称无效，无法补录书库。', 422)
+      const duplicate = active.find((n) => n.candidateId !== candidateId && n.coverRank === work.rank)
+      const sameTitle = (
+        await this.db.rows<{ id: string }>(
+          'SELECT id FROM award_candidates WHERE campaign_id=? AND normalized_title=?',
+          [id, normalized],
+          tx,
+        )
+      )[0]
+      const conflict = sameTitle && sameTitle.id !== candidateId
+      if (conflict && active.some((n) => n.candidateId === sameTitle.id && n.coverRank !== work.rank))
+        throw reject('同名候选关联了不同作品，请先核对书库来源。', 409)
+      if (duplicate && !['draft', 'nomination'].includes(campaign.phase))
+        throw reject('该书库作品已有正式候选；投票开始后不能自动合并，请核对原始来源。', 409)
+      const nextId = duplicate?.candidateId || candidateId
+      if (nextId !== candidateId) {
+        await this.db.execute(
+          "UPDATE award_candidates SET normalized_title=?,data=JSON_SET(data,'$.mergedInto',?) WHERE id=? AND campaign_id=?",
+          ['@merged:' + candidateId, nextId, candidateId, id],
+          tx,
+        )
+      }
+      if (conflict && sameTitle.id !== nextId) {
+        await this.db.execute(
+          'UPDATE award_candidates SET normalized_title=? WHERE id=? AND campaign_id=?',
+          ['@unused:' + sameTitle.id, sameTitle.id, id],
+          tx,
+        )
+      }
+      await this.db.execute(
+        'UPDATE award_candidates SET normalized_title=?,data=? WHERE id=? AND campaign_id=?',
+        [
+          normalized,
+          JSON.stringify({ title: work.title, studio: work.studio, coverRank: work.rank }),
+          nextId,
+          id,
+        ],
+        tx,
+      )
+      for (const n of (await this.nominations(id, tx, true)).filter((n) => n.candidateId === candidateId)) {
+        n.candidateId = nextId
+        n.coverRank = work.rank
+        n.title = work.title
+        n.studio = work.studio
+        await this.db.execute(
+          'UPDATE award_nominations SET candidate_id=?,data=? WHERE id=? AND campaign_id=?',
+          [nextId, JSON.stringify(n), n.id, id],
+          tx,
+        )
+      }
+      const created = !works.some((item) => item.rank === work.rank)
+      await this.platform.audit(
+        current,
+        `补全候选书库关联 ${candidateId} → #${work.rank}（${created ? '自动补录' : '复用已有'}${nextId !== candidateId ? '并合并提名' : ''}）`,
+        id,
+        tx,
+      )
+      return { candidateId: nextId, workId: work.rank, created }
+    })
+  }
   async candidateInfo(actor: Actor, id: string, candidateId: string) {
     return this.mutate(actor, id, 'admin', async (_campaign, tx, current) => {
       owner(current)

@@ -2,6 +2,7 @@
 import type { Work } from '~/types/forum'
 const auth = useAuth(),
   { loginOpen } = useForum()
+const route = useRoute()
 const allowed = computed(() => ['admin', 'super_admin'].includes(auth.user.value?.role || ''))
 const canEditSelected = computed(
   () => !!selected.value && (auth.user.value?.role === 'super_admin' || !selected.value.submittedForAwards),
@@ -141,11 +142,23 @@ async function load() {
     works.value = data
     originalOrder.value = data.map((work) => work.rank)
     orderNotice.value = ''
-    if (selected.value) select(data.find((work) => work.rank === selected.value?.rank) || data[0]!)
+    const requestedId =
+      typeof route.query.work === 'string' && /^\d+$/.test(route.query.work) ? Number(route.query.work) : null
+    const requested = data.find((work) => work.rank === requestedId)
+    if (requested) select(requested)
+    else if (selected.value) select(data.find((work) => work.rank === selected.value?.rank) || data[0]!)
   } catch (cause) {
     if (current === revision) error.value = (cause as Error).message
   }
 }
+watch(
+  () => route.query.work,
+  () => {
+    if (locked.value || typeof route.query.work !== 'string') return
+    const target = works.value.find((work) => work.rank === Number(route.query.work))
+    if (target) select(target)
+  },
+)
 async function save() {
   if (!selected.value || locked.value || !canEditSelected.value) return
   busy.value = true
