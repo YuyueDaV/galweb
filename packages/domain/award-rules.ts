@@ -206,6 +206,13 @@ export function nominationDisplayReason(nomination: AwardNomination) {
   return nomination.displayOverride?.reason ?? nomination.reason
 }
 
+export function nominationDisplaySource(nomination: AwardNomination) {
+  return (
+    nomination.displayOverride?.source?.trim() ||
+    (nomination.qqSync ? 'QQ群' : nomination.adminAdded ? '后台补录' : '网站')
+  )
+}
+
 export function validateCampaignSettings(campaign: AwardCampaign) {
   if (campaign.votingRule === 'weighted-v1') {
     const error = validateBallotRules(ballotRules(campaign))

@@ -12,6 +12,7 @@ import {
   nominationDisplayName,
   nominationDisplayTime,
   nominationDisplayReason,
+  nominationDisplaySource,
 } from '../src/award-rules'
 import { nominationDetailsSchema, nominationDetailsRevision } from '../src/nomination-details'
 
@@ -229,6 +230,172 @@ test('批量提名编辑拒绝空批次、重复编号、越权字段和非法�
   assert.equal(nominationDetailsSchema.safeParse({ entries: [] }).success, false)
   assert.equal(nominationDetailsSchema.safeParse({ entries: [entry, entry] }).success, false)
 })
+
+test(
+  '后台增删提名人和超管编辑作品：权限、并发版本、跨届隔离、逻辑删除与历史计分保护',
+  { skip: process.env.AUTH_INTEGRATION !== '1' },
+  async () => {
+    await fixture(async ({ awards, db, catalog, owner, admin, member, marker }) => {
+      const campaign = await awards.create(admin)
+      await awards.settings(admin, campaign.id, { ...campaign, winnerCount: 1, nominationLimit: 1 })
+      await awards.phase(admin, campaign.id, 'nomination', (await awards.campaign(campaign.id)).version!)
+      const title = '后台补录 ' + marker
+      await awards.nominate(member, campaign.id, title, '原会社', '本人说明')
+      const original = (await awards.nominations(campaign.id))[0]!
+      const reference = (n: typeof original) => ({ id: n.id, revision: nominationDetailsRevision(n) })
+      const addition = {
+        nominatorName: '群友甲',
+        nominatedAt: original.createdAt,
+        reason: '补录理由',
+        source: 'QQ群',
+      }
+      await assert.rejects(
+        () =>
+          awards.editNominationDetails(member, campaign.id, {
+            candidateId: original.candidateId,
+            additions: [addition],
+          }),
+        /管理员/,
+      )
+      await assert.rejects(
+        () =>
+          awards.editNominationDetails(admin, campaign.id, {
+            candidateId: randomUUID(),
+            additions: [addition],
+          }),
+        /不属于/,
+      )
+      await awards.editNominationDetails(admin, campaign.id, {
+        candidateId: original.candidateId,
+        additions: [addition, { ...addition, nominatorName: '群友乙' }],
+      })
+      let rows = await awards.nominations(campaign.id)
+      assert.equal(rows.length, 3)
+      assert.ok(rows.filter((n) => n.adminAdded).every((n) => nominationDisplaySource(n) === 'QQ群'))
+      assert.equal(nominationDisplaySource(original), '网站')
+      assert.ok(
+        rows.filter((n) => n.adminAdded).every((n) => n.status === 'pending' && n.accountId === admin.id),
+      )
+      // Backfilled people do not consume the operator's personal nomination allowance.
+      await awards.nominate(admin, campaign.id, title, '', '管理员本人正常提名')
+      rows = await awards.nominations(campaign.id)
+      const added = rows.find((n) => n.adminAdded)!
+      await awards.editNominationDetails(admin, campaign.id, { removals: [reference(added)] })
+      assert.equal((await awards.nominations(campaign.id)).length, 3)
+      const removed = (await awards.nominations(campaign.id, undefined, true)).find((n) => n.id === added.id)!
+      assert.ok(removed.deletedAt)
+      assert.equal(removed.deletedBy, admin.id)
+      await assert.rejects(
+        () => awards.editNominationDetails(admin, campaign.id, { removals: [reference(added)] }),
+        /不存在/,
+      )
+      assert.ok(!(await awards.state(campaign.id, member)).nominations.some((n) => n.id === added.id))
+      const work = await catalog.detail(original.coverRank!)
+      const input = {
+        title: '修正标题 ' + marker,
+        studio: '修正会社',
+        subtitle: '原名',
+        description: '补全后的作品简介',
+        version: work.version,
+      }
+      for (const actor of [member, admin])
+        await assert.rejects(
+          () => awards.editCandidate(actor, campaign.id, original.candidateId, input),
+          /管理员/,
+        )
+      const edited = await awards.editCandidate(owner, campaign.id, original.candidateId, input)
+      assert.equal(edited.rank, work.rank)
+      assert.equal(edited.version, work.version + 1)
+      assert.equal((await catalog.detail(work.rank)).description, input.description)
+      rows = await awards.nominations(campaign.id)
+      assert.ok(
+        rows.every(
+          (n) =>
+            n.title === input.title && n.studio === input.studio && n.candidateId === original.candidateId,
+        ),
+      )
+      await assert.rejects(
+        () => awards.editCandidate(owner, campaign.id, original.candidateId, input),
+        /已被.*修改/,
+      )
+      await assert.rejects(
+        () => awards.editNominationDetails(admin, campaign.id, { removals: [reference(original)] }),
+        /已被修改/,
+      )
+      const duplicate = await catalog.contribute(
+        admin,
+        workContributionSchema.parse({ title: '不得合并 ' + marker }),
+      )
+      await assert.rejects(
+        () =>
+          awards.editCandidate(owner, campaign.id, original.candidateId, {
+            ...input,
+            title: duplicate.title,
+            version: edited.version,
+          }),
+        /其他作品/,
+      )
+      assert.equal((await catalog.detail(work.rank)).title, input.title)
+      const later = await awards.create(admin)
+      await assert.rejects(
+        () =>
+          awards.editCandidate(owner, later.id, original.candidateId, { ...input, version: edited.version }),
+        /不存在/,
+      )
+      for (const n of rows) await awards.nominationAction(admin, campaign.id, n.id, 'approved')
+      await awards.phase(admin, campaign.id, 'voting', (await awards.campaign(campaign.id)).version!)
+      await awards.vote(member, campaign.id, [original.candidateId], 0, {
+        loveId: original.candidateId,
+        likeIds: [],
+        recommendations: [],
+      })
+      await awards.phase(admin, campaign.id, 'results', (await awards.campaign(campaign.id)).version!)
+      await awards.phase(admin, campaign.id, 'archived', (await awards.campaign(campaign.id)).version!)
+      const snapshot = await db.rows('SELECT data FROM award_results WHERE campaign_id=?', [campaign.id])
+      const score = (await awards.state(campaign.id)).results[0]!.votes
+      rows = await awards.nominations(campaign.id)
+      await assert.rejects(
+        () => awards.editNominationDetails(admin, campaign.id, { removals: rows.map(reference) }),
+        /至少一位/,
+      )
+      assert.equal((await awards.nominations(campaign.id)).length, rows.length)
+      await awards.editNominationDetails(admin, campaign.id, {
+        candidateId: original.candidateId,
+        removals: rows.map(reference),
+        additions: [{ ...addition, nominatorName: '归档后补录' }],
+      })
+      const historical = await awards.state(campaign.id)
+      assert.equal(historical.results[0]!.votes, score)
+      assert.equal(historical.results[0]!.nominations.length, 1)
+      assert.equal(nominationDisplayName(historical.results[0]!.nominations[0]!), '归档后补录')
+      await awards.editCandidate(owner, campaign.id, original.candidateId, {
+        ...input,
+        title: '归档后校正 ' + marker,
+        version: edited.version,
+      })
+      assert.equal((await awards.state(campaign.id)).results[0]!.title, '归档后校正 ' + marker)
+      assert.deepEqual(
+        await db.rows('SELECT data FROM award_results WHERE campaign_id=?', [campaign.id]),
+        snapshot,
+      )
+      assert.equal((await awards.state(campaign.id)).results[0]!.votes, score)
+      await db.execute("UPDATE users SET role='admin' WHERE id=?", [owner.id])
+      await assert.rejects(
+        () =>
+          awards.editCandidate(owner, campaign.id, original.candidateId, {
+            ...input,
+            version: edited.version + 1,
+          }),
+        /超级管理员/,
+      )
+      await db.execute("UPDATE users SET role='super_admin' WHERE id=?", [owner.id])
+      const audit = (await awards.state(campaign.id, admin)).audit
+      assert.ok(audit.some((a) => a.action.includes('增加提名人')))
+      assert.ok(audit.some((a) => a.action.includes('删除提名人')))
+      assert.ok(audit.some((a) => a.action.includes('编辑候选作品')))
+    })
+  },
+)
 
 test(
   'Bangumi 新作品优先保存自填会社，已有资料保护、空白补全和失败回滚',

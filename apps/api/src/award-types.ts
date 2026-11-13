@@ -67,7 +67,10 @@ export interface AwardCampaign {
 }
 
 export interface AwardNomination {
-  displayOverride?: { nominatorName: string; nominatedAt: string; reason: string }
+  adminAdded?: boolean
+  deletedAt?: string
+  deletedBy?: string
+  displayOverride?: { nominatorName: string; nominatedAt: string; reason: string; source?: string }
   detailsRevision?: string
   qqSync?: { nominatorName: string; nominatedAt: string }
   qqSyncRevision?: string

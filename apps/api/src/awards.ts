@@ -3,7 +3,7 @@ import { Broadcasts } from './broadcasts'
 import { randomUUID } from 'node:crypto'
 import type { PoolConnection } from 'mysql2/promise'
 import { Database } from './database'
-import { Platform, staff, reject, type Actor } from './platform'
+import { Platform, staff, owner, reject, type Actor } from './platform'
 import { decode } from './forum'
 import {
   phaseNames,
@@ -39,7 +39,7 @@ import type {
 } from './award-types'
 import { Catalog } from './catalog'
 import { qqNominationRevision, qqNominationSchema } from './qq-nominations'
-import { nominationDetailsRevision, nominationDetailsSchema } from './nomination-details'
+import { nominationDetailsRevision, nominationDetailsSchema, candidateEditSchema } from './nomination-details'
 import type { z } from 'zod'
 type Row<T> = { data: T | string; version: number }
 type RoundArchive = {
@@ -80,14 +80,16 @@ export class Awards {
       throw reject('活动不存在。', 404)
     return normalizeCampaign({ ...decode(row.data), version: row.version })
   }
-  async nominations(id: string, tx?: PoolConnection) {
+  async nominations(id: string, tx?: PoolConnection, includeDeleted = false) {
     return (
       await this.db.rows<Row<AwardNomination>>(
         'SELECT data FROM award_nominations WHERE campaign_id=?',
         [id],
         tx,
       )
-    ).map((r) => decode(r.data))
+    )
+      .map((r) => decode(r.data))
+      .filter((n) => includeDeleted || !n.deletedAt)
   }
   async ballots(id: string, tx?: PoolConnection) {
     return (
@@ -248,7 +250,15 @@ export class Awards {
             ? { ...decode(mine.data), version: mine.version }
             : null,
         ballotVersion: mine?.version || 0,
-        results: results.map((result) => ({ ...result, nominations: result.nominations.map(sanitize) })),
+        results: results.map((result) => {
+          const live = nominations.filter((n) => n.candidateId === result.id && n.status === 'approved')
+          const currentWork = nominations.find((n) => n.candidateId === result.id)
+          return {
+            ...result,
+            ...(currentWork ? { title: currentWork.title, studio: currentWork.studio } : {}),
+            nominations: live.map(sanitize),
+          }
+        }),
         ballotCount: ended
           ? stored.ballotCount || 0
           : current.length + (stored.rounds || []).reduce((sum, previous) => sum + previous.ballotCount, 0),
@@ -647,7 +657,7 @@ export class Awards {
       if (!normalized) throw reject('作品名称无效。', 422)
       const nominations = await this.nominations(id, tx),
         mine = nominations.filter(
-          (n) => n.accountId === actor.id && !['withdrawn', 'rejected'].includes(n.status),
+          (n) => !n.adminAdded && n.accountId === actor.id && !['withdrawn', 'rejected'].includes(n.status),
         )
       if (current.role !== 'super_admin' && mine.length >= c.nominationLimit)
         throw reject('已达到本届提名上限。')
@@ -705,16 +715,45 @@ export class Awards {
       return { id: n.id }
     })
   }
-  async editNominationDetails(actor: Actor, id: string, input: z.infer<typeof nominationDetailsSchema>) {
-    return this.mutate(actor, id, 'admin', async (_campaign, tx, current) => {
-      const nominations = new Map((await this.nominations(id, tx)).map((item) => [item.id, item]))
-      const updates = input.entries.map((entry) => {
+  async editNominationDetails(actor: Actor, id: string, raw: z.input<typeof nominationDetailsSchema>) {
+    const input = nominationDetailsSchema.parse(raw)
+    return this.mutate(actor, id, 'admin', async (campaign, tx, current) => {
+      const active = await this.nominations(id, tx)
+      const nominations = new Map(active.map((item) => [item.id, item]))
+      const checked = (entry: { id: string; revision: string }) => {
         const nomination = nominations.get(entry.id)
         if (!nomination) throw reject('提名不存在或不属于当前活动。', 404)
         if (nominationDetailsRevision(nomination) !== entry.revision)
           throw reject('提名信息已被修改，请刷新记录后重新编辑；本次未保存任何修改。', 409)
-        return { entry, nomination }
-      })
+        return nomination
+      }
+      const updates = input.entries.map((entry) => ({ entry, nomination: checked(entry) }))
+      const removals = input.removals.map(checked)
+      const target = input.additions.length
+        ? active.find((n) => n.candidateId === input.candidateId)
+        : undefined
+      if (input.additions.length && !target) throw reject('候选作品不存在或不属于当前活动。', 404)
+      const approvedTarget = active.some(
+        (n) => n.candidateId === input.candidateId && n.status === 'approved',
+      )
+      const afterNomination = ['voting', 'results', 'archived'].includes(campaign.phase)
+      if (afterNomination && input.additions.length && !approvedTarget)
+        throw reject('投票开始后只能给已通过的候选作品补充提名人。', 409)
+      const removalIds = new Set(removals.map((n) => n.id))
+      if (afterNomination) {
+        for (const n of removals.filter((n) => n.status === 'approved')) {
+          const hasApproved =
+            active.some(
+              (other) =>
+                other.candidateId === n.candidateId &&
+                other.status === 'approved' &&
+                !removalIds.has(other.id),
+            ) ||
+            (input.additions.length > 0 && input.candidateId === n.candidateId && approvedTarget)
+          if (!hasApproved)
+            throw reject('投票开始后，每部作品需保留至少一位已通过的提名人；可先增加提名人再删除。', 409)
+        }
+      }
       for (const { entry, nomination } of updates) {
         const previous = nomination.displayOverride || {
           nominatorName: nomination.qqSync?.nominatorName || nomination.accountName,
@@ -725,6 +764,7 @@ export class Awards {
           nominatorName: entry.nominatorName,
           nominatedAt: new Date(entry.nominatedAt).toISOString(),
           reason: entry.reason,
+          source: entry.source ?? nomination.displayOverride?.source,
         }
         await this.db.execute(
           'UPDATE award_nominations SET data=? WHERE id=? AND campaign_id=?',
@@ -738,6 +778,9 @@ export class Awards {
               previous.nominatorName !== entry.nominatorName ? '姓名' : '',
               previous.nominatedAt !== nomination.displayOverride.nominatedAt ? '时间' : '',
               previous.reason !== entry.reason ? '提名词' : '',
+              nomination.displayOverride.source !== ('source' in previous ? previous.source : undefined)
+                ? '来源'
+                : '',
             ]
               .filter(Boolean)
               .join('、') || '展示信息'
@@ -746,7 +789,109 @@ export class Awards {
           tx,
         )
       }
-      return { message: `已保存 ${updates.length} 条提名信息。` }
+      for (const nomination of removals) {
+        nomination.deletedAt = new Date().toISOString()
+        nomination.deletedBy = current.id
+        await this.db.execute(
+          'UPDATE award_nominations SET data=? WHERE id=? AND campaign_id=?',
+          [JSON.stringify(nomination), nomination.id, id],
+          tx,
+        )
+        await this.platform.audit(
+          current,
+          `删除提名人 ${nomination.id}：${nomination.displayOverride?.nominatorName || nomination.qqSync?.nominatorName || nomination.accountName}`,
+          id,
+          tx,
+        )
+      }
+      for (const entry of input.additions) {
+        const nomination: AwardNomination = {
+          id: randomUUID(),
+          campaignId: id,
+          candidateId: target!.candidateId,
+          title: target!.title,
+          studio: target!.studio,
+          coverRank: target!.coverRank,
+          reason: entry.reason,
+          accountId: current.id,
+          accountName: current.nickname,
+          status: afterNomination ? 'approved' : 'pending',
+          createdAt: new Date().toISOString(),
+          adminAdded: true,
+          displayOverride: {
+            nominatorName: entry.nominatorName,
+            nominatedAt: new Date(entry.nominatedAt).toISOString(),
+            reason: entry.reason,
+            source: entry.source,
+          },
+          ...(afterNomination ? { reviewedBy: current.nickname } : {}),
+        }
+        await this.db.execute(
+          'INSERT INTO award_nominations(id,campaign_id,candidate_id,user_id,status,data) VALUES (?,?,?,?,?,?)',
+          [
+            nomination.id,
+            id,
+            nomination.candidateId,
+            current.id,
+            nomination.status,
+            JSON.stringify(nomination),
+          ],
+          tx,
+        )
+        await this.platform.audit(current, `增加提名人 ${nomination.id}：${entry.nominatorName}`, id, tx)
+      }
+      return {
+        message: `已修改 ${updates.length} 条、新增 ${input.additions.length} 条、删除 ${removals.length} 条提名。`,
+      }
+    })
+  }
+  async editCandidate(
+    actor: Actor,
+    id: string,
+    candidateId: string,
+    input: z.infer<typeof candidateEditSchema>,
+  ) {
+    return this.mutate(actor, id, 'admin', async (_campaign, tx, current) => {
+      owner(current)
+      await this.platform.lock('catalog', tx)
+      const nominations = (await this.nominations(id, tx, true)).filter((n) => n.candidateId === candidateId)
+      const target = nominations.find((n) => !n.deletedAt)
+      if (!target?.coverRank) throw reject('候选作品不存在或未关联书库，请先补齐作品资料。', 404)
+      const works = await this.catalog.works(tx)
+      const previous = works.find((work) => work.rank === target.coverRank)
+      if (!previous || previous.catalogDeleted) throw reject('书库作品不存在或已删除。', 404)
+      if (previous.version !== input.version) throw reject('作品已被其他管理员修改，请刷新后重试。', 409)
+      const normalized = normalizeWorkTitle(input.title)
+      if (!normalized) throw reject('作品名称无效。', 422)
+      const duplicate = await this.db.rows<{ id: string }>(
+        'SELECT id FROM award_candidates WHERE campaign_id=? AND normalized_title=? AND id<>?',
+        [id, normalized, candidateId],
+        tx,
+      )
+      if (
+        duplicate.length ||
+        works.some((work) => work.rank !== previous.rank && normalizeWorkTitle(work.title) === normalized)
+      )
+        throw reject('该名称已对应其他作品，不能通过修改名称合并候选。', 409)
+      const work = { ...previous, ...input, version: previous.version + 1 }
+      await this.db.execute('UPDATE works SET data=? WHERE id=?', [JSON.stringify(work), work.rank], tx)
+      await this.db.execute(
+        'UPDATE award_candidates SET normalized_title=?,data=? WHERE id=? AND campaign_id=?',
+        [
+          normalized,
+          JSON.stringify({ title: work.title, studio: work.studio, coverRank: work.rank }),
+          candidateId,
+          id,
+        ],
+        tx,
+      )
+      for (const n of nominations) {
+        n.title = work.title
+        n.studio = work.studio
+        await this.db.execute('UPDATE award_nominations SET data=? WHERE id=?', [JSON.stringify(n), n.id], tx)
+      }
+      await this.platform.audit(current, `编辑候选作品 ${candidateId}：${work.title}`, id, tx)
+      return work
     })
   }
   async syncQqNomination(

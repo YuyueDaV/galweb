@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { coverUrl as archiveCoverUrl } from '~/data/forum'
-import { ballotRules, phaseNames, formatAwardTime, formatNominationTime, nominationDisplayName, nominationDisplayReason, campaignWindowMessage, normalizeWorkTitle, awardVotingMode, findAwardTieGroups } from '~/utils/awards'
+import { ballotRules, phaseNames, formatAwardTime, formatNominationTime, nominationDisplayName, nominationDisplayReason, nominationDisplaySource, campaignWindowMessage, normalizeWorkTitle, awardVotingMode, findAwardTieGroups } from '~/utils/awards'
 import type { AwardCandidate } from '~/types/awards'
 import type { AwardArchiveEntry } from '~/types/award-archive'
 import type { Work } from '~/types/forum'
@@ -538,8 +538,9 @@ async function withdrawBallot() {
                     <p v-if="campaign.phase === 'voting' || ended" class="award-live-score">{{ tieBreak ? '原得分 ' : '' }}{{ resultById.get(item.id)?.votes || 0 }} {{ weighted ? '分' : '票' }}<span v-if="isLocked(item.id) && !tieBreak"> · 首轮已保留</span><span v-if="tieBreak && campaign.tieBreakGroups?.some(group => group.candidateIds.includes(item.id))"> · 本轮加赛 {{ resultById.get(item.id)?.tieBreakScores?.find(score => score.round === campaign.votingRound)?.votes || 0 }} 票</span></p>
                     <details class="award-public-details">
                       <summary>提名人：{{ item.nominations.map(nominationDisplayName).join('、') }}</summary>
-                      <div v-for="n in item.nominations" :key="n.id"><strong>{{ nominationDisplayName(n) }}</strong> · {{ statusNames[n.status] }}<time>{{ formatNominationTime(n) }}<span v-if="n.qqSync && !n.displayOverride"> · QQ群提名</span></time><p v-if="nominationDisplayReason(n)">{{ nominationDisplayReason(n) }}</p></div>
+                      <div v-for="n in item.nominations" :key="n.id"><strong>{{ nominationDisplayName(n) }}</strong> · {{ statusNames[n.status] }}<time>{{ formatNominationTime(n) }}<span> · 来源：{{ nominationDisplaySource(n) }}</span></time><p v-if="nominationDisplayReason(n)">{{ nominationDisplayReason(n) }}</p></div>
                     </details>
+                    <AwardCandidateEditor v-if="canRepeatNominations" :candidate="item" :campaign-id="campaign.id" @updated="refreshWorks()" />
                     <details v-if="awards.recommendations.value.some((rec) => rec.candidateId === item.id)" class="award-public-details">
                       <summary>查看署名推荐词（{{ awards.recommendations.value.filter((rec) => rec.candidateId === item.id).length }}）</summary>
                       <div v-for="(rec, index) in awards.recommendations.value.filter((rec) => rec.candidateId === item.id)" :key="index"><strong>{{ rec.authorName }}</strong> · 第 {{ rec.round }} 轮<p>{{ rec.text }}</p></div>
@@ -580,7 +581,7 @@ async function withdrawBallot() {
                   <p>{{ nominationDisplayReason(item) }}</p>
                   <p v-if="item.reviewNote" class="award-review-note">管理员反馈：{{ item.reviewNote }}</p>
                   <div>
-                    <span>{{ formatNominationTime(item) }}{{ item.qqSync && !item.displayOverride ? ' · QQ群提名' : '' }}</span
+                    <span>{{ formatNominationTime(item) }} · 来源：{{ nominationDisplaySource(item) }}</span
                     ><button v-if="canNominate && item.status !== 'rejected'" @click="withdraw(item.id)">
                       撤回提名</button
                     ><button

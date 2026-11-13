@@ -10,12 +10,14 @@ import {
   nominationDisplayName,
   nominationDisplayTime,
   nominationDisplayReason,
+  nominationDisplaySource,
   toAwardTimeInput,
   fromAwardTimeInput,
   awardVotingMode,
   findAwardTieGroups,
 } from '~/utils/awards'
 const awards = useAwards()
+const route = useRoute()
 const identity = usePreviewIdentity()
 const { campaign, campaigns, selectedCampaignId, campaignNominations, candidates, audit } = awards
 const { loginOpen, notify } = useForum()
@@ -165,8 +167,24 @@ const statusNames = { pending: '待审核', approved: '已通过', rejected: '�
 const detailsDialog = ref<HTMLDialogElement | null>(null)
 const editingTitle = ref('')
 const detailsCampaignId = ref('')
-const detailEntries = ref<{ original: AwardNomination; name: string; date: string; reason: string }[]>([])
+const editingCandidateId = ref('')
+const detailEntries = ref<{ key: string; original: AwardNomination | null; name: string; date: string; reason: string; source: string; removed: boolean }[]>([])
 const detailsError = ref(''), detailsBusy = ref(false)
+const additionsCount = computed(() => detailEntries.value.filter(entry => !entry.original && !entry.removed).length)
+const removalsCount = computed(() => detailEntries.value.filter(entry => entry.original && entry.removed).length)
+function addNominator() {
+  if (detailsBusy.value) return
+  detailEntries.value.push({ key: crypto.randomUUID(), original: null, name: '', date: toAwardTimeInput(new Date().toISOString()), reason: '', source: '后台补录', removed: false })
+  detailsError.value = ''
+}
+function removeNominator(index: number) {
+  if (detailsBusy.value) return
+  const entry = detailEntries.value[index]
+  if (!entry) return
+  if (!entry.original) detailEntries.value.splice(index, 1)
+  else entry.removed = !entry.removed
+  detailsError.value = ''
+}
 function sameWorkCount(item: AwardNomination) {
   return campaignNominations.value.filter((n) => n.candidateId === item.candidateId).length
 }
@@ -174,9 +192,10 @@ async function openNominationDetails(item: AwardNomination) {
   if (busy.value || detailsBusy.value) return
   editingTitle.value = item.title
   detailsCampaignId.value = campaign.value.id
+  editingCandidateId.value = item.candidateId
   detailEntries.value = campaignNominations.value
     .filter((n) => n.candidateId === item.candidateId)
-    .map((n) => ({ original: { ...n }, name: nominationDisplayName(n), date: toAwardTimeInput(nominationDisplayTime(n)), reason: nominationDisplayReason(n) }))
+    .map((n) => ({ key: n.id, original: { ...n }, name: nominationDisplayName(n), date: toAwardTimeInput(nominationDisplayTime(n)), reason: nominationDisplayReason(n), source: nominationDisplaySource(n), removed: false }))
   detailsError.value = ''
   await nextTick()
   detailsDialog.value?.showModal()
@@ -192,23 +211,30 @@ async function saveNominationDetails() {
   detailsError.value = ''
   try {
     if (detailsCampaignId.value !== campaign.value.id) throw new Error('当前届次已切换，请重新打开编辑窗口。')
-    const entries = detailEntries.value.filter((entry) =>
-      entry.name.trim() !== nominationDisplayName(entry.original) ||
-      entry.date !== toAwardTimeInput(nominationDisplayTime(entry.original)) ||
-      entry.reason.trim() !== nominationDisplayReason(entry.original),
-    ).map((entry) => {
-      if (!entry.original.detailsRevision) throw new Error('提名版本信息缺失，请刷新记录后重试。')
-      const nominatedAt = entry.date === toAwardTimeInput(nominationDisplayTime(entry.original))
-        ? nominationDisplayTime(entry.original)
+    const entries: { id: string; nominatorName: string; nominatedAt: string; reason: string; source: string; revision: string }[] = []
+    const additions: { nominatorName: string; nominatedAt: string; reason: string; source: string }[] = []
+    const removals: { id: string; revision: string }[] = []
+    for (const entry of detailEntries.value) {
+      const original = entry.original
+      if (original && !original.detailsRevision) throw new Error('提名版本信息缺失，请刷新记录后重试。')
+      if (entry.removed) {
+        if (original) removals.push({ id: original.id, revision: original.detailsRevision! })
+        continue
+      }
+      if (original && entry.name.trim() === nominationDisplayName(original) && entry.date === toAwardTimeInput(nominationDisplayTime(original)) && entry.reason.trim() === nominationDisplayReason(original) && entry.source.trim() === nominationDisplaySource(original)) continue
+      const nominatedAt = original && entry.date === toAwardTimeInput(nominationDisplayTime(original))
+        ? nominationDisplayTime(original)
         : fromAwardTimeInput(entry.date)
       if (!nominatedAt) throw new Error('请填写实际提名时间。')
-      return { id: entry.original.id, nominatorName: entry.name.trim(), nominatedAt, reason: entry.reason.trim(), revision: entry.original.detailsRevision }
-    })
-    if (!entries.length) { detailsError.value = '尚未修改提名信息。'; return }
-    await awards.editNominationDetails(entries)
+      const input = { nominatorName: entry.name.trim(), nominatedAt, reason: entry.reason.trim(), source: entry.source.trim() }
+      if (original) entries.push({ ...input, id: original.id, revision: original.detailsRevision! })
+      else additions.push(input)
+    }
+    if (!entries.length && !additions.length && !removals.length) { detailsError.value = '尚未修改提名信息。'; return }
+    await awards.editNominationDetails({ entries, additions, removals, candidateId: editingCandidateId.value })
     detailsDialog.value?.close()
     detailEntries.value = []
-    notify(`已保存 ${entries.length} 条提名信息。`)
+    notify(`已修改 ${entries.length} 条、新增 ${additions.length} 条、删除 ${removals.length} 条提名。`)
   } catch (e) {
     detailsError.value = (e as Error).message
   } finally {
@@ -235,9 +261,14 @@ function loadSettings() {
   deleteTitle.value = ''
   deleteError.value = ''
 }
-onMounted(() => {
-  awards.initialize()
+onMounted(async () => {
+  if (typeof route.query.campaign === 'string') selectedCampaignId.value = route.query.campaign
+  await awards.initialize()
   loadSettings()
+  if (typeof route.query.candidate === 'string') {
+    const item = campaignNominations.value.find(n => n.candidateId === route.query.candidate)
+    if (item) { tab.value = 'review'; reviewFilter.value = 'all'; await openNominationDetails(item) }
+  }
 })
 watch(campaign, loadSettings, { deep: true })
 useSeoMeta({ title: '十二橙器活动管理 · 澄之响' })
@@ -552,7 +583,7 @@ function review(id: string, status: 'approved' | 'rejected') {
                 <h3>{{ item.title }}</h3>
                 <span
                   >{{ nominationDisplayName(item) }} · {{ item.studio || '制作组未填写' }} ·
-                  {{ formatNominationTime(item) }}{{ item.displayOverride ? ' · 展示信息已编辑' : item.qqSync ? ' · QQ群已同步' : '' }}</span
+                  {{ formatNominationTime(item) }} · 来源：{{ nominationDisplaySource(item) }}{{ item.displayOverride ? ' · 展示信息已编辑' : '' }}</span
                 >
               </div>
               <span :class="['award-status', item.status]">{{ statusNames[item.status] }}</span>
@@ -590,15 +621,22 @@ function review(id: string, status: 'approved' | 'rejected') {
       </section>
       <dialog ref="detailsDialog" class="modal nomination-details-dialog" aria-labelledby="nomination-details-title" @cancel.prevent="closeNominationDetails">
         <template v-if="detailEntries.length">
-          <header class="nomination-details-heading"><div><p class="eyebrow">第 {{ campaign.edition }} 届 · {{ detailEntries.length }} 条提名</p><h2 id="nomination-details-title">编辑提名人和提名词</h2><h3>{{ editingTitle }}</h3></div><button type="button" class="icon-button" aria-label="关闭提名编辑窗口" :disabled="detailsBusy" @click="closeNominationDetails"><AppIcon name="close" /></button></header>
-          <p class="nomination-edit-help">同一作品的每条提名可分别编辑。时间按北京时间 UTC+8 填写；提名词选填，最多 600 字，不参与投票推荐词加分。</p>
+          <header class="nomination-details-heading"><div><p class="eyebrow">第 {{ campaign.edition }} 届 · {{ detailEntries.filter(entry => !entry.removed).length }} 位提名人</p><h2 id="nomination-details-title">编辑提名人和提名词</h2><h3>{{ editingTitle }}</h3></div><button type="button" class="icon-button" aria-label="关闭提名编辑窗口" :disabled="detailsBusy" @click="closeNominationDetails"><AppIcon name="close" /></button></header>
+          <p class="nomination-edit-help">增删改统一在保存后生效。时间按北京时间 UTC+8 填写；提名词最多 600 字，不计推荐词加分。提名阶段新增记录需审核；投票开始后可补录提名人，每部作品须保留至少一条已通过的提名。</p>
           <form class="award-form" @submit.prevent="saveNominationDetails">
-            <fieldset v-for="(entry, index) in detailEntries" :key="entry.original.id" class="nomination-detail-entry" :disabled="detailsBusy">
-              <legend>提名 {{ index + 1 }} · {{ statusNames[entry.original.status] }}</legend>
+            <fieldset v-for="(entry, index) in detailEntries" :key="entry.key" class="nomination-detail-entry" :class="{ 'pending-removal': entry.removed }" :disabled="detailsBusy">
+              <legend>提名 {{ index + 1 }} · {{ entry.removed ? '待删除' : entry.original ? statusNames[entry.original.status] : '新增提名人' }}</legend>
+              <p v-if="entry.removed" class="nomination-removal-note">{{ entry.name }} · 保存后删除此条提名及提名词，原始记录保留用于审计。</p>
+              <template v-else>
               <div class="nomination-details-fields"><label>提名人<input v-model="entry.name" required maxlength="64" placeholder="填写实际提名人的昵称" /></label><label>实际提名时间（北京时间）<input v-model="entry.date" type="datetime-local" required /></label></div>
+              <label>提名来源<input v-model="entry.source" maxlength="80" placeholder="例如：QQ群、网站、线下活动" /></label>
               <label>提名词<textarea v-model="entry.reason" rows="3" maxlength="600" placeholder="写下这位提名人想推荐它的理由，可留空"></textarea></label>
-              <div class="nomination-original"><span>{{ entry.reason.length }} / 600</span><details><summary>查看原始提交</summary><p>{{ entry.original.accountName }} · {{ formatAwardTime(entry.original.createdAt) }}</p><p>{{ entry.original.reason || '未填写提名词' }}</p></details></div>
+              <div class="nomination-original"><span>{{ entry.reason.length }} / 600</span><details v-if="entry.original"><summary>查看原始提交</summary><p>{{ entry.original.accountName }} · {{ formatAwardTime(entry.original.createdAt) }}</p><p>{{ entry.original.reason || '未填写提名词' }}</p></details></div>
+              </template>
+              <div class="nomination-entry-actions"><button type="button" class="text-link" @click="removeNominator(index)">{{ entry.removed ? '撤销删除' : '删除提名人' }}</button></div>
             </fieldset>
+            <button type="button" class="button secondary nomination-add-button" :disabled="detailsBusy" @click="addNominator"><AppIcon name="plus" :size="16" />增加提名人</button>
+            <p v-if="additionsCount || removalsCount" class="nomination-change-summary" role="status">本次新增 {{ additionsCount }} 位、删除 {{ removalsCount }} 位，点击保存后生效。</p>
             <p v-if="detailsError" class="form-error" role="alert">{{ detailsError }}</p>
             <footer class="nomination-details-buttons"><button type="button" class="button secondary" :disabled="detailsBusy" @click="closeNominationDetails">取消</button><button type="submit" class="button primary" :disabled="detailsBusy">{{ detailsBusy ? '正在保存…' : '保存全部修改' }}</button></footer>
           </form>
@@ -713,6 +751,11 @@ function review(id: string, status: 'approved' | 'rejected') {
 .nomination-details-heading h3 { font-size: 18px; line-height: 1.6; margin: 0; overflow-wrap: anywhere; }
 .nomination-detail-entry { min-width: 0; margin: 16px 0; padding: 16px; border: 1px solid var(--line); border-radius: 16px; }
 .nomination-detail-entry legend { padding-inline: 8px; color: var(--text); font-size: 15px; }
+.nomination-detail-entry.pending-removal { border-style: dashed; background: var(--orange-soft); }
+.nomination-entry-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+.nomination-entry-actions .text-link { min-height: 36px; font-size: 14px; }
+.nomination-removal-note, .nomination-change-summary { font-size: 14px; line-height: 1.8; color: var(--subtle); }
+.nomination-add-button { min-height: 44px; font-size: 15px; }
 .nomination-details-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
 .nomination-detail-entry label { display: block; min-width: 0; margin-bottom: 12px; }
 .nomination-detail-entry input, .nomination-detail-entry textarea { box-sizing: border-box; width: 100%; min-width: 0; font-size: 16px; }

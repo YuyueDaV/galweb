@@ -52,7 +52,9 @@ export function useAwards() {
       awardVotingCandidates(campaign.value, collectAwardCandidates(nominations.value, campaign.value.id)),
     ),
     myNominations = computed(() =>
-      nominations.value.filter((n) => n.accountId === identity.account.value.id && n.status !== 'withdrawn'),
+      nominations.value.filter(
+        (n) => !n.adminAdded && n.accountId === identity.account.value.id && n.status !== 'withdrawn',
+      ),
     )
   async function refresh() {
     const sequence = ++revision.value
@@ -167,9 +169,19 @@ export function useAwards() {
       mutate(root() + '/nominations/' + id, { status: 'withdrawn' }, 'PATCH'),
     reviewNomination: (id: string, status: 'approved' | 'rejected', note: string) =>
       mutate(root() + '/nominations/' + id, { status, note }, 'PATCH'),
-    editNominationDetails: (
-      entries: { id: string; nominatorName: string; nominatedAt: string; reason: string; revision: string }[],
-    ) => mutate(adminRoot() + '/nomination-details', { entries }, 'PATCH'),
+    editNominationDetails: (input: {
+      entries: {
+        id: string
+        nominatorName: string
+        nominatedAt: string
+        reason: string
+        source: string
+        revision: string
+      }[]
+      candidateId: string
+      additions: { nominatorName: string; nominatedAt: string; reason: string; source: string }[]
+      removals: { id: string; revision: string }[]
+    }) => mutate(adminRoot() + '/nomination-details', input, 'PATCH'),
     saveBallot: (candidateIds: string[]) =>
       mutate(
         root() + '/ballot',

@@ -33,6 +33,9 @@ export function qqNominationRevision(nomination: AwardNomination) {
       nomination.reason,
       nomination.qqSync || null,
       nomination.displayOverride || null,
+      nomination.deletedAt || null,
+      nomination.title,
+      nomination.studio,
     ]),
   )
 }
