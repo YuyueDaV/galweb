@@ -26,7 +26,13 @@ const fallback: AwardCampaign = {
   createdAt: '2026-10-31T00:00:00.000Z',
   version: 0,
 }
+type AwardRuntime = {
+  listFetchedAt?: number
+  pending?: { id: string; account: string; list: boolean; task: Promise<void> }
+}
 export function useAwards() {
+  const app = useNuxtApp() as ReturnType<typeof useNuxtApp> & { _czxAwards?: AwardRuntime }
+  const runtime = (app._czxAwards ||= {})
   const auth = useAuth(),
     identity = usePreviewIdentity()
   const campaigns = useState<AwardCampaign[]>('award-campaigns', () => [{ ...fallback }]),
@@ -56,61 +62,93 @@ export function useAwards() {
         (n) => !n.adminAdded && n.accountId === identity.account.value.id && n.status !== 'withdrawn',
       ),
     )
-  async function refresh() {
+  function refresh(options: { list?: boolean; force?: boolean } = {}): Promise<void> {
+    const requestedId = selectedCampaignId.value
+    const account = auth.user.value?.id || ''
+    const listRequired =
+      options.list !== false || !requestedId || Date.now() - (runtime.listFetchedAt || 0) >= 60_000
+    const pending = runtime.pending
+    if (
+      !options.force &&
+      pending &&
+      pending.id === requestedId &&
+      pending.account === account &&
+      (!listRequired || pending.list)
+    )
+      return pending.task
     const sequence = ++revision.value
-    await auth.initialize()
-    const list = await auth.request<AwardCampaign[]>('/award-campaigns')
-    if (sequence !== revision.value) return
-    campaigns.value = list
-    const id = list.some((c) => c.id === selectedCampaignId.value) ? selectedCampaignId.value : list[0]?.id
-    if (!id) {
-      selectedCampaignId.value = ''
-      current.value = { ...fallback, id: '' }
-      nominations.value = []
-      myBallot.value = null
-      ballotVersion.value = 0
-      ballotCount.value = 0
-      results.value = []
-      recommendations.value = []
-      ballots.value = []
-      audit.value = []
+    const task: Promise<void> = (async () => {
+      await auth.initialize()
+      const activeAccount = auth.user.value?.id || ''
+      if (sequence !== revision.value) return
+      let id = requestedId
+      if (listRequired) {
+        const list = await auth.request<AwardCampaign[]>('/award-campaigns')
+        if (sequence !== revision.value || activeAccount !== (auth.user.value?.id || '')) return
+        campaigns.value = list
+        runtime.listFetchedAt = Date.now()
+        id = list.some((c) => c.id === requestedId) ? requestedId : list[0]?.id || ''
+      }
+      if (!id) {
+        selectedCampaignId.value = ''
+        current.value = { ...fallback, id: '' }
+        nominations.value = []
+        myBallot.value = null
+        ballotVersion.value = 0
+        ballotCount.value = 0
+        results.value = []
+        recommendations.value = []
+        ballots.value = []
+        audit.value = []
+        online.value = true
+        return
+      }
+      selectedCampaignId.value = id
+      if (runtime.pending) {
+        runtime.pending.id = id
+        runtime.pending.account = activeAccount
+      }
+      const data = await auth.request<{
+        campaign: AwardCampaign
+        nominations: AwardNomination[]
+        myBallot: (AwardBallot & { version: number }) | null
+        ballotVersion?: number
+        ballotCount: number
+        results: AwardResult[]
+        recommendations?: AwardPublicRecommendation[]
+        ballots?: AwardAdminBallot[]
+        audit: AwardAuditEntry[]
+      }>('/award-campaigns/' + id)
+      if (sequence !== revision.value || activeAccount !== (auth.user.value?.id || '')) return
+      if (JSON.stringify(current.value) !== JSON.stringify(data.campaign)) current.value = data.campaign
+      nominations.value = data.nominations
+      if (JSON.stringify(myBallot.value) !== JSON.stringify(data.myBallot)) myBallot.value = data.myBallot
+      ballotVersion.value = data.ballotVersion ?? data.myBallot?.version ?? 0
+      ballotCount.value = data.ballotCount
+      results.value = data.results
+      recommendations.value = data.recommendations || []
+      ballots.value = data.ballots || []
+      audit.value = data.audit.map((a) => ({ ...a, createdAt: new Date(Number(a.createdAt)).toISOString() }))
       online.value = true
-      return
-    }
-    selectedCampaignId.value = id
-    const data = await auth.request<{
-      campaign: AwardCampaign
-      nominations: AwardNomination[]
-      myBallot: (AwardBallot & { version: number }) | null
-      ballotVersion?: number
-      ballotCount: number
-      results: AwardResult[]
-      recommendations?: AwardPublicRecommendation[]
-      ballots?: AwardAdminBallot[]
-      audit: AwardAuditEntry[]
-    }>('/award-campaigns/' + id)
-    if (sequence !== revision.value) return
-    if (JSON.stringify(current.value) !== JSON.stringify(data.campaign)) current.value = data.campaign
-    nominations.value = data.nominations
-    if (JSON.stringify(myBallot.value) !== JSON.stringify(data.myBallot)) myBallot.value = data.myBallot
-    ballotVersion.value = data.ballotVersion ?? data.myBallot?.version ?? 0
-    ballotCount.value = data.ballotCount
-    results.value = data.results
-    recommendations.value = data.recommendations || []
-    ballots.value = data.ballots || []
-    audit.value = data.audit.map((a) => ({ ...a, createdAt: new Date(Number(a.createdAt)).toISOString() }))
-    online.value = true
+    })().finally(() => {
+      if (runtime.pending?.task === task) runtime.pending = undefined
+    })
+    runtime.pending = { id: requestedId, account, list: listRequired, task }
+    return task
   }
   async function initialize() {
+    const task = refresh()
+    const sequence = revision.value
     try {
-      await refresh()
+      await task
     } catch {
-      online.value = false
+      if (sequence === revision.value) online.value = false
     }
   }
   async function mutate(path: string, body: unknown, method: 'POST' | 'PATCH' | 'PUT' | 'DELETE' = 'POST') {
     await auth.request(path, body, method)
-    await refresh()
+    // A read started before this write cannot satisfy its post-save refresh.
+    await refresh({ force: true })
   }
   const root = () => `/award-campaigns/${campaign.value.id}`,
     adminRoot = () => `/admin/award-campaigns/${campaign.value.id}`

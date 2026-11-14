@@ -199,6 +199,7 @@ async function syncBangumi() {
 onMounted(load)
 watch(() => auth.user.value?.id, load)
 onBeforeUnmount(() => {
+  invalidateWorkCatalog()
   ++revision
 })
 useSeoMeta({ title: '书库管理 · 澄之响', robots: 'noindex,nofollow' })

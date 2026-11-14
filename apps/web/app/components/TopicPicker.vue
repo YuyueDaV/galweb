@@ -89,7 +89,7 @@ onMounted(load)
         type="button"
         class="text-link"
         :disabled="disabled"
-        @click="load"
+        @click="load()"
       >
         重试
       </button>

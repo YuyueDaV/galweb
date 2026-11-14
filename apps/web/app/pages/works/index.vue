@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import type { Work } from '~/types/forum'
 const auth = useAuth()
-const api = useRequestFetch()
-const { data, error, refresh } = await useAsyncData('work-catalog', () => api<Work[]>('/api/works'))
+const { data, error, refresh } = await useWorkCatalog()
 const works = computed(() => data.value || [])
 const search = ref('')
 const order = ref('managed')
@@ -85,18 +84,21 @@ useSeoMeta({ title: '作品书架 · 澄之响' })
           variant="cover"
           alt=""
           loading="eager"
+          :min-width="192"
           sizes="(max-width: 875px) 120px, 200px"
         /><WorkCover
           :rank="1"
           variant="cover"
           alt=""
           loading="eager"
+          :min-width="192"
           sizes="(max-width: 875px) 120px, 200px"
         /><WorkCover
           :rank="5"
           variant="cover"
           alt=""
           loading="eager"
+          :min-width="192"
           sizes="(max-width: 875px) 120px, 200px"
         /><span>the next chapter ↗</span>
       </div>

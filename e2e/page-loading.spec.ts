@@ -9,7 +9,7 @@ test('慢页面切换显示橘子，不卡操作；手机、深色和减少动�
   const pending = new Promise<void>((resolve) => {
     release = resolve
   })
-  await page.route('**/api/works', async (route) => {
+  await page.route('**/api/works?view=summary', async (route) => {
     await pending
     await route.fulfill({ json: works })
   })
@@ -66,7 +66,7 @@ test('快速跳转不出现橘子；接口失败后加载状态退出并显示�
   const seen = new Promise<void>((resolve) => {
     requested = resolve
   })
-  await page.route('**/api/works', async (route) => {
+  await page.route('**/api/works?view=summary', async (route) => {
     requested()
     await pending
     await route.fulfill({ json: works })
@@ -85,10 +85,10 @@ test('快速跳转不出现橘子；接口失败后加载状态退出并显示�
   } finally {
     release()
   }
-  await page.unroute('**/api/works')
+  await page.unroute('**/api/works?view=summary')
   await page.goto('/')
   await expect(page.locator('.app-loading')).toHaveCount(0)
-  await page.route('**/api/works', (route) =>
+  await page.route('**/api/works?view=summary', (route) =>
     route.fulfill({ status: 503, json: { message: '测试书库暂不可用' } }),
   )
   await page

@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "fonts": [
     {
       "family": "Noto Sans SC",
@@ -2041,5 +2041,510 @@
       "bytes": 36932,
       "sha256": "9fea608a947e67020c33cad9a6fe3d60c54119dfb8cff87768a8117a15ed7543"
     }
-  ]
+  ],
+  "ui": {
+    "charactersSha256": "79f9ef598f53adfb8bbbe39286020f2898b8eddef10b9658a0f7eae0daac44a4",
+    "fonts": [
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-fff4da0ab61ec2b3.woff2",
+        "range": "U+53E9",
+        "bytes": 1188,
+        "sha256": "fff4da0ab61ec2b3ce716c9f5eb35f296e1897e0ff9e3c8713c99c22b549bcd6",
+        "original": "/fonts/generated/noto-sans-sc-c9ce6e0654379a2d.woff2"
+      },
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-25f1b063e639422d.woff2",
+        "range": "U+5195",
+        "bytes": 1456,
+        "sha256": "25f1b063e639422d9e0daaed685a305d20945d2e62059ed8bb4464aebff208e4",
+        "original": "/fonts/generated/noto-sans-sc-2129264ef35c203e.woff2"
+      },
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-701a317fb39b3815.woff2",
+        "range": "U+3056",
+        "bytes": 1880,
+        "sha256": "701a317fb39b3815a1fb6e5b666752b6b74e72e9b6db346059b851906893bcb7",
+        "original": "/fonts/generated/noto-sans-sc-55fd1a42ab8ace74.woff2"
+      },
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-98639d170904f9a1.woff2",
+        "range": "U+2713",
+        "bytes": 1148,
+        "sha256": "98639d170904f9a18eb460e88277a02df1a8daf21c2b1505756d9458f53aab11",
+        "original": "/fonts/generated/noto-sans-sc-40292a14f8f52acc.woff2"
+      },
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-2553feeb9f1c990f.woff2",
+        "range": "U+2197, U+221E, U+222B",
+        "bytes": 1536,
+        "sha256": "2553feeb9f1c990f33d03a1d0261d55df6d96db39ea8724644153dfc8073ec6f",
+        "original": "/fonts/generated/noto-sans-sc-80d51f95afbebcbe.woff2"
+      },
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-29e44f082420b97f.woff2",
+        "range": "U+5C90, U+6512, U+7C3F, U+96CF",
+        "bytes": 3060,
+        "sha256": "29e44f082420b97f026a9bc359157472a851d4c2a3816b1a6f1d9eb3816e9645",
+        "original": "/fonts/generated/noto-sans-sc-a33308bf652e64ac.woff2"
+      },
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-9dadd1e1c64cbddc.woff2",
+        "range": "U+77B3",
+        "bytes": 1332,
+        "sha256": "9dadd1e1c64cbddcf9936bf9ecdb4efd6eb4e40eca8033418483e2c8956b9d11",
+        "original": "/fonts/generated/noto-sans-sc-4ea85e144cb385ce.woff2"
+      },
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-09bce23bb351e928.woff2",
+        "range": "U+60, U+62FD, U+8BB6",
+        "bytes": 1888,
+        "sha256": "09bce23bb351e928d2a4eca4f1fe53c1caa565b12168b26102e8773f3b359354",
+        "original": "/fonts/generated/noto-sans-sc-1bfdb1f001006c62.woff2"
+      },
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-538e99cd32f75d5c.woff2",
+        "range": "U+2193, U+5A05, U+67C4, U+6F84, U+FF0B",
+        "bytes": 2516,
+        "sha256": "538e99cd32f75d5c6e481e22c2823a418f81ab3775b8457dfd835d8b1c883a1c",
+        "original": "/fonts/generated/noto-sans-sc-1e716b78655e3960.woff2"
+      },
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-c67d6b4030aeeb15.woff2",
+        "range": "U+5E, U+2190, U+6084, U+FF0F",
+        "bytes": 1592,
+        "sha256": "c67d6b4030aeeb15466916e3069ed2d20a4af450cca9874f4f01890cc4bde116",
+        "original": "/fonts/generated/noto-sans-sc-ade910a27a4bd65b.woff2"
+      },
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-1cd1374a443a74d3.woff2",
+        "range": "U+2191, U+6795",
+        "bytes": 1524,
+        "sha256": "1cd1374a443a74d35d5302dc99065608b5442fe2c304b9a61e8d8cf282b3051c",
+        "original": "/fonts/generated/noto-sans-sc-d31c838eb0e43043.woff2"
+      },
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-6b9a8b7210d3e32a.woff2",
+        "range": "U+5339, U+5760, U+5BFA, U+62AC, U+64A4, U+6674, U+674F, U+6A59, U+79FD, U+7B5B",
+        "bytes": 4684,
+        "sha256": "6b9a8b7210d3e32a015b0145c5f298a192b59a34040b9e235678dc41e1eb3a1f",
+        "original": "/fonts/generated/noto-sans-sc-d8d9b5fd2b266fdf.woff2"
+      },
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-a46c6ab10354d8f2.woff2",
+        "range": "U+24, U+53E0, U+5F7C, U+6635, U+6670, U+8D74, U+94AE, U+97F5",
+        "bytes": 4040,
+        "sha256": "a46c6ab10354d8f252f45559fbda031b96c25b623842030faa02c31be7f6bc20",
+        "original": "/fonts/generated/noto-sans-sc-12fcc1175cb6370a.woff2"
+      },
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-1bc9aea74751fdcc.woff2",
+        "range": "U+2192, U+5269, U+533F, U+5561, U+5751, U+5E7D, U+5FFD, U+60DC, U+6A31, U+6C57, U+77AC, U+7B79, U+7FFC, U+8482",
+        "bytes": 6084,
+        "sha256": "1bc9aea74751fdcca390a988b35fab862d2e8ecffe1631bb40a91393ad169219",
+        "original": "/fonts/generated/noto-sans-sc-85ebc9985c665dd5.woff2"
+      },
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-d64a07829a08ae4b.woff2",
+        "range": "U+300C-300D, U+5141, U+517C, U+5496, U+54ED, U+594F, U+59C6, U+62D6, U+6447, U+65C1, U+65CB, U+6846, U+6CBF, U+6D45, U+788E, U+7C97, U+7F72, U+7FBD, U+8986, U+8D56, U+8FA8, U+966A, U+96FE",
+        "bytes": 9452,
+        "sha256": "d64a07829a08ae4b7012700561bfa7de5543cf24eefc427af625d4bab71eeab0",
+        "original": "/fonts/generated/noto-sans-sc-51785f4a4d2a011d.woff2"
+      },
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-254b759f56ff0260.woff2",
+        "range": "U+4FA7, U+5076, U+51C9, U+51EF, U+52FF, U+586B, U+5999, U+5B8F, U+5C16, U+5C24, U+5F03, U+5F84, U+5FC6, U+6062, U+6089, U+62B5, U+6628, U+66FF, U+67D4, U+695A, U+6A2A, U+6C60, U+6CC9, U+6DE1, U+73CD, U+76D7, U+795D, U+871C, U+88C1, U+8DE8, U+904D, U+95EA, U+9636, U+9F13",
+        "bytes": 12960,
+        "sha256": "254b759f56ff0260ecea50f6299a5ce06977dcf6a78b5930b5afc85c4095530a",
+        "original": "/fonts/generated/noto-sans-sc-aaa67a70f5e8b351.woff2"
+      },
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-1287fe0719c18c93.woff2",
+        "range": "U+23, U+3D, U+4ECD, U+4EEA, U+4F0A, U+51E1, U+5348, U+5360, U+547C, U+56F0, U+574F, U+5854, U+5BBD, U+5BF8, U+5C0A, U+5C3A, U+5C4A, U+5E16, U+6162, U+61C2, U+635F, U+638C, U+6563, U+6653, U+6696, U+675F, U+67D0, U+6B32, U+6D89, U+7126, U+751C, U+7532, U+7A0D, U+7D2B, U+7F29, U+804A, U+89E6, U+8BD7, U+8D25, U+8DDD, U+9177, U+9501, U+9B3C, U+9ED8",
+        "bytes": 13700,
+        "sha256": "1287fe0719c18c9375a3996d4fb57790e84472f51c42fdda871b3ac2db0ed2d3",
+        "original": "/fonts/generated/noto-sans-sc-34e76675ceffd898.woff2"
+      },
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-d55d8e03f91b3a91.woff2",
+        "range": "U+26, U+3C, U+D7, U+521A, U+5220, U+5237, U+523B, U+526F, U+53E5, U+53F3, U+552F, U+5584, U+5750, U+5BFB, U+5C01, U+5C3E, U+5C4F, U+5DE6, U+5E78, U+5FD8, U+6025, U+6076, U+613F, U+6298, U+62EC, U+6377, U+6388-6389, U+63D2, U+65E7, U+6682, U+66F2, U+672B, U+6751, U+6863, U+6DFB, U+719F, U+76D6, U+79D2, U+7A3F, U+7A97, U+7B26, U+7F3A, U+821E, U+8349, U+8A89, U+8BA8, U+8D4F, U+8DF3, U+8F6E, U+900F, U+9192, U+9547, U+955C, U+95F2, U+9644, U+964D, U+96C4, U+9732, U+9759, U+987A, U+989C, U+9B54",
+        "bytes": 20376,
+        "sha256": "d55d8e03f91b3a91805b563713f93fe84d86cacf203b68c255481cbe9908def6",
+        "original": "/fonts/generated/noto-sans-sc-40290d98d5c121bd.woff2"
+      },
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-675dd2562e217b0d.woff2",
+        "range": "U+7E, U+2026, U+4E45, U+4E5D, U+4F59, U+505C, U+5267, U+538B, U+53E6, U+542B, U+542F, U+5462, U+591C, U+5B63, U+5BA1, U+5BA3, U+5C42, U+5E0C, U+5E55, U+5E86, U+5E8F, U+5F52, U+5F81, U+5FF5, U+60CA, U+64CD, U+665A, U+677E, U+67B6, U+680F, U+68A6, U+68C0, U+699C, U+6B4C, U+6BCD, U+6C38, U+6C47, U+6CB9, U+6D4F, U+7565, U+7968, U+7981, U+7EAF, U+7EE7, U+7EFF, U+7FFB, U+805A, U+82E5, U+8363, U+84DD, U+8857, U+8865, U+8BB2, U+8C08, U+8D1F, U+8D5B, U+8D5E, U+8F93, U+8FF0, U+9000, U+9047, U+949F, U+987B, U+987E, U+989D, U+9C9C",
+        "bytes": 21972,
+        "sha256": "675dd2562e217b0dd3234439a6093439d94999c31e6575156ba2d0c5133508a5",
+        "original": "/fonts/generated/noto-sans-sc-c49b2eb658a0c2d7.woff2"
+      },
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-2bc4c0d4d448954c.woff2",
+        "range": "U+25, U+4E14, U+4E49, U+4EC5, U+4EFD, U+4F8B, U+5019, U+5145, U+5174, U+5199, U+51B3, U+5207, U+5212, U+5219, U+521D, U+5347, U+53F2, U+542C, U+547D, U+54CD, U+54EA, U+552E, U+5747, U+575B, U+5883, U+589E, U+5931, U+5B83, U+5BA4, U+5C1A, U+5C3D, U+5C40, U+5C45, U+5C5E, U+5E95, U+5F80, U+5F85, U+5FD7, U+601D, U+626B, U+627F, U+6309, U+63A7, U+6545, U+65AF, U+65C5, U+666E, U+667A, U+670B, U+671B, U+677F, U+6790, U+6821, U+6838, U+6B62, U+6BB5, U+6E29, U+6EE1, U+6F14, U+6F2B, U+72B6, U+72EC, U+7387, U+753B, U+77ED, U+77F3, U+793C, U+79BB, U+79C1, U+79FB, U+7B11, U+7B54, U+7BC7, U+7C73, U+7D20, U+7EC8, U+7EED, U+7FA4, U+804C, U+80CC, U+8111, U+843D, U+89C9, U+89D2, U+8BBF, U+8BCD, U+8BE6, U+8C22, U+8C61, U+8D26, U+8D8A, U+8F7B, U+8F91, U+8FB9, U+8FD4, U+9002, U+9519, U+95ED, U+961F, U+968F-9690, U+96BE, U+9876, U+9884, U+9988, U+FF1B",
+        "bytes": 33796,
+        "sha256": "2bc4c0d4d448954c9a7cef62bdb980cc4a42509a373712eca2df3c0316bbfbb4",
+        "original": "/fonts/generated/noto-sans-sc-6c0cda055b31066f.woff2"
+      },
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-c35d564acfbba2d2.woff2",
+        "range": "U+2B, U+40, U+300A-300B, U+4E16, U+4E66, U+4E9B, U+4EC0, U+4ECA, U+4FEE, U+503C, U+50CF, U+5148, U+518D, U+51C6, U+5217, U+529E-529F, U+5341, U+5361, U+5386, U+53C2, U+53C8, U+53D7-53D8, U+53EA, U+5404, U+5411, U+5417, U+5427, U+5468, U+559C, U+5668, U+56E0, U+56E2, U+5740, U+5904, U+59CB, U+5B58, U+5B9D, U+5BC6, U+5DF1, U+5E26, U+5E93, U+5F15, U+5F20, U+5F62, U+5F88, U+5F8B, U+5FC5, U+600E, U+620F, U+627E, U+628A, U+62A4, U+62DB, U+62E9, U+6307, U+6362, U+636E, U+6539, U+6548, U+6574, U+663E, U+666F, U+672A, U+6784, U+6A21, U+6B65, U+6BCF, U+6DF1, U+7167, U+73A9, U+73AF, U+754C, U+7559, U+767D, U+7740, U+786E, U+798F, U+79F0, U+7AEF, U+7B7E, U+7BB1, U+7EA6, U+7EC4, U+7EC6, U+7ECD, U+7EF4, U+8003, U+81F3-81F4, U+822A, U+827A, U+82F1, U+83B7, U+89C8, U+8BA9, U+8BB8, U+8BC6, U+8BD5, U+8BE2, U+8BE5, U+8C03, U+8D23, U+8D70, U+8DB3, U+8FBE, U+8FCE, U+8FD1, U+8FDE, U+9001, U+90A3, U+914D, U+94FE, U+9500, U+952E, U+9605, U+9645, U+9662, U+9664, U+9700, U+975E, U+97F3, U+9879, U+9A8C",
+        "bytes": 37104,
+        "sha256": "c35d564acfbba2d229af3ec6bad69c5a4eaddb9707e3e98e286790480a473de3",
+        "original": "/fonts/generated/noto-sans-sc-002e502515bee8b9.woff2"
+      },
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-c319afa41e748dc2.woff2",
+        "range": "U+4E, U+201C-201D, U+3010-3011, U+4E07, U+4E24, U+4E48, U+4E50, U+4E5F, U+4E8B-4E8C, U+4EA4, U+4EAB-4EAC, U+4ECB, U+4ECE, U+4ED6, U+4EE3, U+4EF6-4EF7, U+4EFB, U+4F20, U+4F55, U+4F7F, U+4FDD, U+5149, U+5171, U+5177, U+518C, U+51FB, U+521B, U+5229, U+522B, U+5305, U+5317, U+5355, U+5357, U+5373, U+539F, U+53BB, U+53CA, U+53CD, U+53D6, U+53E3, U+53F0, U+5458, U+56DB, U+573A, U+578B, U+57CE, U+58F0, U+590D, U+5934, U+5973, U+5B57, U+5B8C, U+5B98, U+5BB9, U+5BFC, U+5C06, U+5C11, U+5C31, U+5C55, U+5DF2, U+5E03, U+5E38, U+5E76, U+5E94, U+5EFA, U+5F71, U+5F97, U+5FEB, U+6001, U+603B, U+60F3, U+611F, U+6216, U+624D, U+6253, U+6295, U+6301, U+6392, U+641C, U+652F, U+653E, U+6599, U+671F, U+672F, U+6761, U+67E5, U+6807, U+6837, U+683C, U+6848, U+6B22, U+6B64, U+6C14, U+6C34, U+6CA1, U+6D41, U+6D88, U+6E05, U+6E38, U+6E90, U+7136, U+7231, U+7531, U+76EE, U+76F4, U+771F, U+7801, U+793A, U+79CD, U+7A0B, U+7A7A, U+7ACB, U+7AE0, U+7B2C, U+7B80, U+7BA1, U+7CBE, U+7D22, U+7EA7, U+7ED3, U+7ED9, U+7EDF, U+7F16, U+7F6E, U+800C, U+8272, U+8282, U+82B1, U+8350, U+88AB, U+88C5, U+897F, U+89C1, U+89C4, U+89E3, U+8A00, U+8BA1, U+8BA4, U+8BAE, U+8BB0, U+8BBE, U+8BC1, U+8BC4, U+8BFB, U+8D77, U+8D85, U+8DEF, U+8EAB, U+8F6C, U+8F7D, U+8FD0, U+9009, U+90AE, U+90FD, U+91CC-91CD, U+91CF, U+9650, U+96C6, U+9891, U+FF1F",
+        "bytes": 45988,
+        "sha256": "c319afa41e748dc28dc352e63e71b9891cdc622c7acc7182794fd86cfcc68527",
+        "original": "/fonts/generated/noto-sans-sc-3d7ced7101c03dfa.woff2"
+      },
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-71537988f94d81fc.woff2",
+        "range": "U+3E, U+5F, U+7C, U+A9, U+4E09-4E0B, U+4E0D-4E0E, U+4E2A, U+4E3A-4E3B, U+4E4B, U+4E86, U+4E8E, U+4EBA, U+4EE5, U+4EEC, U+4F1A, U+4F4D, U+4F53, U+4F5C, U+4F60, U+4FE1, U+5165, U+5168, U+516C, U+5173, U+5176, U+5185, U+51FA, U+5206, U+5230, U+5236, U+524D, U+529B, U+52A0-52A1, U+52A8, U+5316, U+533A, U+53CB, U+53D1, U+53EF, U+53F7, U+5408, U+540C-540E, U+544A, U+548C, U+54C1, U+56DE, U+56FE, U+5728, U+5730, U+5907, U+5916, U+591A, U+5927, U+5929, U+597D, U+5982, U+5B50, U+5B66, U+5B89, U+5B9A, U+5B9E, U+5BA2, U+5BB6, U+5BF9, U+5C0F, U+5DE5, U+5E73, U+5E7F, U+5EA6, U+5F00, U+5F0F, U+5F53, U+5F55, U+5FAE, U+5FC3, U+6027, U+606F, U+60C5, U+610F, U+6210-6211, U+6237, U+6240, U+624B, U+63A5, U+63A8, U+63D0, U+6536, U+6570, U+6587, U+65B9, U+65E0, U+65F6, U+660E, U+662F, U+66F4, U+6700, U+670D, U+672C, U+673A, U+6743, U+6765, U+679C, U+6B21, U+6B63, U+6CD5, U+6CE8, U+6D3B, U+70ED, U+7247-7248, U+7269, U+7279, U+73B0, U+7406, U+751F, U+7528, U+7535, U+767B, U+76F8, U+770B, U+77E5, U+793E, U+7AD9, U+7B49, U+7C7B, U+7CFB, U+7EBF, U+7ECF, U+7F8E, U+8005, U+8054, U+80FD, U+81EA, U+85CF, U+884C, U+8868, U+8981, U+89C6, U+8BBA, U+8BDD, U+8BF4, U+8BF7, U+8D44, U+8FC7, U+8FD8-8FD9, U+8FDB, U+901A, U+9053, U+90E8, U+957F, U+95E8, U+95EE, U+95F4, U+9762, U+9875, U+9898, U+9996, U+9AD8, U+FF01, U+FF08-FF09",
+        "bytes": 41732,
+        "sha256": "71537988f94d81fce2ee276e910a511c139b0683b7c9930940d5ea635bf0dd24",
+        "original": "/fonts/generated/noto-sans-sc-f26330ce40563828.woff2"
+      },
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-c6083904ad823ffa.woff2",
+        "range": "U+20-22, U+27-2A, U+2C-3B, U+3F, U+41-4D, U+4F-5D, U+61-7B, U+7D, U+B7, U+2013-2014, U+3001-3002, U+3042, U+3057, U+305D, U+3068, U+3075, U+3089, U+4E00, U+4E2D, U+65B0, U+65E5, U+6708-6709, U+70B9, U+7684, U+7F51, U+FF0C, U+FF1A",
+        "bytes": 18476,
+        "sha256": "c6083904ad823ffaf6b98feb4dfe6dbbc76d375ac627acbcad3e14ca19c05976",
+        "original": "/fonts/generated/noto-sans-sc-09b9fa5a9521fbec.woff2"
+      },
+      {
+        "family": "Noto Sans SC",
+        "key": "noto-sans-sc",
+        "weight": "400 700",
+        "file": "/fonts/generated/noto-sans-sc-ui-5b0cc031195d64c5.woff2",
+        "range": "U+20-7E, U+A9, U+B7, U+D7, U+2013-2014, U+201C-201D, U+2026, U+2191, U+2193",
+        "bytes": 15444,
+        "sha256": "5b0cc031195d64c58f0a7d31562b431af91ab07a52e79d9c78ff89bf587a9fa4",
+        "original": "/fonts/generated/noto-sans-sc-cf5346b0747cd711.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-2fb5c67612703d7f.woff2",
+        "range": "U+53E9",
+        "bytes": 1276,
+        "sha256": "2fb5c67612703d7fb244ead0ab9a50f9f8da9adff8b7b8d6f9666f60c3811401",
+        "original": "/fonts/generated/noto-serif-sc-74640df00779e2da.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-7d9aa7d20e951e94.woff2",
+        "range": "U+5195",
+        "bytes": 1576,
+        "sha256": "7d9aa7d20e951e949d66d9d3ebcd09c9413145e5724d9815c4d236d911256c56",
+        "original": "/fonts/generated/noto-serif-sc-9700201ec504ebb7.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-20ec25470ab85e57.woff2",
+        "range": "U+3056",
+        "bytes": 2016,
+        "sha256": "20ec25470ab85e5716855bc58e61f37b2f83b839115fedc2c67a6dd745079a0e",
+        "original": "/fonts/generated/noto-serif-sc-25fef956b5b5d84c.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-8828744a87b05cd7.woff2",
+        "range": "U+2713",
+        "bytes": 1028,
+        "sha256": "8828744a87b05cd716f2887a893ab2c7d48abe5ccf907c772428a8cc6eeb5897",
+        "original": "/fonts/generated/noto-serif-sc-7a63db0693bddef3.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-77ac4dec0361e75d.woff2",
+        "range": "U+2197, U+221E, U+222B",
+        "bytes": 1484,
+        "sha256": "77ac4dec0361e75d54d3f9c17e3e58c8d3d6f0b768e9e647d6e1a269acaf1144",
+        "original": "/fonts/generated/noto-serif-sc-d7e2fd12dc94652f.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-3d5a0585b482289f.woff2",
+        "range": "U+5C90, U+6512, U+7C3F, U+96CF",
+        "bytes": 3564,
+        "sha256": "3d5a0585b482289f92f2cfb1cba163b25f6b7d075f264a8d3268bc9743900132",
+        "original": "/fonts/generated/noto-serif-sc-854197398304b044.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-99c8ec042b8b3049.woff2",
+        "range": "U+77B3",
+        "bytes": 1548,
+        "sha256": "99c8ec042b8b3049e6f4448c6db26e55ee206b9b4087296bbba17dabff0b8f18",
+        "original": "/fonts/generated/noto-serif-sc-7f40be4f92c57c78.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-55bf89d5228892c2.woff2",
+        "range": "U+60, U+62FD, U+8BB6",
+        "bytes": 2080,
+        "sha256": "55bf89d5228892c22db70c0b169e0aee1573ea20b5f8a07e46a98ac1c77ab4f7",
+        "original": "/fonts/generated/noto-serif-sc-3d6543417ccc24b0.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-c31c7b2469ce36f9.woff2",
+        "range": "U+2193, U+5A05, U+67C4, U+6F84, U+FF0B",
+        "bytes": 2848,
+        "sha256": "c31c7b2469ce36f9dd9f0a22087aaa6f7e0852c25d1fcb81d362684ca325e4ac",
+        "original": "/fonts/generated/noto-serif-sc-06ed8a4ed3fe4840.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-325163e3b1fa3071.woff2",
+        "range": "U+5E, U+2190, U+6084, U+FF0F",
+        "bytes": 1600,
+        "sha256": "325163e3b1fa30716bb80d063062af3be6c948d9dab683e0076389164341bf62",
+        "original": "/fonts/generated/noto-serif-sc-e96f3f8343bd828f.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-acc829110085615c.woff2",
+        "range": "U+2191, U+6795",
+        "bytes": 1540,
+        "sha256": "acc829110085615cfd8d630dda3450491148fa971fa50c1c5d7e69b25bb9ea9a",
+        "original": "/fonts/generated/noto-serif-sc-316c6c6da04460f9.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-e13acb40339a57cf.woff2",
+        "range": "U+5339, U+5760, U+5BFA, U+62AC, U+64A4, U+6674, U+674F, U+6A59, U+79FD, U+7B5B",
+        "bytes": 5508,
+        "sha256": "e13acb40339a57cfc13d24dc985a0a6dfe52c4f7abd57d6f0bb698e51b556de7",
+        "original": "/fonts/generated/noto-serif-sc-89bf4f23b46b90c2.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-e0f874cbb848efcc.woff2",
+        "range": "U+24, U+53E0, U+5F7C, U+6635, U+6670, U+8D74, U+94AE, U+97F5",
+        "bytes": 4580,
+        "sha256": "e0f874cbb848efcc949a1a0ea809ddbe1a9c94b5da33e71295f44c798eefb0e9",
+        "original": "/fonts/generated/noto-serif-sc-f1dcb4b1c125ba75.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-cb4cf4c87d6b074a.woff2",
+        "range": "U+2192, U+5269, U+533F, U+5561, U+5751, U+5E7D, U+5FFD, U+60DC, U+6A31, U+6C57, U+77AC, U+7B79, U+7FFC, U+8482",
+        "bytes": 7756,
+        "sha256": "cb4cf4c87d6b074a8fdb373a2fff034067b648fdcae129b8c652b652a16b6381",
+        "original": "/fonts/generated/noto-serif-sc-8d7f603754c5805e.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-f9708aa54deb5e5b.woff2",
+        "range": "U+300C-300D, U+5141, U+517C, U+5496, U+54ED, U+594F, U+59C6, U+62D6, U+6447, U+65C1, U+65CB, U+6846, U+6CBF, U+6D45, U+788E, U+7C97, U+7F72, U+7FBD, U+8986, U+8D56, U+8FA8, U+966A, U+96FE",
+        "bytes": 11596,
+        "sha256": "f9708aa54deb5e5bb03c869d2d79f0ffeba4910fcae2360bd63ca0bcd3bb0a98",
+        "original": "/fonts/generated/noto-serif-sc-d6b6b4a9d11af92b.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-76087b3b1f156fc1.woff2",
+        "range": "U+4FA7, U+5076, U+51C9, U+51EF, U+52FF, U+586B, U+5999, U+5B8F, U+5C16, U+5C24, U+5F03, U+5F84, U+5FC6, U+6062, U+6089, U+62B5, U+6628, U+66FF, U+67D4, U+695A, U+6A2A, U+6C60, U+6CC9, U+6DE1, U+73CD, U+76D7, U+795D, U+871C, U+88C1, U+8DE8, U+904D, U+95EA, U+9636, U+9F13",
+        "bytes": 15724,
+        "sha256": "76087b3b1f156fc12ddfd7b29813a5dd81bdf2aeb33bfc67a23a114fb4092519",
+        "original": "/fonts/generated/noto-serif-sc-36e3c1ae359c9495.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-04fc5a4e82f1ba1a.woff2",
+        "range": "U+23, U+3D, U+4ECD, U+4EEA, U+4F0A, U+51E1, U+5348, U+5360, U+547C, U+56F0, U+574F, U+5854, U+5BBD, U+5BF8, U+5C0A, U+5C3A, U+5C4A, U+5E16, U+6162, U+61C2, U+635F, U+638C, U+6563, U+6653, U+6696, U+675F, U+67D0, U+6B32, U+6D89, U+7126, U+751C, U+7532, U+7A0D, U+7D2B, U+7F29, U+804A, U+89E6, U+8BD7, U+8D25, U+8DDD, U+9177, U+9501, U+9B3C, U+9ED8",
+        "bytes": 17640,
+        "sha256": "04fc5a4e82f1ba1a1eef56ffe9432dc80a955ef9c6840627f75d8c4a491fb9e8",
+        "original": "/fonts/generated/noto-serif-sc-187b4edcd326c734.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-4f6051d51cc848ed.woff2",
+        "range": "U+26, U+3C, U+D7, U+521A, U+5220, U+5237, U+523B, U+526F, U+53E5, U+53F3, U+552F, U+5584, U+5750, U+5BFB, U+5C01, U+5C3E, U+5C4F, U+5DE6, U+5E78, U+5FD8, U+6025, U+6076, U+613F, U+6298, U+62EC, U+6377, U+6388-6389, U+63D2, U+65E7, U+6682, U+66F2, U+672B, U+6751, U+6863, U+6DFB, U+719F, U+76D6, U+79D2, U+7A3F, U+7A97, U+7B26, U+7F3A, U+821E, U+8349, U+8A89, U+8BA8, U+8D4F, U+8DF3, U+8F6E, U+900F, U+9192, U+9547, U+955C, U+95F2, U+9644, U+964D, U+96C4, U+9732, U+9759, U+987A, U+989C, U+9B54",
+        "bytes": 26192,
+        "sha256": "4f6051d51cc848edcb92d86a6c48538d70d4d5ad40d566a4eebb722559bad0f0",
+        "original": "/fonts/generated/noto-serif-sc-1c37363e755ef32d.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-f3924f5f239ff20a.woff2",
+        "range": "U+7E, U+2026, U+4E45, U+4E5D, U+4F59, U+505C, U+5267, U+538B, U+53E6, U+542B, U+542F, U+5462, U+591C, U+5B63, U+5BA1, U+5BA3, U+5C42, U+5E0C, U+5E55, U+5E86, U+5E8F, U+5F52, U+5F81, U+5FF5, U+60CA, U+64CD, U+665A, U+677E, U+67B6, U+680F, U+68A6, U+68C0, U+699C, U+6B4C, U+6BCD, U+6C38, U+6C47, U+6CB9, U+6D4F, U+7565, U+7968, U+7981, U+7EAF, U+7EE7, U+7EFF, U+7FFB, U+805A, U+82E5, U+8363, U+84DD, U+8857, U+8865, U+8BB2, U+8C08, U+8D1F, U+8D5B, U+8D5E, U+8F93, U+8FF0, U+9000, U+9047, U+949F, U+987B, U+987E, U+989D, U+9C9C",
+        "bytes": 27572,
+        "sha256": "f3924f5f239ff20aad0bc07aae627478d4b0ddfba485fa389a3e988e66d0bd8b",
+        "original": "/fonts/generated/noto-serif-sc-3643f17280c2ac72.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-dc1dcce47fa98d6f.woff2",
+        "range": "U+25, U+4E14, U+4E49, U+4EC5, U+4EFD, U+4F8B, U+5019, U+5145, U+5174, U+5199, U+51B3, U+5207, U+5212, U+5219, U+521D, U+5347, U+53F2, U+542C, U+547D, U+54CD, U+54EA, U+552E, U+5747, U+575B, U+5883, U+589E, U+5931, U+5B83, U+5BA4, U+5C1A, U+5C3D, U+5C40, U+5C45, U+5C5E, U+5E95, U+5F80, U+5F85, U+5FD7, U+601D, U+626B, U+627F, U+6309, U+63A7, U+6545, U+65AF, U+65C5, U+666E, U+667A, U+670B, U+671B, U+677F, U+6790, U+6821, U+6838, U+6B62, U+6BB5, U+6E29, U+6EE1, U+6F14, U+6F2B, U+72B6, U+72EC, U+7387, U+753B, U+77ED, U+77F3, U+793C, U+79BB, U+79C1, U+79FB, U+7B11, U+7B54, U+7BC7, U+7C73, U+7D20, U+7EC8, U+7EED, U+7FA4, U+804C, U+80CC, U+8111, U+843D, U+89C9, U+89D2, U+8BBF, U+8BCD, U+8BE6, U+8C22, U+8C61, U+8D26, U+8D8A, U+8F7B, U+8F91, U+8FB9, U+8FD4, U+9002, U+9519, U+95ED, U+961F, U+968F-9690, U+96BE, U+9876, U+9884, U+9988, U+FF1B",
+        "bytes": 41396,
+        "sha256": "dc1dcce47fa98d6f5722c553ba284cb140b3076926ccb1d6d7d577e9da224c9a",
+        "original": "/fonts/generated/noto-serif-sc-5b38fc73e430bdfc.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-04cec46d7c7105bb.woff2",
+        "range": "U+2B, U+40, U+300A-300B, U+4E16, U+4E66, U+4E9B, U+4EC0, U+4ECA, U+4FEE, U+503C, U+50CF, U+5148, U+518D, U+51C6, U+5217, U+529E-529F, U+5341, U+5361, U+5386, U+53C2, U+53C8, U+53D7-53D8, U+53EA, U+5404, U+5411, U+5417, U+5427, U+5468, U+559C, U+5668, U+56E0, U+56E2, U+5740, U+5904, U+59CB, U+5B58, U+5B9D, U+5BC6, U+5DF1, U+5E26, U+5E93, U+5F15, U+5F20, U+5F62, U+5F88, U+5F8B, U+5FC5, U+600E, U+620F, U+627E, U+628A, U+62A4, U+62DB, U+62E9, U+6307, U+6362, U+636E, U+6539, U+6548, U+6574, U+663E, U+666F, U+672A, U+6784, U+6A21, U+6B65, U+6BCF, U+6DF1, U+7167, U+73A9, U+73AF, U+754C, U+7559, U+767D, U+7740, U+786E, U+798F, U+79F0, U+7AEF, U+7B7E, U+7BB1, U+7EA6, U+7EC4, U+7EC6, U+7ECD, U+7EF4, U+8003, U+81F3-81F4, U+822A, U+827A, U+82F1, U+83B7, U+89C8, U+8BA9, U+8BB8, U+8BC6, U+8BD5, U+8BE2, U+8BE5, U+8C03, U+8D23, U+8D70, U+8DB3, U+8FBE, U+8FCE, U+8FD1, U+8FDE, U+9001, U+90A3, U+914D, U+94FE, U+9500, U+952E, U+9605, U+9645, U+9662, U+9664, U+9700, U+975E, U+97F3, U+9879, U+9A8C",
+        "bytes": 45756,
+        "sha256": "04cec46d7c7105bb1756f2668ad18c057411638d1a7eeeeeb8b7a371b66af782",
+        "original": "/fonts/generated/noto-serif-sc-035555520238a10b.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-6a949587fe3560e5.woff2",
+        "range": "U+4E, U+201C-201D, U+3010-3011, U+4E07, U+4E24, U+4E48, U+4E50, U+4E5F, U+4E8B-4E8C, U+4EA4, U+4EAB-4EAC, U+4ECB, U+4ECE, U+4ED6, U+4EE3, U+4EF6-4EF7, U+4EFB, U+4F20, U+4F55, U+4F7F, U+4FDD, U+5149, U+5171, U+5177, U+518C, U+51FB, U+521B, U+5229, U+522B, U+5305, U+5317, U+5355, U+5357, U+5373, U+539F, U+53BB, U+53CA, U+53CD, U+53D6, U+53E3, U+53F0, U+5458, U+56DB, U+573A, U+578B, U+57CE, U+58F0, U+590D, U+5934, U+5973, U+5B57, U+5B8C, U+5B98, U+5BB9, U+5BFC, U+5C06, U+5C11, U+5C31, U+5C55, U+5DF2, U+5E03, U+5E38, U+5E76, U+5E94, U+5EFA, U+5F71, U+5F97, U+5FEB, U+6001, U+603B, U+60F3, U+611F, U+6216, U+624D, U+6253, U+6295, U+6301, U+6392, U+641C, U+652F, U+653E, U+6599, U+671F, U+672F, U+6761, U+67E5, U+6807, U+6837, U+683C, U+6848, U+6B22, U+6B64, U+6C14, U+6C34, U+6CA1, U+6D41, U+6D88, U+6E05, U+6E38, U+6E90, U+7136, U+7231, U+7531, U+76EE, U+76F4, U+771F, U+7801, U+793A, U+79CD, U+7A0B, U+7A7A, U+7ACB, U+7AE0, U+7B2C, U+7B80, U+7BA1, U+7CBE, U+7D22, U+7EA7, U+7ED3, U+7ED9, U+7EDF, U+7F16, U+7F6E, U+800C, U+8272, U+8282, U+82B1, U+8350, U+88AB, U+88C5, U+897F, U+89C1, U+89C4, U+89E3, U+8A00, U+8BA1, U+8BA4, U+8BAE, U+8BB0, U+8BBE, U+8BC1, U+8BC4, U+8BFB, U+8D77, U+8D85, U+8DEF, U+8EAB, U+8F6C, U+8F7D, U+8FD0, U+9009, U+90AE, U+90FD, U+91CC-91CD, U+91CF, U+9650, U+96C6, U+9891, U+FF1F",
+        "bytes": 57020,
+        "sha256": "6a949587fe3560e5f5997ea90ba3cefa3deb74e64cbc6376c968168666b8a683",
+        "original": "/fonts/generated/noto-serif-sc-1ca1db8c30382a4c.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-5fbb3e21ac884f90.woff2",
+        "range": "U+3E, U+5F, U+7C, U+A9, U+4E09-4E0B, U+4E0D-4E0E, U+4E2A, U+4E3A-4E3B, U+4E4B, U+4E86, U+4E8E, U+4EBA, U+4EE5, U+4EEC, U+4F1A, U+4F4D, U+4F53, U+4F5C, U+4F60, U+4FE1, U+5165, U+5168, U+516C, U+5173, U+5176, U+5185, U+51FA, U+5206, U+5230, U+5236, U+524D, U+529B, U+52A0-52A1, U+52A8, U+5316, U+533A, U+53CB, U+53D1, U+53EF, U+53F7, U+5408, U+540C-540E, U+544A, U+548C, U+54C1, U+56DE, U+56FE, U+5728, U+5730, U+5907, U+5916, U+591A, U+5927, U+5929, U+597D, U+5982, U+5B50, U+5B66, U+5B89, U+5B9A, U+5B9E, U+5BA2, U+5BB6, U+5BF9, U+5C0F, U+5DE5, U+5E73, U+5E7F, U+5EA6, U+5F00, U+5F0F, U+5F53, U+5F55, U+5FAE, U+5FC3, U+6027, U+606F, U+60C5, U+610F, U+6210-6211, U+6237, U+6240, U+624B, U+63A5, U+63A8, U+63D0, U+6536, U+6570, U+6587, U+65B9, U+65E0, U+65F6, U+660E, U+662F, U+66F4, U+6700, U+670D, U+672C, U+673A, U+6743, U+6765, U+679C, U+6B21, U+6B63, U+6CD5, U+6CE8, U+6D3B, U+70ED, U+7247-7248, U+7269, U+7279, U+73B0, U+7406, U+751F, U+7528, U+7535, U+767B, U+76F8, U+770B, U+77E5, U+793E, U+7AD9, U+7B49, U+7C7B, U+7CFB, U+7EBF, U+7ECF, U+7F8E, U+8005, U+8054, U+80FD, U+81EA, U+85CF, U+884C, U+8868, U+8981, U+89C6, U+8BBA, U+8BDD, U+8BF4, U+8BF7, U+8D44, U+8FC7, U+8FD8-8FD9, U+8FDB, U+901A, U+9053, U+90E8, U+957F, U+95E8, U+95EE, U+95F4, U+9762, U+9875, U+9898, U+9996, U+9AD8, U+FF01, U+FF08-FF09",
+        "bytes": 51256,
+        "sha256": "5fbb3e21ac884f90db0be62ffb8775ac8e7a87eea35197b855afd9b27558685f",
+        "original": "/fonts/generated/noto-serif-sc-91e45474580695b1.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-231289f6f1774eab.woff2",
+        "range": "U+20-22, U+27-2A, U+2C-3B, U+3F, U+41-4D, U+4F-5D, U+61-7B, U+7D, U+B7, U+2013-2014, U+3001-3002, U+3042, U+3057, U+305D, U+3068, U+3075, U+3089, U+4E00, U+4E2D, U+65B0, U+65E5, U+6708-6709, U+70B9, U+7684, U+7F51, U+FF0C, U+FF1A",
+        "bytes": 24468,
+        "sha256": "231289f6f1774eabcd05f3cd36df4eb87a6da0f33f61fc86158e2b7985fec407",
+        "original": "/fonts/generated/noto-serif-sc-4cafae83d6d97e85.woff2"
+      },
+      {
+        "family": "Noto Serif SC",
+        "key": "noto-serif-sc",
+        "weight": "400 800",
+        "file": "/fonts/generated/noto-serif-sc-ui-984b08e524bf311c.woff2",
+        "range": "U+20-7E, U+A9, U+B7, U+D7, U+2013-2014, U+201C-201D, U+2026, U+2191, U+2193",
+        "bytes": 20328,
+        "sha256": "984b08e524bf311c39f6b9410258236b0eea80386893f05e4dd6056b4a019187",
+        "original": "/fonts/generated/noto-serif-sc-a39e61fb6acef922.woff2"
+      }
+    ]
+  }
 }

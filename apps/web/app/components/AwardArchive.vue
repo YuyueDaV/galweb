@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { AwardArchiveEntry } from '~/types/award-archive'
 import { NuxtLink } from '#components'
+import { coverUrl } from '~/data/forum'
 
 const props = defineProps<{
   edition: number
@@ -81,7 +82,17 @@ const scoreUnit = computed(() => (props.weighted ? '分' : '票'))
           class="rank-feature"
         >
           <div class="rank-feature-cover">
-            <SafeImage :src="entry.coverUrl" :alt="`${entry.title}封面`" />
+            <WorkCover
+              :rank="entry.coverRank || 0"
+              :src="
+                entry.coverRank && entry.coverUrl === coverUrl(entry.coverRank) ? undefined : entry.coverUrl
+              "
+              variant="cover"
+              :min-width="192"
+              sizes="(max-width: 875px) 120px, (max-width: 975px) 150px, (max-width: 1275px) 30vw, 380px"
+              loading="eager"
+              :alt="`${entry.title}封面`"
+            />
             <span class="rank-feature-number" :class="{ 'is-pending': entry.tied }"
               >{{ entry.tied ? '待加赛' : String(entry.rank).padStart(2, '0')
               }}<small v-if="!entry.tied">/ {{ entries.length }}</small></span
@@ -119,7 +130,15 @@ const scoreUnit = computed(() => (props.weighted ? '分' : '票'))
             entry.tied ? '待加赛' : String(entry.rank).padStart(2, '0')
           }}</span>
           <span class="rank-row-cover"
-            ><SafeImage :src="entry.coverUrl" :alt="`${entry.title}封面`" loading="lazy"
+            ><WorkCover
+              :rank="entry.coverRank || 0"
+              :src="
+                entry.coverRank && entry.coverUrl === coverUrl(entry.coverRank) ? undefined : entry.coverUrl
+              "
+              variant="rail"
+              sizes="(max-width: 875px) 60px, 95px"
+              :alt="`${entry.title}封面`"
+              loading="lazy"
           /></span>
           <div class="rank-row-copy">
             <h3>{{ entry.title }}</h3>

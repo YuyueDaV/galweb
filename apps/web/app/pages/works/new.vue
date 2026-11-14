@@ -122,6 +122,7 @@ async function save() {
       description: description.value,
       coverAssetId: cover.value?.id || null,
     })
+    invalidateWorkCatalog()
     works.value = [...(works.value || []).filter((item) => item.rank !== work.rank), work]
     created.value = work
     completionOpen.value = true

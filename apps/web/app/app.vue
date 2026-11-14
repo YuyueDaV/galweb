@@ -1,10 +1,13 @@
 <script setup lang="ts">
 const forum = useForum()
 const site=useSiteSettings(),inbox=useNotifications()
-await site.load().catch(()=>{})
 const identity = usePreviewIdentity()
 const auth=useAuth()
-if(import.meta.server){useResponseHeader('Cache-Control').value='private, no-store';await auth.initialize()}
+if(import.meta.server)useResponseHeader('Cache-Control').value='private, no-store'
+await Promise.all([
+  useAsyncData('initial-site-settings',()=>site.load()),
+  ...(import.meta.server?[auth.initialize()]:[]),
+])
 const route = useRoute()
 const mobileOpen = ref(false)
 const themeCookie=useCookie<'light'|'dark'>('czx-theme',{sameSite:'lax',maxAge:31536000})
@@ -29,10 +32,11 @@ onBeforeUnmount(() => window.removeEventListener('scroll', updateHeaderScroll))
 onMounted(async () => {
   dark.value=document.documentElement.dataset.theme==='dark'
   themeCookie.value=dark.value?'dark':'light'
-  try {await auth.initialize();await forum.initialize();await inbox.load().catch(()=>{})}catch(e){forum.notify((e as Error).message)}finally{booting.value=false}
+  try {await auth.initialize()}catch(e){forum.notify((e as Error).message)}finally{booting.value=false}
 })
-watch(identity.selectedId,async()=>{await forum.syncMine();await forum.loadFeed()})
-watch(()=>auth.user.value?.id,async()=>{try{await forum.syncMine();await inbox.load()}catch(e){forum.notify((e as Error).message)}})
+watch(()=>auth.user.value?.id,()=>{
+  if(import.meta.client)void Promise.all([forum.syncMine(),inbox.load()]).catch(e=>forum.notify((e as Error).message))
+},{immediate:true})
 watch(() => route.fullPath, () => { mobileOpen.value = false })
 let notificationTimer:ReturnType<typeof setInterval>|undefined
 onMounted(()=>{notificationTimer=setInterval(()=>{if(document.visibilityState==='visible')void inbox.load(1,true).catch(()=>{})},60000)})
@@ -78,7 +82,7 @@ function resetFeed() { query.value = ''; category.value = '全部' }
         </div>
       </div>
     </LiquidGlass>
-    <div v-if="!booting&&auth.ready.value&&!forum.online.value" class="service-notice" role="status">社区服务暂时不可用，部分内容可能尚未更新。<button @click="forum.loadFeed()">重试连接</button></div>
+    <div v-if="!booting&&auth.ready.value&&forum.feedLoaded.value&&!forum.online.value" class="service-notice" role="status">社区服务暂时不可用，部分内容可能尚未更新。<button @click="forum.loadFeed()">重试连接</button></div>
 
     <div class="layout shell">
       <aside id="community-nav" class="left-sidebar" :class="{ 'mobile-open': mobileOpen }" aria-label="社区导航">

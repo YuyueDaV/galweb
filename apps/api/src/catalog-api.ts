@@ -18,7 +18,14 @@ import { Auth } from './auth'
 import { Database } from './database'
 import { Platform, staff } from './platform'
 import { digest, equal } from './security'
-import { Catalog, workContributionSchema, workEditSchema, tierSchema, catalogOrderSchema } from './catalog'
+import {
+  Catalog,
+  workContributionSchema,
+  workEditSchema,
+  tierSchema,
+  catalogOrderSchema,
+  workSummary,
+} from './catalog'
 import type { Bangumi } from './bangumi'
 import { BangumiCovers } from './bangumi-covers'
 import { TierVoting, tierBallotSchema } from './tier-voting'
@@ -59,8 +66,9 @@ export function catalogControllers(
   }
   @Controller('api')
   class CatalogController {
-    @Get('works') works() {
-      return catalog.publicWorks()
+    @Get('works') async works(@Query('view') view?: string) {
+      const works = await catalog.publicWorks()
+      return view === 'summary' ? works.map(workSummary) : works
     }
     @Post('works') async contribute(@Req() req: Request, @Body() body: unknown) {
       const user = await actor(req, true, false)

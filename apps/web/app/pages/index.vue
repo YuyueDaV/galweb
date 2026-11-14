@@ -2,6 +2,7 @@
 import { categories } from '~/data/forum'
 import type { Category } from '~/types/forum'
 const route = useRoute()
+const auth = useAuth()
 const {settings}=useSiteSettings()
 const { category, query, composerOpen,loadFeed,hasMore,feedPosts,feedTotal,loadingFeed,feedLoaded,feedError } = useForum()
 const tab = ref('最新回响')
@@ -20,7 +21,21 @@ const options=computed(()=>({...query.value.trim()?{q:query.value.trim()}:{},...
 function chooseCategory(value: Category | '全部') { category.value = value }
 let feedTimer:ReturnType<typeof setTimeout>|undefined
 let requestVersion=0
-watch(options,()=>{clearTimeout(feedTimer);const version=++requestVersion,next={...options.value};pending.value=true;if(import.meta.client)feedTimer=setTimeout(async()=>{await loadFeed(next);if(version===requestVersion)pending.value=false},200)},{immediate:true})
+watch([options,()=>auth.user.value?.id],([next],previous)=>{
+  clearTimeout(feedTimer)
+  const version=++requestVersion,selected={...next}
+  pending.value=true
+  if(!import.meta.client)return
+  const run=async()=>{
+    await auth.initialize()
+    if(version!==requestVersion)return
+    await loadFeed(selected)
+    if(version===requestVersion)pending.value=false
+  }
+  // Only typing needs a debounce; first visits, filters and account changes load immediately.
+  if(previous[0]&&next.q!==previous[0].q)feedTimer=setTimeout(()=>void run(),200)
+  else void run()
+},{immediate:true})
 onBeforeUnmount(()=>{clearTimeout(feedTimer);requestVersion++})
 async function more(){if(!pending.value)await loadFeed(options.value,true)}
 async function retry(){clearTimeout(feedTimer);const version=++requestVersion;pending.value=true;await loadFeed(options.value);if(version===requestVersion)pending.value=false}

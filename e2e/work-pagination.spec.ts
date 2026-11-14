@@ -11,7 +11,7 @@ test('作品书架每页 24 部，筛选排序重置页码，两种视图共用�
     color: '#d6a44d',
     coverUrl: '/images/work-placeholder.svg',
   }))
-  await page.route('**/api/works', (route) => route.fulfill({ json: works }))
+  await page.route('**/api/works?view=summary', (route) => route.fulfill({ json: works }))
   await page.goto('/ranking')
   await page
     .getByRole('navigation', { name: '主导航' })

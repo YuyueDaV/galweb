@@ -7,6 +7,7 @@ export interface AwardArchiveEntry {
   description: string
   nominator: string
   coverUrl: string
+  coverRank?: number
   to?: string
   badge?: string
   votes?: number

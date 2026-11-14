@@ -39,7 +39,8 @@ export interface Work {
   archiveRank?: number
   awardHonors?: {campaignId:string;edition:number;rank:number}[]
   version?: number
-  bangumi?: import('./catalog').BangumiSubject
+  // Catalog lists omit the long synopsis; detail/search responses retain it.
+  bangumi?: Omit<import('./catalog').BangumiSubject, 'summary'> & { summary?: string }
   rank: number
   title: string
   subtitle: string

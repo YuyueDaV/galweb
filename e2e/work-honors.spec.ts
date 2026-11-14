@@ -7,7 +7,7 @@ test('书架荣誉按届次展示，桌面与手机标记可读，立体书架�
     { campaignId: 'second', edition: 2, rank: 2 },
     { campaignId: 'first', edition: 1, rank: 1 },
   ]
-  await page.route('**/api/works', (route) => route.fulfill({ json: works }))
+  await page.route('**/api/works?view=summary', (route) => route.fulfill({ json: works }))
   await mkdir('.data/visual-checks', { recursive: true })
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width: 1440, height: 1000 })

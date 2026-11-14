@@ -3,10 +3,10 @@ import type { AwardCampaign } from '~/types/awards'
 
 useSeoMeta({ title: '第一届十二橙器 · 澄之响' })
 const api = useRequestFetch()
-const { data: campaigns } = await useAsyncData(
+const { data: campaigns } = useLazyAsyncData(
   'award-archive-editions',
   () => api<AwardCampaign[]>('/api/award-campaigns', { timeout: 4000 }),
-  { default: () => [] },
+  { default: () => [], server: false },
 )
 </script>
 

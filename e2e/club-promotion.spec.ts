@@ -9,7 +9,11 @@ test('同好会宣传：原始素材、复制及失败提示、二维码放大�
   await page.goto('/')
   const compact = page.locator('.club-promotion--compact')
   await expect(compact).toContainText('348083428')
-  await expect(compact.locator('.club-promotion-logo')).toHaveJSProperty('naturalWidth', 896)
+  await expect
+    .poll(() =>
+      compact.locator('.club-promotion-logo').evaluate((image) => (image as HTMLImageElement).currentSrc),
+    )
+    .toMatch(/-128\.webp$/)
   await compact.screenshot({ path: '.data/visual-checks/club-home-card.png' })
   await compact.getByRole('button', { name: '复制群号', exact: true }).click()
   await expect(compact.getByRole('status')).toContainText('群号已复制')
@@ -43,7 +47,9 @@ test('同好会宣传：原始素材、复制及失败提示、二维码放大�
   await page.goto('/about#join-club')
   const promotion = page.locator('#join-club')
   await expect(promotion).toContainText('348083428')
-  await expect(page.locator('.about-club-logo')).toHaveJSProperty('naturalWidth', 896)
+  await expect
+    .poll(() => page.locator('.about-club-logo').evaluate((image) => (image as HTMLImageElement).currentSrc))
+    .toMatch(/-256\.webp$/)
   await expect(page.getByText('入社方式与活动安排待管理员公布。', { exact: true })).toHaveCount(0)
   await page.evaluate(() =>
     Object.defineProperty(navigator.clipboard, 'writeText', {

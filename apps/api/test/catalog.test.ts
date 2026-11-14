@@ -14,12 +14,40 @@ import {
   workEditSchema,
   catalogOrderSchema,
   workContributionSchema,
+  workSummary,
 } from '../src/catalog'
 import { Forum } from '../src/forum'
 import { catalogControllers } from '../src/catalog-api'
 import { Auth } from '../src/auth'
 import { Mailer } from '../src/mail'
 import { hashPassword } from '../src/security'
+
+test('轻量目录省略 Bangumi 长简介，保留列表信息且不修改完整作品', () => {
+  const work = {
+    rank: 1,
+    description: '保留成员推荐',
+    bangumi: {
+      id: 123,
+      title: '作品',
+      originalTitle: '',
+      summary: '完整详情简介'.repeat(100),
+      studio: '',
+      date: '',
+      coverUrl: '',
+      score: null,
+      ratingCount: 0,
+      tags: ['剧情'],
+      syncedAt: 0,
+    },
+  }
+  const summary = workSummary(work)
+  assert.equal(summary.bangumi && 'summary' in summary.bangumi, false)
+  assert.equal(work.bangumi.summary.length, 600)
+  assert.equal(summary.bangumi?.id, 123)
+  assert.equal(summary.description, work.description)
+  assert.deepEqual(summary.bangumi?.tags, ['剧情'])
+  assert.equal(workSummary({ rank: 2 }).rank, 2)
+})
 
 test('Tier 校验拒绝重复作品、重复层编号、危险颜色、空榜发布和额外权限字段', () => {
   const base = {
@@ -165,6 +193,26 @@ test(
       app = await NestFactory.create(TestModule, { logger: false })
       await app.listen(0, '127.0.0.1')
       const base = await app.getUrl()
+      const fullCatalog = (await (await fetch(base + '/api/works')).json()) as {
+        rank: number
+        bangumi?: { summary: string; id: number }
+      }[]
+      const summaryCatalog = (await (
+        await fetch(base + '/api/works?view=summary')
+      ).json()) as typeof fullCatalog
+      assert.deepEqual(
+        summaryCatalog.map((entry) => entry.rank),
+        fullCatalog.map((entry) => entry.rank),
+      )
+      assert.equal(
+        summaryCatalog.some((entry) => entry.bangumi && 'summary' in entry.bangumi),
+        false,
+      )
+      assert.ok(fullCatalog.some((entry) => entry.bangumi?.summary))
+      assert.equal(
+        (await (await fetch(base + '/api/works/' + work.rank)).json()).bangumi.summary,
+        work.bangumi?.summary,
+      )
       assert.equal((await fetch(base + '/api/bangumi/search?q=CLANNAD')).status, 200)
       assert.equal((await fetch(base + '/api/bangumi/search?q=')).status, 422)
       assert.equal((await fetch(base + '/api/bangumi/search?q=CLANNAD&includeRestricted=true')).status, 401)

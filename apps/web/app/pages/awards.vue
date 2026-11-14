@@ -3,11 +3,10 @@ import { coverUrl as archiveCoverUrl } from '~/data/forum'
 import { ballotRules, phaseNames, formatAwardTime, formatNominationTime, nominationDisplayName, nominationDisplayReason, nominationDisplaySource, campaignWindowMessage, normalizeWorkTitle, awardVotingMode, findAwardTieGroups } from '~/utils/awards'
 import type { AwardCandidate } from '~/types/awards'
 import type { AwardArchiveEntry } from '~/types/award-archive'
-import type { Work } from '~/types/forum'
 import type { BangumiSubject } from '~/types/catalog'
 
-const api = useRequestFetch()
-const { data: works, refresh: refreshWorks, error: catalogError } = await useAsyncData('award-catalog', () => api<Work[]>('/api/works'), { default: () => [] })
+const { data: works, refresh: refreshWorks, error: catalogError, status: catalogStatus } = useWorkCatalog({ lazy: true, server: false })
+const catalogFetchedAt = useState<number>('work-catalog-summary-at', () => 0)
 const sourceMode = ref('catalog')
 const selectedWorkId = ref<number | null>(null)
 const selectedSubject = ref<BangumiSubject | null>(null)
@@ -53,12 +52,14 @@ function changeSource() {
 const awards = useAwards()
 const route = useRoute()
 const activityReady = ref(false)
+let activityRevision = 0
 async function loadActivity() {
+  const revision = ++activityRevision
   activityReady.value = false
   const requested = route.query.campaign
   if (typeof requested === 'string') awards.selectedCampaignId.value = requested
   await awards.initialize()
-  activityReady.value = true
+  if (revision === activityRevision) activityReady.value = true
 }
 const identity = usePreviewIdentity()
 const { campaign, campaigns, selectedCampaignId, visibleCandidates: candidates, myNominations, myBallot, results } = awards
@@ -79,14 +80,18 @@ const ballotError = ref('')
 const now = ref(Date.now())
 let clock: ReturnType<typeof setInterval> | undefined
 
-onMounted(async () => {
-  await loadActivity()
+onMounted(() => {
+  void loadActivity()
+  // Register synchronously: leaving during initialization must still clear it.
   clock = setInterval(() => {
     now.value = Date.now()
-    if (!document.hidden) void awards.refresh().catch(() => {})
+    if (activityReady.value && !document.hidden && campaign.value.phase !== 'archived') {
+      void awards.refresh({ list: false }).catch(() => {})
+    }
   }, 15000)
 })
 onBeforeUnmount(() => {
+  activityRevision++
   coverUploadVersion++
   if (clock) clearInterval(clock)
 })
@@ -141,6 +146,7 @@ const archiveEntries = computed<AwardArchiveEntry[]>(() =>
       recommendationAuthor: recommendation?.authorName,
       nominator: [...new Set(item.nominations.map(nominationDisplayName))].join('、'),
       coverUrl: item.coverRank ? coverUrl(item.coverRank) : '/images/work-placeholder.svg',
+      coverRank: item.coverRank,
       to: work ? `/works/${work.rank}` : undefined,
       votes: item.votes,
       tied: winners.value.some((other) => other.id !== item.id && other.rank === item.rank),
@@ -179,6 +185,7 @@ watch(() => route.query.campaign, () => {
   tab.value = 'candidates'
   void loadActivity()
 })
+watch(() => auth.user.value?.id, () => { void loadActivity() })
 function openNomination(title = '', studio = '') {
   if (!canNominate.value) {
     notify(nominationWindow.value || '活动尚未开放提名，请留意后续公告。')
@@ -194,7 +201,8 @@ function openNomination(title = '', studio = '') {
   selectedSubject.value = null
   sourceMode.value = title ? 'manual' : 'catalog'
   nominationDialog.value?.showModal()
-  void refreshWorks()
+  // Reuse a recent catalog when reopening the dialog; mutations explicitly refresh it.
+  if (catalogStatus.value !== 'pending' && (Date.now() - catalogFetchedAt.value >= 60_000 || catalogError.value)) void refreshWorks()
 }
 async function submitNomination() {
   if (submitting.value || uploadingCover.value) return
@@ -691,7 +699,7 @@ async function withdrawBallot() {
                 <div>
                   <strong>提名喜欢的作品</strong>
                   <p>
-                    每人最多
+                    本届每人最多提名
                     {{
                       campaign.nominationLimit
                     }}
@@ -772,6 +780,7 @@ async function withdrawBallot() {
         <label class="nomination-source">作品来源<select v-model="sourceMode" :disabled="submitting || uploadingCover" @change="changeSource">
           <option value="catalog">从书库选择</option><option value="bangumi">搜索 Bangumi</option><option value="manual">手动填写</option>
         </select></label>
+        <p v-if="catalogStatus === 'pending'" class="catalog-help" role="status">正在加载书库…</p>
         <p v-if="catalogError" class="form-error" role="alert">书库暂未加载成功。<button type="button" class="text-link" @click="refreshWorks()">重新加载书库</button></p>
         <label v-if="sourceMode === 'catalog'" class="nomination-source">书库作品<select v-model="selectedWorkId" :disabled="submitting" @change="chooseWork">
           <option :value="null">请选择作品</option><option v-for="work in works" :key="work.rank" :value="work.rank">{{ work.title }}{{ work.studio ? ' · ' + work.studio : '' }}</option>

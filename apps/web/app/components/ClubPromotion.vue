@@ -38,9 +38,11 @@ async function copyGroup() {
         <img
           class="club-promotion-logo"
           :src="club.logo"
+          :srcset="club.logoSrcset"
+          sizes="90px"
           alt="澄之响同好会 Logo"
-          width="896"
-          height="896"
+          width="512"
+          height="512"
           loading="lazy"
           decoding="async"
         />

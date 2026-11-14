@@ -4,6 +4,8 @@ import { resolve, join } from 'node:path'
 
 // Manual asset maintenance only; builds and visitors never contact Google.
 // Do not use text=: UI wording and user content change after fonts are vendored.
+// After refreshing the original fonts, run subset-ui-fonts.py to rebuild the
+// smaller UI faces and retain these originals as complete Unicode fallbacks.
 // https://developers.google.com/fonts/docs/css2
 const root = resolve(import.meta.dirname, '../apps/web')
 const directory = join(root, 'public/fonts/generated')

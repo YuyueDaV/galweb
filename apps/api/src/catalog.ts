@@ -29,6 +29,13 @@ export interface CatalogWork {
   catalogDeleted?: boolean
   removedAt?: number
 }
+// List/search/filter views use the same metadata, without duplicating the full
+// Bangumi synopsis. Detail and administration endpoints retain the original data.
+export function workSummary<T extends { rank: number; bangumi?: BangumiSubject }>(work: T) {
+  if (!work.bangumi) return work
+  const { summary: _summary, ...bangumi } = work.bangumi
+  return { ...work, bangumi }
+}
 export const workContributionSchema = z
   .object({
     subjectId: z.number().int().positive().max(2147483647).nullable().default(null),

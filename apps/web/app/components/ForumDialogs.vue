@@ -3,6 +3,7 @@ import type {Category,Work} from '~/types/forum'
 import {categories} from '~/data/forum'
 const {composerOpen,loginOpen,createPost,composerWorkId}=useForum(),auth=useAuth()
 const composeDialog=ref<HTMLDialogElement|null>(null),loginDialog=ref<HTMLDialogElement|null>(null)
+const composeMounted=ref(false),loginMounted=ref(false)
 const title=ref(''),content=ref(''),postCategory=ref<Category>('作品讨论'),spoiler=ref(false),workId=ref<number|null>(null),assetIds=ref<string[]>([])
 const tags=ref<string[]>([]),{load:refreshTopics}=useTopics()
 const works=ref<Work[]>([]),uploading=ref(false),publishing=ref(false),loading=ref(false),error=ref(''),draftStatus=ref('')
@@ -22,33 +23,33 @@ watch([title,content,postCategory,spoiler,workId,assetIds,tags],()=>{if(loading.
 watch(composerOpen,async open=>{
  if(!open){composeDialog.value?.close();if(!publishing.value)await saveDraft();return}
  await auth.initialize();if(!composerOpen.value)return;if(!auth.user.value){composerOpen.value=false;loginOpen.value=true;return}
- error.value='';loading.value=true;composeDialog.value?.showModal();const actorId=auth.user.value.id
+ composeMounted.value=true;error.value='';loading.value=true;composeDialog.value?.showModal();const actorId=auth.user.value.id
  try{const [response,list]=await Promise.all([auth.request<{draft:{data:ReturnType<typeof payload>}|null}>('/forum/draft'),auth.request<Work[]>('/works')]);if(auth.user.value?.id!==actorId)return;works.value=list;reset();const draft=response.draft;if(draft){title.value=draft.data.title;content.value=draft.data.content;postCategory.value=draft.data.category;spoiler.value=draft.data.spoiler;workId.value=draft.data.workId;assetIds.value=draft.data.assetIds;tags.value=draft.data.tags||[];draftStatus.value='已恢复当前账号的草稿'}else draftStatus.value='输入后自动保存草稿';if(composerWorkId.value){workId.value=composerWorkId.value;composerWorkId.value=null}}catch(e){error.value=(e as Error).message}finally{loading.value=false}
 })
-watch(loginOpen,open=>{if(open)loginDialog.value?.showModal();else loginDialog.value?.close()})
+watch(loginOpen,open=>{if(open){loginMounted.value=true;loginDialog.value?.showModal()}else loginDialog.value?.close()})
 watch(()=>auth.user.value?.id,(id,previous)=>{if(!previous||id===previous)return;clearTimeout(timer);loading.value=true;reset();loading.value=false;draftStatus.value='';error.value='';composerOpen.value=false})
 onBeforeUnmount(()=>clearTimeout(timer))
 async function submitPost(){
  if(publishing.value||uploading.value)return
  if(title.value.trim().length<4||content.value.trim().length<10){error.value='标题至少 4 字，正文至少 10 字。';return}
  clearTimeout(timer);if(pendingSave)await pendingSave;publishing.value=true;error.value=''
- try{const id=await createPost(title.value,content.value,postCategory.value,spoiler.value,undefined,{format:'markdown',assetIds:assetIds.value,workId:workId.value,tags:tags.value});reset();draftStatus.value='';await refreshTopics();await navigateTo('/post/'+id)}catch(e){error.value=(e as Error).message}finally{publishing.value=false}
+ try{const id=await createPost(title.value,content.value,postCategory.value,spoiler.value,undefined,{format:'markdown',assetIds:assetIds.value,workId:workId.value,tags:tags.value});reset();draftStatus.value='';await refreshTopics(true);await navigateTo('/post/'+id)}catch(e){error.value=(e as Error).message}finally{publishing.value=false}
 }
 </script>
 <template>
  <dialog ref="composeDialog" class="modal compose-modal" aria-labelledby="compose-title" @close="composerOpen=false">
   <div class="modal-heading"><div><p class="eyebrow">LET YOUR STORY RESONATE</p><h2 id="compose-title">把你的故事，留在这里。</h2></div><button type="button" class="icon-button" aria-label="关闭发帖窗口" :disabled="publishing||uploading" @click="composerOpen=false"><AppIcon name="close" :size="22" /></button></div>
-  <form class="compose-form" @submit.prevent="submitPost"><fieldset class="plain-fieldset" :disabled="publishing||loading">
+  <form v-if="composeMounted" class="compose-form" @submit.prevent="submitPost"><fieldset class="plain-fieldset" :disabled="publishing||loading">
    <div class="form-line"><label>发布到<select v-model="postCategory"><option v-for="item in categories" :key="item.name">{{ item.name }}</option></select></label><label class="spoiler-checkbox"><input v-model="spoiler" type="checkbox" />整篇包含剧透</label></div>
    <label class="community-field">关联作品<select v-model="workId"><option :value="null">不关联作品</option><option v-for="item in works" :key="item.rank" :value="item.rank">{{ item.title }}</option></select></label>
-   <TopicPicker v-model="tags" :disabled="publishing||loading" />
+   <LazyTopicPicker v-model="tags" :disabled="publishing||loading" />
    <label class="sr-only" for="post-title">帖子标题</label><input id="post-title" v-model="title" class="compose-title-input" required minlength="4" maxlength="80" placeholder="一个值得点开的标题……" />
-   <MarkdownEditor v-model="content" :asset-ids="assetIds" :disabled="publishing||loading" @assets="assetIds=$event" @busy="uploading=$event" />
+   <LazyMarkdownEditor v-model="content" :asset-ids="assetIds" :disabled="publishing||loading" @assets="assetIds=$event" @busy="uploading=$event" />
    <p v-if="error" class="form-error" role="alert">{{ error }}</p><div class="draft-status" role="status"><span>{{ draftStatus }}</span><div class="draft-actions" role="group" aria-label="草稿操作"><button type="button" class="button secondary" :disabled="uploading" @click="saveDraft"><AppIcon name="check" :size="16" />保存草稿</button><button type="button" class="button secondary draft-clear" :disabled="uploading" @click="discard">清除草稿</button></div></div>
    <div class="compose-bottom"><p>请标记剧透，尊重彼此的阅读体验。</p><button type="submit" class="button primary" :disabled="uploading||publishing">{{ publishing?'发布中…':'发布帖子' }}<AppIcon name="send" :size="16" /></button></div>
   </fieldset></form>
  </dialog>
- <dialog ref="loginDialog" class="modal login-modal" aria-label="账号与登录" @close="loginOpen=false"><button class="icon-button modal-close" aria-label="关闭登录窗口" @click="loginOpen=false"><AppIcon name="close" /></button><AuthPanel /></dialog>
+ <dialog ref="loginDialog" class="modal login-modal" aria-label="账号与登录" @close="loginOpen=false"><button class="icon-button modal-close" aria-label="关闭登录窗口" @click="loginOpen=false"><AppIcon name="close" /></button><LazyAuthPanel v-if="loginMounted" /></dialog>
 </template>
 
 <style scoped>

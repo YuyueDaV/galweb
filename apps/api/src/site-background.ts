@@ -12,8 +12,8 @@ export const DEFAULT_SITE_BACKGROUND: SiteBackground = {
   color: '#f7f6f2',
   darkColor: '#1d201c',
 }
-export const DEFAULT_BACKGROUND_IMAGE = '/images/backgrounds/autumn-dc8073085d34-1920.webp'
-export const DEFAULT_BACKGROUND_MOBILE = '/images/backgrounds/autumn-dc8073085d34-960.webp'
+export const DEFAULT_BACKGROUND_IMAGE = '/images/backgrounds/autumn-7f7e902145ab-1920.webp'
+export const DEFAULT_BACKGROUND_MOBILE = '/images/backgrounds/autumn-0d4b7ef28605-960.webp'
 
 export function normalizeSiteBackground(value: unknown): SiteBackground {
   const data = value && typeof value === 'object' ? (value as Partial<SiteBackground>) : {}

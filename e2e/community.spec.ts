@@ -70,7 +70,7 @@ test('邮件注册、登录、发帖回复、收藏、头像上传、提名审�
     'aria-pressed',
     'true',
   )
-  await page.getByPlaceholder('把你的感受，接在故事后面……').fill('这是一条通过浏览器发布并检查持久化的回复。')
+  await page.locator('#reply-content').fill('这是一条通过浏览器发布并检查持久化的回复。')
   await page.getByRole('button', { name: '发布回复', exact: true }).click()
   await expect(page.locator('.reply-card')).toContainText('通过浏览器发布')
   await page.reload()

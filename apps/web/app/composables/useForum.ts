@@ -5,7 +5,7 @@ export function useForum(){
  const bookmarks=useState<string[]>('forum-bookmarks',()=>[]),likes=useState<string[]>('forum-likes',()=>[]),username=computed(()=>auth.user.value?.nickname||'')
  const composerWorkId=useState<number|null>('composer-work',()=>null)
  const pendingReactions=useState<string[]>('forum-pending-reactions',()=>[])
- const query=useState('forum-query',()=>''),category=useState<Category|'全部'>('forum-category',()=> '全部'),toast=useState('forum-toast',()=>''),composerOpen=useState('forum-composer',()=>false),loginOpen=useState('forum-login',()=>false),initialized=useState('forum-initialized',()=>false),online=useState('forum-online',()=>false)
+ const query=useState('forum-query',()=>''),category=useState<Category|'全部'>('forum-category',()=> '全部'),toast=useState('forum-toast',()=>''),composerOpen=useState('forum-composer',()=>false),loginOpen=useState('forum-login',()=>false),online=useState('forum-online',()=>false)
  const feedPage=useState('feed-page',()=>1),hasMore=useState('feed-more',()=>false),feedOptions=useState<Record<string,string>>('feed-options',()=>({})),revision=useState('feed-revision',()=>0)
  const feedIds=useState<string[]>('feed-ids',()=>[]),feedTotal=useState('feed-total',()=>0),loadingFeed=useState('feed-loading',()=>false),feedLoaded=useState('feed-loaded',()=>false),feedError=useState('feed-error',()=>'')
  const feedPosts=computed(()=>{const cache=new Map(posts.value.map(post=>[post.id,post]));return feedIds.value.flatMap(id=>{const post=cache.get(id);return post?[post]:[]})})
@@ -31,7 +31,6 @@ export function useForum(){
   }finally{if(run===revision.value)loadingFeed.value=false}
  }
  async function syncMine(){const userId=auth.user.value?.id;if(!userId){bookmarks.value=[];likes.value=[];return}const mine=await auth.request<{bookmarks:string[],likes:string[]}>('/forum/me');if(auth.user.value?.id!==userId)return;bookmarks.value=mine.bookmarks;likes.value=mine.likes}
- async function initialize(){if(!import.meta.client||initialized.value)return;initialized.value=true;await auth.initialize();if(!loadingFeed.value)await loadFeed();try{await syncMine()}catch(e){notify((e as Error).message)}}
  function requireLogin(){if(!auth.user.value){loginOpen.value=true;throw new Error('请先登录。')}}
  async function fetchPost(id:string){const post=await auth.request<ForumPost>(`/posts/${encodeURIComponent(id)}`);const at=posts.value.findIndex(p=>p.id===id);if(at<0)posts.value.push(post);else posts.value[at]=post;const data=await auth.request<(Reply&{createdAt:number})[]>(`/posts/${encodeURIComponent(id)}/replies`);replies.value=[...replies.value.filter(r=>r.postId!==id),...data.map(r=>({...r,time:new Date(Number(r.createdAt)).toLocaleString('zh-CN')}))];return post}
  function reactionPending(id:string,kind:'like'|'bookmark'){return pendingReactions.value.includes(`${kind}:${id}`)}
@@ -45,5 +44,5 @@ export function useForum(){
  async function addReply(postId:string,content:string,parentId?:string){requireLogin();const result=await auth.request<{id:string}>(`/posts/${postId}/replies`,{content,...parentId?{parentId}:{}});await fetchPost(postId);notify('回复已发布。');return result}
  function forgetPost(id:string){posts.value=posts.value.filter(post=>post.id!==id);replies.value=replies.value.filter(reply=>reply.postId!==id);bookmarks.value=bookmarks.value.filter(key=>key!==id);likes.value=likes.value.filter(key=>key!==id);if(feedIds.value.includes(id)){feedIds.value=feedIds.value.filter(key=>key!==id);feedTotal.value=Math.max(0,feedTotal.value-1)}}
  function clearPersonalData(){composerWorkId.value=null;revision.value++;posts.value=[];replies.value=[];bookmarks.value=[];likes.value=[];feedIds.value=[];feedTotal.value=0;feedPage.value=1;hasMore.value=false;feedLoaded.value=false;loadingFeed.value=false;feedError.value='';feedOptions.value={};query.value='';category.value='全部';composerOpen.value=false;loginOpen.value=false}
- return {posts,replies,bookmarks,likes,username,composerWorkId,query,category,toast,composerOpen,loginOpen,online,hasMore,feedPosts,feedTotal,loadingFeed,feedLoaded,feedError,loadFeed,syncMine,fetchPost,recordView,initialize,notify,clearPersonalData,forgetPost,reactionPending,toggleBookmark:(id:string)=>reaction(id,'bookmark'),toggleLike:(id:string)=>reaction(id,'like'),createPost,addReply,replyCount:(post:ForumPost)=>post.replies}
+ return {posts,replies,bookmarks,likes,username,composerWorkId,query,category,toast,composerOpen,loginOpen,online,hasMore,feedPosts,feedTotal,loadingFeed,feedLoaded,feedError,loadFeed,syncMine,fetchPost,recordView,notify,clearPersonalData,forgetPost,reactionPending,toggleBookmark:(id:string)=>reaction(id,'bookmark'),toggleLike:(id:string)=>reaction(id,'like'),createPost,addReply,replyCount:(post:ForumPost)=>post.replies}
 }

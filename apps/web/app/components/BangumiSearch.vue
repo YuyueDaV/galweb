@@ -124,6 +124,7 @@ async function collect(item: BangumiSubject) {
     success.value = result.reused
       ? `《${result.work.title}》已在书库中。`
       : `《${result.work.title}》已收录，作品资料可以在书库管理中编辑。`
+    invalidateWorkCatalog()
     emit('imported')
     collected.value = result.work
     alreadyCollected.value = result.reused

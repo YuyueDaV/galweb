@@ -14,6 +14,7 @@ async function change(id: string | null) {
     { coverAssetId: id, version: props.work.version || 0 },
     'PATCH',
   )
+  invalidateWorkCatalog()
   emit('updated', work)
   success.value = '作品封面已更新。'
 }

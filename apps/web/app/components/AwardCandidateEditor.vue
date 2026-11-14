@@ -49,15 +49,16 @@ async function open() {
         endpoint + '/library',
         {},
       )
+      invalidateWorkCatalog()
       if (prepared.candidateId !== props.candidate.id) {
-        await awards.refresh()
+        await awards.refresh({ force: true })
         emit('updated')
         dialog.value?.close()
         notify('已关联已有书库并合并重复候选，请从合并后的作品打开编辑。')
         return
       }
       info = await auth.request<CandidateInfo>(endpoint)
-      await awards.refresh()
+      await awards.refresh({ force: true })
       emit('updated')
       notify(prepared.created ? '已自动补录书库并关联这部作品。' : '已找到并关联已有书库作品。')
     }
@@ -89,7 +90,8 @@ async function save() {
       { ...form, workId: work.value.rank, version: work.value.version || 0 },
       'PATCH',
     )
-    await awards.refresh()
+    invalidateWorkCatalog()
+    await awards.refresh({ force: true })
     emit('updated')
     dialog.value?.close()
     notify('作品资料已更新，候选编号和已有选票保留。')
@@ -120,7 +122,8 @@ async function linkWork() {
       },
       'PATCH',
     )
-    await awards.refresh()
+    invalidateWorkCatalog()
+    await awards.refresh({ force: true })
     emit('updated')
     dialog.value?.close()
     notify(

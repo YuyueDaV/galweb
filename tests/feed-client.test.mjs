@@ -6,6 +6,35 @@ import {createRequire} from 'node:module'
 const webRequire=createRequire(new URL('../apps/web/package.json',import.meta.url)),apiRequire=createRequire(new URL('../apps/api/package.json',import.meta.url))
 const {ref,computed}=webRequire('vue'),ts=apiRequire('typescript')
 
+test('活动刷新合并并发请求，轮询只拉详情，保存后的新结果不被旧轮询覆盖',async()=>{
+ const source=await readFile(new URL('../apps/web/app/composables/useAwards.ts',import.meta.url),'utf8')
+ const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText
+ const state=new Map(),requests=[],module={exports:{}},app={}
+ const useState=(key,initial)=>{if(!state.has(key))state.set(key,ref(initial()));return state.get(key)}
+ const auth={user:ref({id:'member'}),initialize:async()=>{},request:(url,body,method)=>new Promise((resolve,reject)=>requests.push({url,body,method,resolve,reject}))}
+ new Function('require','module','exports','useState','computed','useAuth','usePreviewIdentity','useNuxtApp',code)(()=>({collectAwardCandidates:()=>[],awardVotingCandidates:()=>[]}),module,module.exports,useState,computed,()=>auth,()=>({account:ref({id:'member'})}),()=>app)
+ const awards=module.exports.useAwards(),flush=()=>new Promise(setImmediate)
+ const campaign={id:'first',title:'活动',phase:'voting',version:1},detail={campaign,nominations:[],myBallot:null,ballotCount:0,results:[],audit:[]}
+ const initial=awards.refresh(),same=module.exports.useAwards().refresh()
+ assert.equal(initial,same);await flush();assert.equal(requests.length,1)
+ assert.equal(requests[0].url,'/award-campaigns');requests.shift().resolve([campaign]);await flush()
+ assert.equal(requests[0].url,'/award-campaigns/first');requests.shift().resolve(detail);await initial
+ const oldPoll=awards.refresh({list:false}),samePoll=awards.refresh({list:false})
+ assert.equal(oldPoll,samePoll);await flush();assert.equal(requests.length,1)
+ const oldRequest=requests.shift();assert.equal(oldRequest.url,'/award-campaigns/first')
+ const mutation=awards.withdrawBallot();assert.equal(requests[0].method,'PUT');requests.shift().resolve({});await flush()
+ assert.equal(requests[0].url,'/award-campaigns');requests.shift().resolve([campaign]);await flush()
+ requests.shift().resolve({...detail,ballotCount:5});await mutation
+ oldRequest.resolve({...detail,ballotCount:1});await oldPoll;assert.equal(awards.ballotCount.value,5)
+ const oldAccount=awards.refresh({list:false});await flush();auth.user.value={id:'another-member'}
+ requests.shift().resolve({...detail,myBallot:{candidateIds:['private']}});await oldAccount
+ assert.equal(awards.myBallot.value,null)
+ const switched=awards.refresh({list:false});await flush();requests.shift().resolve(detail);await switched
+ const failed=awards.refresh({list:false});await flush();requests.shift().reject(new Error('暂不可用'));await assert.rejects(failed,/暂不可用/)
+ const retry=awards.refresh({list:false});await flush();requests.shift().resolve(detail);await retry
+ assert.equal(requests.length,0)
+})
+
 test('前端分页状态：详情缓存不混入列表、重复加载保护、旧请求不覆盖、加载失败可重试',async()=>{
  const source=(await readFile(new URL('../apps/web/app/composables/useForum.ts',import.meta.url),'utf8')).replaceAll('import.meta.client','false')
  const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText
@@ -65,12 +94,14 @@ test('浏览数更新、收藏重复点击保护、失败保留状态、登录�
 test('话题刷新：隐藏后的新结果不被旧请求覆盖，失败显示错误并可重试',async()=>{
  const source=await readFile(new URL('../apps/web/app/composables/useTopics.ts',import.meta.url),'utf8')
  const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText
- const state=new Map(),requests=[],module={exports:{}}
+ const state=new Map(),requests=[],module={exports:{}},app={}
  const useState=(key,initial)=>{if(!state.has(key))state.set(key,ref(initial()));return state.get(key)}
  const auth={request:()=>new Promise((resolve,reject)=>requests.push({resolve,reject}))}
- new Function('module','exports','useState','useAuth',code)(module,module.exports,useState,()=>auth)
+ new Function('module','exports','useState','useAuth','useNuxtApp',code)(module,module.exports,useState,()=>auth,()=>app)
  const topics=module.exports.useTopics()
- const old=topics.load(),oldRequest=requests.shift(),fresh=topics.load(),freshRequest=requests.shift()
+ const old=topics.load(),same=module.exports.useTopics().load()
+ assert.equal(old,same);assert.equal(requests.length,1)
+ const oldRequest=requests.shift(),fresh=topics.load(true),freshRequest=requests.shift()
  freshRequest.resolve([]);await fresh
  oldRequest.resolve([{name:'已隐藏的话题',count:1,latestAt:1}]);await old
  assert.deepEqual([...topics.topics.value],[]);assert.equal(topics.loading.value,false)
