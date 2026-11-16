@@ -30,7 +30,8 @@ async function login(provider: 'qq' | 'discord') {
         v-for="option in social.options.value.filter((option) => option.enabled)"
         :key="option.provider"
         type="button"
-        class="button secondary"
+        class="button"
+        :class="'social-' + option.provider"
         :disabled="busy"
         @click="login(option.provider)"
       >
@@ -64,6 +65,20 @@ async function login(provider: 'qq' | 'discord') {
   border-radius: 999px;
   font-size: 16px;
   white-space: nowrap;
+  border: 0;
+  color: #fff;
+}
+.social-login-buttons .social-qq {
+  background: #12b7f5;
+}
+.social-login-buttons .social-qq:hover {
+  background: #0ea5de;
+}
+.social-login-buttons .social-discord {
+  background: #5865f2;
+}
+.social-login-buttons .social-discord:hover {
+  background: #4752c4;
 }
 .social-login-buttons small {
   display: block;
