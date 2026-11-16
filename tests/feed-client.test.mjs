@@ -71,7 +71,7 @@ test('浏览数更新、收藏重复点击保护、失败保留状态、登录�
  const source=(await readFile(new URL('../apps/web/app/composables/useForum.ts',import.meta.url),'utf8')).replaceAll('import.meta.client','false')
  const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText
  const state=new Map(),requests=[],module={exports:{}}
- const auth={user:ref({id:'first-user'}),request:(url,body,method)=>new Promise((resolve,reject)=>requests.push({url,body,method,resolve,reject}))}
+ const auth={user:ref({id:'first-user'}),requireLogin:()=>{if(auth.user.value)return true;state.get('forum-login').value=true;return false},request:(url,body,method)=>new Promise((resolve,reject)=>requests.push({url,body,method,resolve,reject}))}
  const useState=(key,initial)=>{if(!state.has(key))state.set(key,ref(initial()));return state.get(key)}
  new Function('require','module','exports','useState','computed','useAuth',code)(name=>name==='~/data/forum'?{initialPosts:[]}:webRequire(name),module,module.exports,useState,computed,()=>auth)
  const forum=module.exports.useForum();forum.posts.value.push({id:'post',views:0})

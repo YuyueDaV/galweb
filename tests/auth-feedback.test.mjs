@@ -12,7 +12,7 @@ new Function('require','exports',transpile(compileTemplate({source:descriptor.te
 
 function panel(t){
  const scope=vue.effectScope(),requests=[],notifications=[],loginOpen=vue.ref(true)
- const auth={user:vue.ref(null),request:(url,body)=>new Promise((resolve,reject)=>requests.push({url,body,resolve,reject})),login:async()=>{throw new Error('账号或密码不正确。')}}
+ const auth={user:vue.ref(null),loginNotice:vue.ref(''),request:(url,body)=>new Promise((resolve,reject)=>requests.push({url,body,resolve,reject})),login:async()=>{throw new Error('账号或密码不正确。')}}
  const bindings=scope.run(()=>new Function('ref','computed','watch','onMounted','onBeforeUnmount','useAuth','useForum',transpile(descriptor.scriptSetup.content)+'\nreturn {auth,loginOpen,mode,username,email,password,confirmPassword,code,challengeId,error,success,busy,cooldown,mismatched,send,submit,logout}')(vue.ref,vue.computed,vue.watch,()=>{},()=>{},()=>auth,()=>({loginOpen,notify:message=>notifications.push(message)})))
  t.after(()=>scope.stop())
  const html=()=>renderToString(vue.createSSRApp({setup:()=>bindings,render:templateModule.exports.render,components:{AppIcon:{render:()=>null},UserAvatar:{render:()=>null},NuxtLink:{render:()=>null}}}))

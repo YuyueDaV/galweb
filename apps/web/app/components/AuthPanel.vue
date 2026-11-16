@@ -9,6 +9,7 @@ onMounted(()=>timer=setInterval(()=>{if(cooldown.value>0)cooldown.value--},1000)
 onBeforeUnmount(()=>clearInterval(timer))
 watch([email,mode,loginOpen],()=>{challengeId.value='';code.value='';error.value='';success.value=''}, {flush:'sync'})
 watch(mode,()=>{password.value='';confirmPassword.value=''})
+watch(loginOpen,open=>{if(open&&auth.loginNotice.value)mode.value='login'},{flush:'sync'})
 async function send(){
  if(busy.value)return
  busy.value=true;error.value='';success.value=''
@@ -36,7 +37,8 @@ async function logout(){try{await auth.logout();loginOpen.value=false;notify('�
    <div class="account-actions"><NuxtLink v-if="auth.user.value.role!=='member'" to="/admin" @click="loginOpen=false">进入管理中心</NuxtLink><button class="button secondary" @click="logout">退出登录</button></div>
   </template>
   <template v-else>
-   <h2>{{ mode==='register'?'让故事，从这里开始。':mode==='reset'?'重新找回你的账号。':'很高兴，再次遇见你。' }}</h2>
+   <h2>{{ mode==='register'?'让故事，从这里开始。':mode==='reset'?'重新找回你的账号。':auth.loginNotice.value?'请先登录':'很高兴，再次遇见你。' }}</h2>
+   <p v-if="auth.loginNotice.value" class="login-required-notice" role="status"><AppIcon name="info" :size="20" />{{ auth.loginNotice.value }}</p>
    <div class="auth-tabs"><button :disabled="busy" :aria-pressed="mode==='login'" @click="mode='login'">登录</button><button :disabled="busy" :aria-pressed="mode==='register'" @click="mode='register'">邮箱注册</button><button :disabled="busy" :aria-pressed="mode==='reset'" @click="mode='reset'">找回密码</button></div>
    <div v-if="error||success" class="auth-feedback" :class="{'is-error':error}" :role="error?'alert':'status'" aria-atomic="true">{{ error||success }}</div>
    <form class="award-form" :aria-busy="busy" @submit.prevent="submit">
@@ -53,6 +55,7 @@ async function logout(){try{await auth.logout();loginOpen.value=false;notify('�
  </div>
 </template>
 <style scoped>
+.login-required-notice{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;margin-block:16px;border:1px solid var(--line);border-radius:16px;background:var(--orange-soft);color:var(--ink);font-size:16px;line-height:1.7}.login-required-notice .app-icon{flex-shrink:0;margin-top:3px;color:var(--orange)}
 .account-summary{display:grid;justify-items:center;gap:1rem;margin-top:1rem}.account-summary p{font-size:.7rem;line-height:1.8;color:var(--subtle);white-space:pre-wrap;overflow-wrap:anywhere}.account-summary>.button{width:100%}
 .auth-feedback{margin:.8rem 0;padding:.65rem .8rem;border:1px solid var(--line);border-radius:.4rem;background:var(--hero);color:var(--ink);font-size:.7rem;font-weight:400;line-height:1.7;overflow-wrap:anywhere}.auth-feedback.is-error{color:#b5432d;background:rgba(181,67,45,.07);border-color:rgba(181,67,45,.25)}
 

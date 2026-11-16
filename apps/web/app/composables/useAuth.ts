@@ -22,6 +22,18 @@ export function useAuth() {
   const csrf = useState('auth-csrf', () => '')
   const ready = useState('auth-ready', () => false)
   const restoreError = useState('auth-restore-error', () => '')
+  const loginOpen = useState('forum-login', () => false)
+  const loginNotice = useState('auth-login-notice', () => '')
+  function promptLogin(message = '请先登录，登录后即可继续此操作。') {
+    if (import.meta.server) return
+    loginNotice.value = message
+    loginOpen.value = true
+  }
+  function requireLogin(message?: string) {
+    if (user.value) return true
+    promptLogin(message)
+    return false
+  }
   function clear() {
     runtime.revision++
     user.value = null
@@ -51,7 +63,14 @@ export function useAuth() {
       })) as T
     } catch (error) {
       const e = error as { data?: { message?: string }; statusCode?: number }
-      if (e.statusCode === 401 && revision === runtime.revision) clear()
+      if (e.statusCode === 401 && revision === runtime.revision) {
+        // Initial session probing and credential errors stay in their own flow.
+        // Protected action/read failures share a single login window.
+        const endpoint = path.split('?')[0]!
+        if (!endpoint.startsWith('/auth/') || endpoint === '/auth/me')
+          promptLogin(user.value ? '登录已过期，请重新登录后继续操作。' : undefined)
+        clear()
+      }
       throw Object.assign(new Error(e.data?.message || '服务暂时不可用，请稍后重试。'), {
         statusCode: e.statusCode,
       })
@@ -140,6 +159,9 @@ export function useAuth() {
     user,
     ready,
     restoreError,
+    loginNotice,
+    promptLogin,
+    requireLogin,
     request,
     refresh,
     initialize,

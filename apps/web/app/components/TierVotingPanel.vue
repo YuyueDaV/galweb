@@ -4,8 +4,7 @@ import type { Work } from '~/types/forum'
 import { tierTextColor } from '~/utils/tier-colors'
 const props = defineProps<{ list: TierList; works: Work[] }>()
 const emit = defineEmits<{ updated: [] }>()
-const auth = useAuth(),
-  { loginOpen } = useForum()
+const auth = useAuth()
 const mine = ref<TierBallot | null>(null),
   choices = ref<TierBallot['choices']>([])
 const busy = ref(false),
@@ -53,10 +52,7 @@ async function loadMine() {
   }
 }
 function choose(workId: number, rowId: string) {
-  if (!auth.user.value) {
-    loginOpen.value = true
-    return
-  }
+  if (!auth.requireLogin('请先登录后参与作品分层。')) return
   if (busy.value || loading.value || !mine.value) return
   const selected = choices.value.find((choice) => choice.workId === workId)?.rowId === rowId
   choices.value = choices.value.filter((choice) => choice.workId !== workId)
@@ -65,12 +61,9 @@ function choose(workId: number, rowId: string) {
   error.value = ''
 }
 async function save(withdraw = false) {
-  if (!auth.user.value) {
-    loginOpen.value = true
-    return
-  }
+  if (!auth.requireLogin('请先登录后提交分层选择。')) return
   if (busy.value || !mine.value) return
-  const viewer = auth.user.value.id,
+  const viewer = auth.user.value!.id,
     tier = props.list.id
   busy.value = true
   error.value = ''
@@ -119,7 +112,13 @@ onBeforeUnmount(() => {
         <strong data-testid="tier-participants">{{ list.stats?.participants || 0 }}</strong> 人参与 ·
         {{ workIds.length }} 部作品
       </p>
-      <button v-if="!auth.user.value" class="button primary" @click="loginOpen = true">登录后参与分层</button>
+      <button
+        v-if="!auth.user.value"
+        class="button primary"
+        @click="auth.promptLogin('请先登录后参与作品分层。')"
+      >
+        登录后参与分层
+      </button>
     </div>
     <form class="catalog-search" @submit.prevent>
       <label class="sr-only" for="tier-work-query">筛选榜单作品</label
@@ -141,7 +140,10 @@ onBeforeUnmount(() => {
           <NuxtLink :to="'/works/' + work.rank"
             ><WorkCover
               :rank="work.rank"
-              :src="work.coverUrl || (work.rank > 12 ? work.bangumi?.coverUrl || '/images/work-placeholder.svg' : undefined)"
+              :src="
+                work.coverUrl ||
+                (work.rank > 12 ? work.bangumi?.coverUrl || '/images/work-placeholder.svg' : undefined)
+              "
               variant="cover"
               :alt="work.title + '封面'"
               sizes="100px"

@@ -3,6 +3,9 @@ import { ballotRules, loveChoices, validateWeightedBallot } from '~/utils/awards
 const props = defineProps<{ enabled: boolean }>()
 const awards = useAwards(),
   { notify } = useForum()
+const auth = useAuth()
+const keepLoginDraft = ref(false)
+let draftOwner = auth.user.value?.id
 const rules = computed(() => ballotRules(awards.campaign.value))
 const loves = ref<string[]>([]),
   likes = ref<string[]>([]),
@@ -18,25 +21,57 @@ const payload = computed(() => ({
     texts.value[candidateId]?.trim() ? [{ candidateId, text: texts.value[candidateId]!.trim() }] : [],
   ),
 }))
-function restore() {
-  const ballot = awards.myBallot.value
+function restore(empty = false) {
+  const ballot = empty ? null : awards.myBallot.value
   const oldLoves = ballot ? loveChoices({ loveId: ballot.loveId || null, loveIds: ballot.loveIds }) : []
   loves.value = Array.from({ length: rules.value.loveLimit }, (_, i) => oldLoves[i] || '')
   likes.value = Array.from({ length: rules.value.likeLimit }, (_, i) => ballot?.likeIds?.[i] || '')
   texts.value = Object.fromEntries((ballot?.recommendations || []).map((r) => [r.candidateId, r.text]))
   error.value = ''
 }
-watch(() => awards.myBallot.value, restore, { immediate: true, deep: true })
+watch(
+  () => awards.myBallot.value,
+  () => {
+    if (!keepLoginDraft.value) restore()
+  },
+  { immediate: true, deep: true },
+)
+watch(
+  () => auth.loginNotice.value,
+  (notice) => {
+    if (notice) keepLoginDraft.value = true
+  },
+  { flush: 'sync' },
+)
+watch(
+  () => auth.user.value?.id,
+  (id) => {
+    if ((id && draftOwner && id !== draftOwner) || (!id && !auth.loginNotice.value)) {
+      keepLoginDraft.value = false
+      restore(true)
+    }
+    if (id) draftOwner = id
+  },
+)
+watch(
+  () => [awards.campaign.value.id, awards.campaign.value.votingRound],
+  () => {
+    keepLoginDraft.value = false
+    restore()
+  },
+)
 function changed() {
   for (const id of Object.keys(texts.value)) if (!selected.value.includes(id)) delete texts.value[id]
 }
 async function save() {
   if (busy.value || !props.enabled) return
+  if (!auth.requireLogin('请先登录，登录后即可提交选票和推荐词。')) return
   error.value = validateWeightedBallot(payload.value, awards.votingCandidates.value, rules.value)
   if (error.value) return
   busy.value = true
   try {
     await awards.saveWeightedBallot(payload.value)
+    keepLoginDraft.value = false
     notify('选票与推荐词已保存，欢迎投票！')
   } catch (e) {
     error.value = (e as Error).message
@@ -46,9 +81,11 @@ async function save() {
 }
 async function withdraw() {
   if (busy.value || !props.enabled) return
+  if (!auth.requireLogin('请先登录后撤回选票。')) return
   busy.value = true
   try {
     await awards.withdrawBallot()
+    keepLoginDraft.value = false
     restore()
     notify('选票及推荐词已撤回。')
   } catch (e) {

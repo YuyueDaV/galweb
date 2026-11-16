@@ -104,3 +104,57 @@ test('旧会话只补充 CSRF，不闪回游客；退出后迟到响应不能恢
   await refresh
   assert.equal(current.user.value, null)
 })
+
+test('未登录操作打开统一登录窗口，普通游客会话检查不弹窗', async () => {
+  const client = session(),
+    auth = client.create()
+  const loading = auth.initialize()
+  client.requests.shift().reject({ statusCode: 401 })
+  await loading
+  assert.equal(client.state.get('forum-login').value, false)
+  assert.equal(auth.requireLogin('请先登录后投票。'), false)
+  assert.equal(client.state.get('forum-login').value, true)
+  assert.match(auth.loginNotice.value, /投票/)
+  assert.equal(client.requests.length, 0)
+})
+
+test('受保护操作过期时弹窗；并发迟到的 401 不会重复弹窗或清除新会话', async () => {
+  const client = session(),
+    auth = client.create()
+  auth.user.value = account
+  const first = auth.request('/library/1', {}, 'PUT')
+  const second = auth.request('/notifications/read', {}, 'PUT')
+  const one = client.requests.shift(),
+    two = client.requests.shift()
+  one.reject({ statusCode: 401, data: { message: '请先登录。' } })
+  await assert.rejects(first, /请先登录/)
+  assert.match(auth.loginNotice.value, /过期/)
+  assert.equal(client.state.get('forum-login').value, true)
+  client.state.get('forum-login').value = false
+  const login = auth.login('member', 'password')
+  client.requests.shift().resolve({ user: account, csrfToken: 'new-csrf' })
+  await login
+  two.reject({ statusCode: 401 })
+  await assert.rejects(second)
+  assert.equal(client.state.get('forum-login').value, false)
+  assert.equal(auth.user.value.id, account.id)
+})
+
+test('登录输错密码与权限不足保留原错误，不触发登录提醒循环；受保护的读取也有提醒', async () => {
+  const client = session(),
+    auth = client.create()
+  for (const [path, status] of [
+    ['/auth/login', 401],
+    ['/auth/password-reset/confirm', 401],
+    ['/admin/users', 403],
+  ]) {
+    const request = auth.request(path, {})
+    client.requests.shift().reject({ statusCode: status, data: { message: '原始错误' } })
+    await assert.rejects(request, /原始错误/)
+    assert.equal(client.state.get('forum-login').value, false)
+  }
+  const request = auth.request('/posts?saved=true')
+  client.requests.shift().reject({ statusCode: 401 })
+  await assert.rejects(request)
+  assert.equal(client.state.get('forum-login').value, true)
+})

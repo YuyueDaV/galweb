@@ -59,7 +59,7 @@ export function useAwards() {
     ),
     myNominations = computed(() =>
       nominations.value.filter(
-        (n) => !n.adminAdded && n.accountId === identity.account.value.id && n.status !== 'withdrawn',
+        (n) => !!identity.account.value.id && !n.adminAdded && n.accountId === identity.account.value.id && n.status !== 'withdrawn',
       ),
     )
   function refresh(options: { list?: boolean; force?: boolean } = {}): Promise<void> {

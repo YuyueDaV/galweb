@@ -53,9 +53,9 @@ const awards = useAwards()
 const route = useRoute()
 const activityReady = ref(false)
 let activityRevision = 0
-async function loadActivity() {
+async function loadActivity(keepContent = false) {
   const revision = ++activityRevision
-  activityReady.value = false
+  if (!keepContent) activityReady.value = false
   const requested = route.query.campaign
   if (typeof requested === 'string') awards.selectedCampaignId.value = requested
   await awards.initialize()
@@ -96,7 +96,7 @@ onBeforeUnmount(() => {
   if (clock) clearInterval(clock)
 })
 watch(
-  [myBallot, selectedCampaignId, identity.selectedId],
+  [myBallot, selectedCampaignId],
   () => {
     selected.value = [...(myBallot.value?.candidateIds || [])]
     ballotError.value = ''
@@ -185,12 +185,16 @@ watch(() => route.query.campaign, () => {
   tab.value = 'candidates'
   void loadActivity()
 })
-watch(() => auth.user.value?.id, () => { void loadActivity() })
+watch(() => auth.user.value?.id, (id, previous) => {
+  if (previous && id !== previous && !auth.loginNotice.value) selected.value = []
+  void loadActivity(true)
+})
 function openNomination(title = '', studio = '') {
   if (!canNominate.value) {
     notify(nominationWindow.value || '活动尚未开放提名，请留意后续公告。')
     return
   }
+  if (!auth.requireLogin('请先登录后提名喜欢的作品。')) return
   formTitle.value = title
   formStudio.value = studio
   formReason.value = ''
@@ -206,6 +210,7 @@ function openNomination(title = '', studio = '') {
 }
 async function submitNomination() {
   if (submitting.value || uploadingCover.value) return
+  if (!auth.requireLogin('请先登录后提交提名。')) return
   formError.value = ''
   if (sourceMode.value === 'catalog' && !selectedWork.value) { formError.value = '请先选择书库作品。'; return }
   if (sourceMode.value === 'bangumi' && !selectedWork.value && !selectedSubject.value) { formError.value = '请先搜索并选择 Bangumi 作品。'; return }
@@ -231,6 +236,7 @@ async function uploadNominationCover(event: Event) {
   const file = input.files?.[0]
   input.value = ''
   if (!file || submitting.value || uploadingCover.value) return
+  if (!auth.requireLogin('请先登录后上传作品封面。')) return
   formError.value = ''
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
     formError.value = '封面请选择 JPG、PNG 或 WebP，最大 5 MB。'
@@ -252,6 +258,7 @@ async function uploadNominationCover(event: Event) {
   }
 }
 async function withdraw(id: string) {
+  if (!auth.requireLogin('请先登录后撤回提名。')) return
   try {
     await awards.withdrawNomination(id)
     notify('已撤回这条提名，可以重新提交。')
@@ -273,6 +280,7 @@ function toggleCandidate(candidate: AwardCandidate, event: Event) {
   input.checked = selected.value.includes(candidate.id)
 }
 async function submitBallot() {
+  if (!auth.requireLogin('请先登录后提交选票。')) return
   try {
     await awards.saveBallot(selected.value)
     ballotError.value = ''
@@ -282,6 +290,7 @@ async function submitBallot() {
   }
 }
 async function withdrawBallot() {
+  if (!auth.requireLogin('请先登录后撤回选票。')) return
   try {
     await awards.withdrawBallot()
     selected.value = []
@@ -294,7 +303,7 @@ async function withdrawBallot() {
 
 <template>
   <div v-if="!activityReady" class="empty-state" role="status">正在加载活动…</div>
-  <div v-else-if="!awards.online.value" class="empty-state" role="alert"><p>活动暂时未能加载。</p><button class="button secondary" @click="loadActivity">重新加载活动</button></div>
+  <div v-else-if="!awards.online.value" class="empty-state" role="alert"><p>活动暂时未能加载。</p><button class="button secondary" @click="loadActivity()">重新加载活动</button></div>
   <div v-else class="awards-page">
     <template v-if="!campaigns.length && awards.online.value">
       <AwardEditionNavigation :campaigns="[]" selected-campaign-id="orange-awards-1" />

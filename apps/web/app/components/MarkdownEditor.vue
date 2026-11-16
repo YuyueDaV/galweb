@@ -14,7 +14,7 @@ async function upload(event:Event){
  const node=event.target as HTMLInputElement,files=Array.from(node.files||[]);node.value='';if(!files.length||props.disabled||uploading.value)return
  error.value='';uploading.value=true;emit('busy',true)
  const ids=[...props.assetIds]
- try{if(!auth.user.value)throw new Error('请先登录再上传图片。');if(ids.length+files.length>12)throw new Error('每篇帖子最多 12 张图片。')
+ try{if(!auth.requireLogin('请先登录后上传图片。'))return;if(ids.length+files.length>12)throw new Error('每篇帖子最多 12 张图片。')
   for(const file of files){if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('请选择 JPG、PNG 或 WebP 图片。');if(file.size>5*1024*1024)throw new Error('每张图片不能超过 5 MB。');const form=new FormData();form.append('file',file);const asset=await auth.request<{id:string,url:string}>('/uploads',form);ids.push(asset.id);emit('assets',[...ids])}
  }catch(e){error.value=(e as Error).message}finally{uploading.value=false;emit('busy',false)}
 }
