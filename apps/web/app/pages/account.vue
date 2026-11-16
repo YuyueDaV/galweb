@@ -80,11 +80,13 @@ async function deleteAccount(){
     </section>
     <aside class="account-side">
      <section class="profile-preview" aria-label="个人名片预览"><DecorativeSpark class="profile-preview-spark" /><p class="eyebrow">A LITTLE ABOUT YOU</p><UserAvatar :src="avatarUrl" :name="nickname" size="4.25rem" /><h2>{{ nickname.trim()||'你的昵称' }}</h2><span class="profile-role">{{ roleNames[auth.user.value.role] }}</span><p class="preview-signature">{{ signature.trim()||'故事之外，期待与你相遇。' }}</p><span class="preview-note">个人名片预览</span><NuxtLink v-if="personalSpacePath" :to="personalSpacePath" class="button secondary profile-space-link">查看我的个人空间<AppIcon name="arrowUpRight" :size="16" /></NuxtLink><p v-if="dirty" class="profile-space-hint">个人空间展示已保存的资料。</p></section>
-     <section class="profile-card account-details"><div class="profile-card-heading"><h2><AppIcon name="info" />账号信息</h2></div><dl><div><dt>用户名</dt><dd>{{ auth.user.value.username }}<small>用于登录，不随昵称改变</small></dd></div><div><dt>邮箱</dt><dd>{{ auth.user.value.email }}<small>{{ auth.user.value.email.endsWith('.invalid')?'本地初始化账号的占位邮箱':'用于账号验证与找回密码' }}</small></dd></div></dl><div class="account-shortcuts"><NuxtLink v-if="auth.user.value" :to="'/user/'+auth.user.value.id" class="text-link">查看我的公开主页<AppIcon name="arrowUpRight" :size="16" /></NuxtLink><NuxtLink to="/?saved=1#discussions"><AppIcon name="bookmark" :size="16" />我的收藏<AppIcon name="arrowUpRight" :size="14" /></NuxtLink><NuxtLink v-if="auth.user.value.role!=='member'" to="/admin"><AppIcon name="filter" :size="16" />管理中心<AppIcon name="arrowUpRight" :size="14" /></NuxtLink><button type="button" :disabled="saving||uploading||deleting" @click="logout"><AppIcon name="login" :size="16" />退出登录</button></div></section>
+     <section class="profile-card account-details"><div class="profile-card-heading"><h2><AppIcon name="info" />账号信息</h2></div><dl><div><dt>用户名</dt><dd>{{ auth.user.value.username }}<small>用于登录，不随昵称改变</small></dd></div><div><dt>邮箱</dt><dd>{{ auth.user.value.email || '未设置' }}<small>{{ auth.user.value.email?.endsWith('.invalid')?'本地初始化账号的占位邮箱':'用于账号验证与找回密码' }}</small></dd></div></dl><div class="account-shortcuts"><NuxtLink v-if="auth.user.value" :to="'/user/'+auth.user.value.id" class="text-link">查看我的公开主页<AppIcon name="arrowUpRight" :size="16" /></NuxtLink><NuxtLink to="/?saved=1#discussions"><AppIcon name="bookmark" :size="16" />我的收藏<AppIcon name="arrowUpRight" :size="14" /></NuxtLink><NuxtLink v-if="auth.user.value.role!=='member'" to="/admin"><AppIcon name="filter" :size="16" />管理中心<AppIcon name="arrowUpRight" :size="14" /></NuxtLink><button type="button" :disabled="saving||uploading||deleting" @click="logout"><AppIcon name="login" :size="16" />退出登录</button></div></section>
     </aside>
    </div>
+   <SocialAccountSettings />
    <section class="profile-card deletion-zone" aria-labelledby="deletion-title">
-    <div class="deletion-heading"><div><h2 id="deletion-title">注销账号</h2><p>退出登录后仍可回来；注销后，原账号将无法恢复。</p></div><button v-if="!deletionOpen" type="button" class="deletion-start" :disabled="saving||uploading||deleting" @click="openDeletion">注销我的账号</button></div>
+    <div class="deletion-heading"><div><h2 id="deletion-title">注销账号</h2><p>退出登录后仍可回来；注销后，原账号将无法恢复。</p></div><button v-if="!deletionOpen" type="button" class="deletion-start" :disabled="saving||uploading||deleting||auth.user.value.hasPassword===false" @click="openDeletion">注销我的账号</button></div>
+    <p v-if="auth.user.value.hasPassword===false" class="deletion-note social-deletion-note">请先在上方补充邮箱和密码，再使用密码确认注销账号。</p>
     <form v-if="deletionOpen" class="deletion-form" @submit.prevent="deleteAccount">
      <ul><li>清除用户名、邮箱、昵称、头像和个性签名，立即退出所有设备；邮箱与用户名可重新注册。</li><li>帖子和回复保留，作者显示为“已注销用户”；点赞、收藏和选票清除，上传图片停止展示并清理。</li><li>待审核提名撤回，已通过提名匿名保留；已公布榜单只匿名化提名者，不改变票数与名次。</li></ul>
      <p class="deletion-note">重新注册是一个全新账号，不会继承原账号内容或权限。登录、邮件验证码的频率限制继续保留。</p>
@@ -101,6 +103,7 @@ async function deleteAccount(){
 </template>
 
 <style scoped>
+.social-deletion-note{padding:0 1.25rem 1.25rem;font-size:14px}
 .account-heading-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:12px;flex-shrink:0}
 .account-heading-actions>.button{min-height:44px;border-radius:999px;font-size:14px;white-space:nowrap}
 .account-heading-actions>.text-link{min-height:44px;font-size:14px;white-space:nowrap}

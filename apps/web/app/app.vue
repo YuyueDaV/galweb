@@ -126,6 +126,7 @@ function resetFeed() { query.value = ''; category.value = '全部' }
 
     <footer class="site-footer shell"><span><span class="footer-mark"><DecorativeSpark /></span> 澄之响 <span class="footer-separator">/</span> 南京工程学院视觉小说同好会</span><span><NuxtLink to="/about#join-club" class="footer-club-link">加入 QQ 群<AppIcon name="arrowUpRight" :size="12" /></NuxtLink>故事有终章，热爱有回响。<span class="footer-year">© {{ new Date().getFullYear() }}</span></span></footer>
     <ForumDialogs />
+    <OAuthResultNotice />
     <Transition name="toast"><div v-if="toast" role="status" class="toast-message"><AppIcon name="check" :size="18" />{{ toast }}</div></Transition>
   </div>
 </template>

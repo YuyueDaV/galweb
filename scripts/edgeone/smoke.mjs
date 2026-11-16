@@ -40,7 +40,13 @@ const backend = createServer(async (req, res) => {
     res.end(Buffer.from('public-cover-fixture'))
     return
   }
-  if (req.url.startsWith('/api/auth/login')) {
+  if (req.url.startsWith('/api/auth/oauth/qq/callback')) {
+    res.setHeader('Set-Cookie', [
+      '__Host-czx_session=oauth-session; Path=/; HttpOnly; Secure; SameSite=Lax',
+      '__Host-czx_oauth=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Secure; SameSite=Lax',
+    ])
+    res.writeHead(303, { Location: 'https://forum.example.com/account?oauth=login' }).end()
+  } else if (req.url.startsWith('/api/auth/login')) {
     res.setHeader('Set-Cookie', [
       '__Host-czx_session=smoke-session; Path=/; HttpOnly; Secure; SameSite=Lax',
       'smoke-extra=second; Path=/; Secure',
@@ -107,6 +113,12 @@ try {
   assert.equal(login.headers.getSetCookie().length, 2)
   assert.match(login.headers.getSetCookie()[0], /HttpOnly; Secure/)
   assert.equal(calls.at(-1).headers.origin, 'https://forum.example.com')
+  const callback = await request('/api/auth/oauth/qq/callback?state=fixture&code=fixture')
+  assert.equal(callback.status, 303, 'The browser must follow the OAuth redirect')
+  assert.equal(callback.headers.get('location'), 'https://forum.example.com/account?oauth=login')
+  assert.equal(callback.headers.getSetCookie().length, 2)
+  assert.match(callback.headers.getSetCookie()[0], /oauth-session/)
+  assert.match(callback.headers.getSetCookie()[1], /1970/)
   // No real email service is used: all of these hit the local mock backend.
   await request('/api/auth/registration-code', 'POST', Buffer.from('{}'), {
     'content-type': 'application/json',

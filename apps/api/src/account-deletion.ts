@@ -12,10 +12,12 @@ export class AccountDeletion {
  async remove(actor:Actor,password:string){
   const account=(await this.db.rows<Account>('SELECT id,email_key,password_hash,status,role FROM users WHERE id=?',[actor.id]))[0]
   if(!account||account.status!=='active')throw reject('账号不可用，请重新登录。',401)
+  if(!account.password_hash)throw reject('请先在用户中心设置邮箱和密码，再注销账号。',422)
   if(!await checkPassword(password,account.password_hash))throw reject('当前密码不正确。',422)
   return this.db.transaction(async tx=>{
    // Lock order matches role changes, email verification, and award mutations.
    await this.platform.lock('account-roles',tx)
+   await this.platform.lock('auth-identities',tx)
    await this.platform.lock(`account:${actor.id}`,tx)
    await this.db.execute('INSERT IGNORE INTO auth_email_locks(email_key) VALUES (?)',[account.email_key],tx)
    await this.db.rows('SELECT email_key FROM auth_email_locks WHERE email_key=? FOR UPDATE',[account.email_key],tx)
@@ -31,6 +33,8 @@ export class AccountDeletion {
    const now=Date.now(),placeholder=actor.id+'@deleted.invalid'
    await this.db.execute("UPDATE users SET email=?,email_key=?,username=NULL,username_key=NULL,nickname=?,password_hash='',signature='',avatar_asset_id=NULL,role='member',status='deleted',deleted_at=?,email_verified_at=0 WHERE id=?",[placeholder,placeholder,anonymous,now,actor.id],tx)
    await this.db.execute('DELETE FROM auth_sessions WHERE user_id=?',[actor.id],tx)
+   await this.db.execute('DELETE FROM oauth_identities WHERE user_id=?',[actor.id],tx)
+   await this.db.execute('DELETE FROM oauth_flows WHERE user_id=?',[actor.id],tx)
    // Retain short-lived challenge timestamps and rate buckets to preserve mail limits.
    await this.db.execute("UPDATE email_verification_challenges SET consumed_at=?,code_hmac='',delivery_status='failed' WHERE email_key=?",[now,account.email_key],tx)
    await this.db.execute('DELETE FROM forum_reactions WHERE user_id=?',[actor.id],tx)

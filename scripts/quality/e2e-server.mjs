@@ -30,6 +30,7 @@ const env = {
   MAIL_TRANSPORT: 'capture',
   SMTP_PASSWORD: '',
   BANGUMI_ACCESS_TOKEN: '',
+  QQ_CLIENT_ID: '', QQ_CLIENT_SECRET: '', DISCORD_CLIENT_ID: '', DISCORD_CLIENT_SECRET: '',
 }
 let connection
 let closing = false
@@ -158,6 +159,7 @@ try {
     'browser_owner_other',
     'browser_member',
     'browser_auth',
+    'browser_social',
     'browser_thread_author',
     'browser_thread_member',
     'browser_thread_other',

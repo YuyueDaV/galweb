@@ -6,7 +6,7 @@ import { Database } from './database'
 import { Mailer,smtpDiagnostic } from './mail'
 import { checkPassword,digest,emailKey,equal,hashPassword,mac,token } from './security'
 import {usernameKey,validUsername} from './identity'
-type User={id:string,email:string,username:string,nickname:string,signature?:string,avatar_asset_id?:string|null,password_hash:string,role:string,status:string}
+type User={id:string,email:string|null,email_key:string|null,email_verified_at:number,username:string,nickname:string,signature?:string,avatar_asset_id?:string|null,password_hash:string,role:string,status:string}
 export type ProfilePatch={nickname?:string,signature?:string,avatarAssetId?:string|null}
 type Challenge={id:string,email_key:string,purpose:string,code_hmac:string,expires_at:number,failed_attempts:number,consumed_at:number|null,delivery_status:string}
 const fail=(message='验证码无效、已使用或已过期。',status=422)=>new HttpException(message,status)
@@ -112,7 +112,38 @@ export class Auth {
     // existing POST endpoint; a page render must not mutate another tab's CSRF.
     return {user:this.publicUser(user),csrfToken:equal(digest(csrf),user.csrf_hash)?csrf:null}
   }
-  publicUser(user:User){return {id:user.id,username:user.username,email:user.email,nickname:user.nickname,role:user.role,signature:user.signature||'',avatarAssetId:user.avatar_asset_id||null,avatarUrl:user.avatar_asset_id?'/api/assets/'+user.avatar_asset_id:null}}
+  publicUser(user:User){return {id:user.id,username:user.username,email:user.email,hasPassword:!!user.password_hash,nickname:user.nickname,role:user.role,signature:user.signature||'',avatarAssetId:user.avatar_asset_id||null,avatarUrl:user.avatar_asset_id?'/api/assets/'+user.avatar_asset_id:null}}
+  async issueSession(userId:string,oldToken?:string,tx?:PoolConnection){
+    const session=token(),csrf=mac(this.c.AUTH_SECRET,`csrf:${session}`),expires=Date.now()+7*86400000
+    const issue=async(connection:PoolConnection)=>{
+      const user=(await this.db.rows<User>('SELECT * FROM users WHERE id=? FOR UPDATE',[userId],connection))[0]
+      if(!user||user.status!=='active')throw fail('账号不可用，请使用其他账号登录。',403)
+      if(oldToken)await this.db.execute('DELETE FROM auth_sessions WHERE token_hash=?',[digest(oldToken)],connection)
+      await this.db.execute('INSERT INTO auth_sessions(token_hash,user_id,csrf_hash,expires_at,created_at) VALUES (?,?,?,?,?)',[digest(session),userId,digest(csrf),expires,Date.now()],connection)
+      return {session,csrf,expires,user:this.publicUser(user)}
+    }
+    return tx?issue(tx):this.db.transaction(issue)
+  }
+  async completeCredentials(userId:string,input:{email:string,challengeId:string,code:string,password:string,confirmPassword:string},rawSession:string){
+    if(input.password!==input.confirmPassword)throw fail('两次输入的密码不一致。')
+    const key=emailKey(input.email),passwordHash=await hashPassword(input.password)
+    const completed=await this.db.transaction(async tx=>{
+      await this.db.execute('INSERT INTO system_locks(id) VALUES (?) ON DUPLICATE KEY UPDATE id=VALUES(id)',[`account:${userId}`],tx)
+      await this.lockEmail(key,tx)
+      const current=(await this.db.rows<User>('SELECT * FROM users WHERE id=? FOR UPDATE',[userId],tx))[0]
+      if(!current||current.status!=='active')throw fail('账号不可用。',403)
+      if(!(await this.db.rows('SELECT token_hash FROM auth_sessions WHERE token_hash=? AND user_id=? AND expires_at>? FOR UPDATE',[digest(rawSession),userId,Date.now()],tx)).length)throw fail('请重新登录后操作。',401)
+      if(current.email)throw fail('该账号已设置邮箱，请刷新用户中心。',409)
+      if(!await this.verify(tx,input.challengeId,key,'registration',input.code))return null
+      if((await this.db.rows('SELECT id FROM users WHERE email_key=?',[key],tx)).length)throw fail('该邮箱已被使用，请登录原账号后绑定第三方身份。',409)
+      await this.db.execute('UPDATE users SET email=?,email_key=?,email_verified_at=?,password_hash=? WHERE id=?',[input.email.trim(),key,Date.now(),passwordHash,userId],tx)
+      await this.db.execute("UPDATE email_verification_challenges SET consumed_at=? WHERE email_key=? AND purpose='registration' AND consumed_at IS NULL",[Date.now(),key],tx)
+      await this.db.execute('DELETE FROM auth_sessions WHERE user_id=? AND token_hash<>?',[userId,digest(rawSession)],tx)
+      return {user:this.publicUser({...current,email:input.email.trim(),email_verified_at:Date.now(),password_hash:passwordHash})}
+    })
+    if(!completed)throw fail()
+    return completed
+  }
   async updateProfile(user:User,patch:ProfilePatch){
     return this.db.transaction(async tx=>{
       const current=(await this.db.rows<User>('SELECT * FROM users WHERE id=? FOR UPDATE',[user.id],tx))[0]

@@ -9,6 +9,8 @@ const schema = z.object({
   SMTP_HOST: z.string().trim().default(''), SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587), SMTP_SECURE: z.enum(['true','false']).default('false'),
   SMTP_USER: z.string().trim().default(''), SMTP_PASSWORD: z.string().default(''), MAIL_FROM: z.string().trim().default(''),
   TRUST_PROXY: z.string().default('loopback'),
+  QQ_CLIENT_ID: z.string().trim().default(''), QQ_CLIENT_SECRET: z.string().trim().default(''),
+  DISCORD_CLIENT_ID: z.string().trim().default(''), DISCORD_CLIENT_SECRET: z.string().trim().default(''),
 })
 export type Config = z.infer<typeof schema>
 export function readConfig(): Config {
@@ -18,5 +20,8 @@ export function readConfig(): Config {
   if(c.NODE_ENV==='production' && (c.MAIL_TRANSPORT!=='smtp' || !c.WEB_ORIGIN.startsWith('https://'))) throw new Error('Production requires SMTP and HTTPS WEB_ORIGIN')
   if(c.MAIL_TRANSPORT==='smtp' && [c.SMTP_HOST,c.SMTP_USER,c.SMTP_PASSWORD,c.MAIL_FROM].some(v=>!v)) throw new Error('SMTP configuration is incomplete')
   if(new URL(c.WEB_ORIGIN).origin!==c.WEB_ORIGIN) throw new Error('WEB_ORIGIN must be an origin without a trailing slash')
+  for(const [id,secret,name] of [[c.QQ_CLIENT_ID,c.QQ_CLIENT_SECRET,'QQ'],[c.DISCORD_CLIENT_ID,c.DISCORD_CLIENT_SECRET,'Discord']]){
+    if(!!id!==!!secret || (id&&!/^\d+$/.test(id)))throw new Error(name+' OAuth configuration is incomplete or invalid')
+  }
   return c
 }

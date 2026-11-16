@@ -50,6 +50,7 @@ async function logout(){try{await auth.logout();loginOpen.value=false;notify('�
     <label v-if="mode!=='login'">验证码<span class="verification-row"><input v-model="code" aria-label="验证码" required pattern="[0-9]{6}" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="6 位邮箱验证码" /><button type="button" class="button secondary" :disabled="busy||cooldown>0||!email" @click="send">{{ cooldown?`${cooldown} 秒后重发`:'发送验证码' }}</button></span></label>
     <button class="button primary" :disabled="busy||mismatched||(mode!=='login'&&!challengeId)">{{ busy?'处理中…':mode==='register'?'注册账号':mode==='reset'?'重置密码':'登录' }}</button>
    </form>
+   <SocialLoginButtons v-if="mode==='login'" />
   </template>
   <p v-if="auth.user.value&&error" class="form-error" role="alert">{{ error }}</p>
  </div>

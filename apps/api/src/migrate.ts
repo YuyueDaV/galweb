@@ -4,6 +4,7 @@ import { schema } from './schema'
 import { seed } from './seed'
 import { migrateUsernames } from './user-migration'
 import { migrateProfiles } from './profile-migration'
+import { migrateSocialAccounts } from './oauth-migration'
 let step = 'configuration'
 async function main() {
   const db = new Database(readConfig())
@@ -16,6 +17,8 @@ async function main() {
     await migrateUsernames(db)
     step = 'profile migration'
     await migrateProfiles(db)
+    step = 'social login migration'
+    await migrateSocialAccounts(db)
     step = 'initial archive'
     await seed(db)
     console.log('Database schema and initial archive ready.')

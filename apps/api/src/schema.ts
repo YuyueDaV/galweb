@@ -4,13 +4,27 @@
 export const schema = [
 `CREATE TABLE IF NOT EXISTS tier_lists (id CHAR(36) PRIMARY KEY,draft JSON NOT NULL,published JSON NULL,version INT NOT NULL DEFAULT 0,updated_at BIGINT NOT NULL,INDEX tier_updated(updated_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 `CREATE TABLE IF NOT EXISTS users (
- id CHAR(36) PRIMARY KEY, email VARCHAR(254) NOT NULL, email_key VARCHAR(254) CHARACTER SET ascii COLLATE ascii_bin NOT NULL UNIQUE,
+ id CHAR(36) PRIMARY KEY, email VARCHAR(254) NULL, email_key VARCHAR(254) CHARACTER SET ascii COLLATE ascii_bin NULL UNIQUE,
  username VARCHAR(64) NULL, username_key VARCHAR(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL, UNIQUE KEY users_username_key_unique(username_key),
  nickname VARCHAR(64) NOT NULL, signature VARCHAR(120) NOT NULL DEFAULT '', avatar_asset_id CHAR(36) NULL,
  password_hash VARCHAR(255) NOT NULL, role ENUM('member','admin','super_admin') NOT NULL DEFAULT 'member',
  status ENUM('active','disabled','deleted') NOT NULL DEFAULT 'active', deleted_at BIGINT NULL, email_verified_at BIGINT NOT NULL, created_at BIGINT NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 `CREATE TABLE IF NOT EXISTS auth_email_locks (email_key VARCHAR(254) CHARACTER SET ascii COLLATE ascii_bin PRIMARY KEY) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+`CREATE TABLE IF NOT EXISTS oauth_identities (
+ provider VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ subject VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ user_id CHAR(36) NOT NULL, display_name VARCHAR(64) NOT NULL DEFAULT '', created_at BIGINT NOT NULL,
+ PRIMARY KEY(provider,subject), UNIQUE KEY oauth_user_provider(user_id,provider),
+ FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+`CREATE TABLE IF NOT EXISTS oauth_flows (
+ state_hash CHAR(64) PRIMARY KEY, browser_hash CHAR(64) NOT NULL,
+ provider VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin NOT NULL, mode VARCHAR(8) NOT NULL,
+ user_id CHAR(36) NULL, session_hash CHAR(64) NULL, return_path VARCHAR(1200) NOT NULL,
+ verifier VARCHAR(128) NOT NULL, expires_at BIGINT NOT NULL,
+ INDEX oauth_flow_expiry(expires_at), FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 `CREATE TABLE IF NOT EXISTS email_verification_challenges (
  id CHAR(36) PRIMARY KEY, email_key VARCHAR(254) CHARACTER SET ascii COLLATE ascii_bin NOT NULL, purpose ENUM('registration','reset') NOT NULL,
  code_hmac CHAR(64) NOT NULL, expires_at BIGINT NOT NULL, failed_attempts INT NOT NULL DEFAULT 0, consumed_at BIGINT NULL,

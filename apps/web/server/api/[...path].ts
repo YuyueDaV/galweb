@@ -37,7 +37,11 @@ export default defineEventHandler(async (event) => {
     }
   }
   try {
-    return await proxyRequest(event, `${config.apiBase}${event.path}`, { headers })
+    // OAuth callbacks must send the redirect and session cookies to the browser.
+    return await proxyRequest(event, `${config.apiBase}${event.path}`, {
+      headers,
+      fetchOptions: { redirect: 'manual' },
+    })
   } catch {
     throw createError({ statusCode: 502, message: '后端服务暂时不可用，请稍后重试。' })
   }

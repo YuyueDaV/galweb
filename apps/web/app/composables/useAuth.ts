@@ -2,7 +2,8 @@ import type { AccountRole } from '~/types/awards'
 export interface AuthUser {
   id: string
   username: string
-  email: string
+  email: string | null
+  hasPassword?: boolean
   nickname: string
   role: AccountRole
   signature: string
@@ -67,7 +68,7 @@ export function useAuth() {
         // Initial session probing and credential errors stay in their own flow.
         // Protected action/read failures share a single login window.
         const endpoint = path.split('?')[0]!
-        if (!endpoint.startsWith('/auth/') || endpoint === '/auth/me')
+        if (!endpoint.startsWith('/auth/') || endpoint === '/auth/me' || endpoint === '/auth/credentials' || endpoint.startsWith('/auth/oauth/'))
           promptLogin(user.value ? '登录已过期，请重新登录后继续操作。' : undefined)
         clear()
       }
@@ -144,6 +145,11 @@ export function useAuth() {
   async function updateNickname(nickname: string) {
     await updateProfile({ nickname })
   }
+  async function completeCredentials(input: {email:string;challengeId:string;code:string;password:string;confirmPassword:string}) {
+    const revision = ++runtime.revision
+    const data = await request<{user:AuthUser}>('/auth/credentials',input)
+    if(revision === runtime.revision) user.value = data.user
+  }
   async function logout() {
     runtime.revision++
     await request('/auth/logout', {})
@@ -169,6 +175,7 @@ export function useAuth() {
     logout,
     updateNickname,
     updateProfile,
+    completeCredentials,
     deleteAccount,
   }
 }
