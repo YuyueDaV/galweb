@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, type Page } from './fixtures'
 import type { AwardCampaign } from '../packages/domain/award-types'
 
 function activity() {
@@ -34,7 +34,16 @@ async function openAwards(page: Page) {
     .click()
 }
 
+async function signIn(page: Page) {
+  const response = await page.request.post('/api/auth/login', {
+    headers: { Origin: 'http://127.0.0.1:3117' },
+    data: { username: 'browser_loading', password: 'Isolated moderator password 123!' },
+  })
+  expect(response.ok()).toBeTruthy()
+}
+
 test('书架复用 SSR 数据，切换活动与重复打开提名不重下目录', async ({ page }) => {
+  await signIn(page)
   await page.clock.install()
   const works = await (await page.request.get('/api/works?view=summary')).json()
   const data = activity(),
@@ -103,6 +112,7 @@ test('目录失败可手动重试，恢复后继续复用共享缓存', async ({
 })
 
 test('慢书库不阻塞活动展示，轮询只拉详情且归档后停止', async ({ page }) => {
+  await signIn(page)
   await page.clock.install()
   const data = activity(),
     catalogGate = gate(),

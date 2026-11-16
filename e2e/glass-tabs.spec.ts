@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { createRequire } from 'node:module'
 
 test('社团页签在浅深色和手机上保持胶囊，图片按钮与个人主页不叠加玻璃灰边', async ({ page }) => {

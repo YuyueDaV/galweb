@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { createRequire } from 'node:module'

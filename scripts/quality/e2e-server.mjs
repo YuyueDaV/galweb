@@ -163,6 +163,7 @@ try {
     'browser_member',
     'browser_auth',
     'browser_social',
+    'browser_loading',
     'browser_thread_author',
     'browser_thread_member',
     'browser_thread_other',

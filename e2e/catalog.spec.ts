@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { createRequire } from 'node:module'
 
 test('访客开放 Bangumi 搜索；管理员编辑 Tier、草稿发布隔离和下架', async ({ page, playwright }) => {

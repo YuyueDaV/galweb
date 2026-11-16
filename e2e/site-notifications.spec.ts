@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 test('管理员群发预览、失败重试和防重；成员收件、独立已读与活动自动通知', async ({ page, browser }) => {
   const origin = 'http://127.0.0.1:3117'

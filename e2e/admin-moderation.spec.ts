@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { createRequire } from 'node:module'
 
 test('图片去重、隐藏恢复、永久删除及旧后端提示，超管降级保护', async ({ page, playwright }) => {

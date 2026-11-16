@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 test('首页复用 SSR 配置、只加载一次帖子与话题，弹窗打开前不挂载编辑器', async ({ page }) => {
   const calls = { settings: 0, posts: 0, topics: 0 }

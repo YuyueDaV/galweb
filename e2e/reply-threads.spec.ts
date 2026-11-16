@@ -1,4 +1,4 @@
-import { test, expect, type BrowserContext } from '@playwright/test'
+import { test, expect, type BrowserContext } from './fixtures'
 
 test('评论回复在原评论下聚合，通知显示原留言并定位新回复，隐藏原文不泄漏', async ({ browser }) => {
   const origin = 'http://127.0.0.1:3117'

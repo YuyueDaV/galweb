@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 test('管理员创建修改删除活动；自定义分值、互斥选票、推荐词加分及结果', async ({ page, browser }) => {
   const origin = 'http://127.0.0.1:3117'

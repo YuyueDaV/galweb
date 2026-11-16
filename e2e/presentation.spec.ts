@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { mkdir, readdir, readFile } from 'node:fs/promises'
 
 test('桌面与手机导航、深色模式、按需书架、图片故障与减少动画', async ({ page }, info) => {

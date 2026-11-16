@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 test('慢页面切换显示橘子，不卡操作；手机、深色和减少动画可用，完成后退出', async ({ page }) => {
   const works = await (await page.request.get('/api/works')).json()

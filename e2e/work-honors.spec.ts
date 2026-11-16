@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { mkdir } from 'node:fs/promises'
 
 test('书架荣誉按届次展示，桌面与手机标记可读，立体书架保持同样信息', async ({ page }) => {

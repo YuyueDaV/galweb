@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 const origin = 'http://127.0.0.1:3117'
 const options = [

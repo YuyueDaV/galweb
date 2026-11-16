@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 test('超管编辑已提名作品与后台提名人增删：失败保留、撤销删除和保存生效', async ({ page, browser }) => {
   const origin = 'http://127.0.0.1:3117'

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 test('同票阻止公布，连续加赛直到名次唯一，每轮通知并保留原始分数', async ({ page, browser }) => {
   const origin = 'http://127.0.0.1:3117'

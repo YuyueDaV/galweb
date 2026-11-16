@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 test('公开提名署名、匿名分数、二次投票与归档书单完整流程', async ({ page, browser }) => {
   const origin = 'http://127.0.0.1:3117'

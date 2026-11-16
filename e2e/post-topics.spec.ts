@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 test('话题选择和草稿恢复、精确筛选、隐藏删除联动及管理员删帖确认与失败提示', async ({
   page,

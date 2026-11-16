@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 test('作品书架每页 24 部，筛选排序重置页码，两种视图共用分页', async ({ page }) => {
   const works = Array.from({ length: 49 }, (_, index) => ({

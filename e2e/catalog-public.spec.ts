@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { createRequire } from 'node:module'
 
 test('普通用户添加书库、上传及更换封面、自动署名和重复拦截', async ({ page }) => {

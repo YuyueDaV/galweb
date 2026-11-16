@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { createRequire } from 'node:module'
 
 test('提名使用实时书库，Bangumi 复用已有作品，手动收录记录添加人', async ({ page }) => {

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 test('批量玻璃：折射资源有界、路由清理、主题与手机降级、减少透明度和动画', async ({ page }) => {
   const errors: string[] = []

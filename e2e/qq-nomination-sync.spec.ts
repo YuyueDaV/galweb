@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 test('各届多条提名编辑：兼容旧 QQ 数据、批量保存姓名时间提名词和失败提示', async ({ page, browser }) => {
   const origin = 'http://127.0.0.1:3117'

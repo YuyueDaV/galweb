@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 test('注册用户参与共同榜并改票撤回；通过 Bangumi 制作个人榜、作者隔离和内容审核', async ({
   page,

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { createRequire } from 'node:module'
 
 test('主题在脚本加载前生效；慢请求展示加载提示并在完成后退出', async ({ page }) => {

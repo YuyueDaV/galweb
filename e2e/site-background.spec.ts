@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { createRequire } from 'node:module'
 
 test('管理员上传站点背景、访客生效、纯色预设和深色模式、失败及版本冲突提示', async ({

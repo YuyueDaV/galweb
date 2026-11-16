@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 test('超级管理员可重复超额提名，Bangumi 会社补全后入库，普通账号仍受限', async ({ page, browser }) => {
   const origin = 'http://127.0.0.1:3117'

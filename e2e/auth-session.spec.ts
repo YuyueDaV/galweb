@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { createRequire } from 'node:module'
 
 test('刷新首屏直接显示本人账号；水合不重复检查，游客不接收他人状态', async ({ browser }) => {

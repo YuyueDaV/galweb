@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 test('手机登录框同时支持用户名和邮箱，大小写空白兼容、登录持久化及失败提示', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
