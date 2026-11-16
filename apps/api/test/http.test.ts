@@ -93,6 +93,7 @@ test('HTTP：来源限制、严格字段、邮件注册、Cookie 登录及 CSRF 
   assert.equal((await remove({password,confirmation:'注销账号'},false)).status,403)
   assert.equal((await remove({password,confirmation:'不确认'})).status,422)
   assert.equal((await remove({password:'incorrect',confirmation:'注销账号'})).status,422)
+  assert.equal((await remove({confirmation:'注销账号'})).status,422,'password account still requires a password')
   assert.equal((await remove({password,confirmation:'注销账号',userId:randomUUID()})).status,422)
   const removed=await remove({password,confirmation:'注销账号'});assert.equal(removed.status,200);assert.match(removed.headers.get('set-cookie')||'',/1970/)
   assert.equal((await fetch(base+'/api/auth/me',{headers:{Cookie:deleteCookie}})).status,401)

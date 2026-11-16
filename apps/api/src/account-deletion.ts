@@ -5,22 +5,26 @@ import {decode} from './forum'
 import type {AwardNomination,AwardResult} from './award-types'
 
 const anonymous='已注销用户'
-type Account={id:string,email_key:string,password_hash:string,status:string,role:string}
+type Account={id:string,email_key:string|null,password_hash:string,status:string,role:string}
 
 export class AccountDeletion {
  constructor(private db:Database,private platform:Platform){}
- async remove(actor:Actor,password:string){
+ async remove(actor:Actor,password?:string){
   const account=(await this.db.rows<Account>('SELECT id,email_key,password_hash,status,role FROM users WHERE id=?',[actor.id]))[0]
   if(!account||account.status!=='active')throw reject('账号不可用，请重新登录。',401)
-  if(!account.password_hash)throw reject('请先在用户中心设置邮箱和密码，再注销账号。',422)
-  if(!await checkPassword(password,account.password_hash))throw reject('当前密码不正确。',422)
+  if(account.password_hash){
+   if(!password)throw reject('请填写当前密码。',422)
+   if(!await checkPassword(password,account.password_hash))throw reject('当前密码不正确。',422)
+  }
   return this.db.transaction(async tx=>{
    // Lock order matches role changes, email verification, and award mutations.
    await this.platform.lock('account-roles',tx)
    await this.platform.lock('auth-identities',tx)
    await this.platform.lock(`account:${actor.id}`,tx)
-   await this.db.execute('INSERT IGNORE INTO auth_email_locks(email_key) VALUES (?)',[account.email_key],tx)
-   await this.db.rows('SELECT email_key FROM auth_email_locks WHERE email_key=? FOR UPDATE',[account.email_key],tx)
+   if(account.email_key){
+    await this.db.execute('INSERT IGNORE INTO auth_email_locks(email_key) VALUES (?)',[account.email_key],tx)
+    await this.db.rows('SELECT email_key FROM auth_email_locks WHERE email_key=? FOR UPDATE',[account.email_key],tx)
+   }
    const campaigns=await this.db.rows<{campaign_id:string}>('SELECT campaign_id FROM award_nominations WHERE user_id=? UNION SELECT campaign_id FROM award_ballots WHERE user_id=? UNION SELECT campaign_id FROM award_results WHERE JSON_SEARCH(data,\'one\',?,NULL,\'$.rounds[*].ballots[*].accountId\') IS NOT NULL',[actor.id,actor.id,actor.id],tx)
    for(const id of campaigns.map(c=>c.campaign_id).sort())await this.platform.lock(`campaign:${id}`,tx)
    await this.platform.lock('catalog',tx)
@@ -36,7 +40,7 @@ export class AccountDeletion {
    await this.db.execute('DELETE FROM oauth_identities WHERE user_id=?',[actor.id],tx)
    await this.db.execute('DELETE FROM oauth_flows WHERE user_id=?',[actor.id],tx)
    // Retain short-lived challenge timestamps and rate buckets to preserve mail limits.
-   await this.db.execute("UPDATE email_verification_challenges SET consumed_at=?,code_hmac='',delivery_status='failed' WHERE email_key=?",[now,account.email_key],tx)
+   if(account.email_key)await this.db.execute("UPDATE email_verification_challenges SET consumed_at=?,code_hmac='',delivery_status='failed' WHERE email_key=?",[now,account.email_key],tx)
    await this.db.execute('DELETE FROM forum_reactions WHERE user_id=?',[actor.id],tx)
    await this.db.execute('DELETE FROM forum_drafts WHERE user_id=?',[actor.id],tx)
    await this.db.execute('DELETE FROM notifications WHERE user_id=?',[actor.id],tx)

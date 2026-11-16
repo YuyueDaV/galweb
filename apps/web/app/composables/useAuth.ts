@@ -155,9 +155,9 @@ export function useAuth() {
     await request('/auth/logout', {})
     clear()
   }
-  async function deleteAccount(password: string, confirmation: string) {
+  async function deleteAccount(password: string | undefined, confirmation: string) {
     runtime.revision++
-    const result = await request<{ message: string }>('/auth/me', { password, confirmation }, 'DELETE')
+    const result = await request<{ message: string }>('/auth/me', { ...(password ? { password } : {}), confirmation }, 'DELETE')
     clear()
     return result
   }

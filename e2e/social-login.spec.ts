@@ -127,6 +127,42 @@ test('用户中心展示绑定、解绑确认与失败提示，第三方用户�
   expect(input).toEqual({ mode: 'bind', returnTo: '/account' })
 })
 
+test('第三方账号无需补充邮箱密码即可注销', async ({ page }) => {
+  const signed = await page.request.post('/api/auth/login', {
+    headers: { Origin: origin },
+    data: { username: 'browser_social', password: 'Isolated moderator password 123!' },
+  })
+  expect(signed.ok()).toBeTruthy()
+  const session = await signed.json()
+  const user = { ...session.user, email: null, hasPassword: false }
+  let deletionBody: unknown
+  await page.route('**/api/auth/me', async (route) => {
+    if (route.request().method() === 'DELETE') {
+      deletionBody = route.request().postDataJSON()
+      expect(route.request().headers()['x-csrf-token']).toBe(session.csrfToken)
+      await route.fulfill({ json: { message: '账号已注销，用户名和邮箱可重新注册。发码频率限制仍然有效。' } })
+      return
+    }
+    await route.fulfill({ json: { user, csrfToken: session.csrfToken } })
+  })
+  await page.route('**/api/auth/oauth/bindings', (route) => route.fulfill({ json: bindings }))
+  await page.goto('/account?oauth=login&oauth_provider=qq&oauth_message=QQ%20登录成功。')
+  const notice = page.getByRole('dialog', { name: '登录成功', exact: true })
+  await notice.getByRole('button', { name: '继续浏览', exact: true }).click()
+  await expect(page).toHaveURL('/account')
+  const zone = page.getByRole('region', { name: '注销账号', exact: true })
+  await expect(zone).toContainText('无需先补充邮箱')
+  await zone.getByRole('button', { name: '注销我的账号', exact: true }).click()
+  await expect(zone.getByLabel('当前密码', { exact: true })).toHaveCount(0)
+  const confirm = zone.getByRole('button', { name: '确认注销账号', exact: true })
+  await expect(confirm).toBeDisabled()
+  await zone.getByLabel('请输入“注销账号”确认', { exact: true }).fill('注销账号')
+  await expect(confirm).toBeEnabled()
+  await confirm.click()
+  await expect(page).toHaveURL('/')
+  expect(deletionBody).toEqual({ confirmation: '注销账号' })
+})
+
 test('授权失败显示弹窗、清理回调参数，游客可以重新打开登录', async ({ page }) => {
   await page.goto(
     '/account?oauth=error&oauth_provider=discord&oauth_message=' +

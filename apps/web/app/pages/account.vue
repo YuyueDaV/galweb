@@ -5,7 +5,8 @@ const nickname=ref(''),signature=ref(''),avatarAssetId=ref<string|null>(null)
 const avatarInput=ref<HTMLInputElement|null>(null),uploading=ref(false),saving=ref(false),error=ref(''),saved=ref(false)
 const avatarError=ref(''),avatarFeedback=ref(''),uploadStage=ref<'processing'|'uploading'>('processing')
 const roleNames={member:'社区成员',admin:'管理员',super_admin:'超级管理员'}
-const deletionOpen=ref(false),deleting=ref(false),deletionPassword=ref(''),deletionConfirmation=ref(''),deletionError=ref(''),deletionInput=ref<HTMLInputElement|null>(null)
+const deletionOpen=ref(false),deleting=ref(false),deletionPassword=ref(''),deletionConfirmation=ref(''),deletionError=ref(''),deletionInput=ref<HTMLInputElement|null>(null),deletionConfirmationInput=ref<HTMLInputElement|null>(null)
+const deletionNeedsPassword=computed(()=>auth.user.value?.hasPassword!==false)
 const personalSpacePath=computed(()=>auth.user.value?'/user/'+encodeURIComponent(auth.user.value.id):null)
 const avatarUrl=computed(()=>avatarAssetId.value?'/api/assets/'+avatarAssetId.value:null)
 const dirty=computed(()=>!!auth.user.value&&(nickname.value!==auth.user.value.nickname||signature.value!==(auth.user.value.signature||'')||avatarAssetId.value!==(auth.user.value.avatarAssetId||null)))
@@ -45,13 +46,13 @@ function reset(){const user=auth.user.value;if(!user)return;nickname.value=user.
 function removeAvatar(){avatarAssetId.value=null;avatarError.value='';avatarFeedback.value='已恢复默认预览，点击“保存资料”后生效。'}
 async function logout(){try{await auth.logout();await navigateTo('/');notify('已退出登录。')}catch(cause){error.value=(cause as Error).message}}
 function cancelDeletion(){deletionOpen.value=false;deletionPassword.value='';deletionConfirmation.value='';deletionError.value=''}
-async function openDeletion(){deletionOpen.value=true;deletionError.value='';await nextTick();deletionInput.value?.focus()}
+async function openDeletion(){deletionOpen.value=true;deletionError.value='';await nextTick();(deletionInput.value||deletionConfirmationInput.value)?.focus()}
 async function deleteAccount(){
  if(deleting.value||saving.value||uploading.value)return
  deletionError.value=''
- if(!deletionPassword.value||deletionConfirmation.value!=='注销账号'){deletionError.value='请填写当前密码，并输入“注销账号”确认。';return}
+ if((deletionNeedsPassword.value&&!deletionPassword.value)||deletionConfirmation.value!=='注销账号'){deletionError.value=deletionNeedsPassword.value?'请填写当前密码，并输入“注销账号”确认。':'请输入“注销账号”确认。';return}
  deleting.value=true
- try{const result=await auth.deleteAccount(deletionPassword.value,deletionConfirmation.value);cancelDeletion();clearPersonalData();await navigateTo('/');notify(result.message)}
+ try{const result=await auth.deleteAccount(deletionNeedsPassword.value?deletionPassword.value:undefined,deletionConfirmation.value);cancelDeletion();clearPersonalData();await navigateTo('/');notify(result.message)}
  catch(cause){deletionPassword.value='';deletionError.value=(cause as Error).message;notify('注销失败：'+deletionError.value)}
  finally{deleting.value=false}
 }
@@ -85,16 +86,16 @@ async function deleteAccount(){
    </div>
    <SocialAccountSettings />
    <section class="profile-card deletion-zone" aria-labelledby="deletion-title">
-    <div class="deletion-heading"><div><h2 id="deletion-title">注销账号</h2><p>退出登录后仍可回来；注销后，原账号将无法恢复。</p></div><button v-if="!deletionOpen" type="button" class="deletion-start" :disabled="saving||uploading||deleting||auth.user.value.hasPassword===false" @click="openDeletion">注销我的账号</button></div>
-    <p v-if="auth.user.value.hasPassword===false" class="deletion-note social-deletion-note">请先在上方补充邮箱和密码，再使用密码确认注销账号。</p>
+    <div class="deletion-heading"><div><h2 id="deletion-title">注销账号</h2><p>退出登录后仍可回来；注销后，原账号将无法恢复。</p></div><button v-if="!deletionOpen" type="button" class="deletion-start" :disabled="saving||uploading||deleting" @click="openDeletion">注销我的账号</button></div>
+    <p v-if="!deletionNeedsPassword" class="deletion-note social-deletion-note">当前账号通过第三方登录，未设置密码；输入“注销账号”即可确认注销，无需先补充邮箱。</p>
     <form v-if="deletionOpen" class="deletion-form" @submit.prevent="deleteAccount">
      <ul><li>清除用户名、邮箱、昵称、头像和个性签名，立即退出所有设备；邮箱与用户名可重新注册。</li><li>帖子和回复保留，作者显示为“已注销用户”；点赞、收藏和选票清除，上传图片停止展示并清理。</li><li>待审核提名撤回，已通过提名匿名保留；已公布榜单只匿名化提名者，不改变票数与名次。</li></ul>
      <p class="deletion-note">重新注册是一个全新账号，不会继承原账号内容或权限。登录、邮件验证码的频率限制继续保留。</p>
      <p v-if="auth.user.value.role==='super_admin'" class="deletion-note">最后一名有效超级管理员不能注销；请先交接给另一位超级管理员。</p>
-     <label class="profile-field">当前密码<input ref="deletionInput" v-model="deletionPassword" type="password" required maxlength="128" autocomplete="current-password" :disabled="deleting" /></label>
-     <label class="profile-field">请输入“注销账号”确认<input v-model="deletionConfirmation" required maxlength="4" autocomplete="off" :disabled="deleting" placeholder="注销账号" /></label>
+     <label v-if="deletionNeedsPassword" class="profile-field">当前密码<input ref="deletionInput" v-model="deletionPassword" type="password" required maxlength="128" autocomplete="current-password" :disabled="deleting" /></label>
+     <label class="profile-field">请输入“注销账号”确认<input ref="deletionConfirmationInput" v-model="deletionConfirmation" required maxlength="4" autocomplete="off" :disabled="deleting" placeholder="注销账号" /></label>
      <p v-if="deletionError" class="form-error" role="alert">{{ deletionError }}</p>
-     <div class="deletion-actions"><button type="button" class="button secondary" :disabled="deleting" @click="cancelDeletion">保留账号</button><button type="submit" class="button deletion-confirm" :disabled="deleting||saving||uploading||!deletionPassword||deletionConfirmation!=='注销账号'">{{ deleting?'正在注销…':'确认注销账号' }}</button></div>
+     <div class="deletion-actions"><button type="button" class="button secondary" :disabled="deleting" @click="cancelDeletion">保留账号</button><button type="submit" class="button deletion-confirm" :disabled="deleting||saving||uploading||(deletionNeedsPassword&&!deletionPassword)||deletionConfirmation!=='注销账号'">{{ deleting?'正在注销…':'确认注销账号' }}</button></div>
     </form>
    </section>
   </template>

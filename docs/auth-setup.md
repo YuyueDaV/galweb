@@ -55,7 +55,7 @@ pnpm --filter @chengzhixiang/api mail:test 你的测试收件邮箱
 | POST /api/auth/login | `{username,password}`，`username` 字段可填用户名或注册邮箱（最多 254 字符）→ `{user,csrfToken}`，同时设置 HttpOnly 会话 Cookie |
 | GET /api/auth/me | Cookie → `{user}`，角色来自数据库 |
 | PATCH /api/auth/me | Cookie、X-CSRF-Token、`{nickname}` → 更新展示昵称；用户名不可修改 |
-| DELETE /api/auth/me | Cookie、X-CSRF-Token、`{password,confirmation:"注销账号"}` → 注销当前账号并清除 Cookie；不能指定其他用户 ID |
+| DELETE /api/auth/me | Cookie、X-CSRF-Token、`{confirmation:"注销账号",password?}` → 注销当前账号并清除 Cookie；已设置密码的账号必须提供当前密码，仅第三方登录的账号可省略 password；不能指定其他用户 ID |
 | POST /api/auth/csrf | Cookie，空 JSON `{}` → 当前会话的 csrfToken；多标签页共享，不互相使对方失效 |
 | POST /api/auth/logout | Cookie、X-CSRF-Token、空 JSON `{}` → 撤销会话 |
 | POST /api/auth/password-reset/request | `{email}` → `{challengeId,retryAfter,message}` |
@@ -71,7 +71,7 @@ pnpm --filter @chengzhixiang/api mail:test 你的测试收件邮箱
 
 ## 自主注销
 
-用户中心底部提供独立的注销区域。展开后展示影响范围，要求当前密码和“注销账号”确认文字。成功后撤销所有设备会话，清除本机用户缓存并返回首页；失败保留账号并显示原因。每个账号 10 分钟最多 5 次注销请求。
+用户中心底部提供独立的注销区域。展开后展示影响范围，要求输入“注销账号”确认文字；已设置密码的账号还需提供当前密码，仅第三方登录的账号无需先补充邮箱和密码。成功后撤销所有设备会话，清除本机用户缓存并返回首页；失败保留账号并显示原因。每个账号 10 分钟最多 5 次注销请求。
 
 - `users` 清除原用户名、邮箱、昵称、签名、头像引用和密码哈希，保留原 UUID、匿名占位记录及 `deleted_at`，状态为 `deleted`。这样可维持历史内容外键关系；管理员不能启用或改权恢复该记录。
 - 公开帖子和回复匿名保留。清除点赞、收藏和选票；已通过提名匿名保留，以免破坏其他用户的候选和选票，待审核提名自动撤回。已公布结果只修改提名者身份字段，不重新计算票数、名次或当时的选票总数。

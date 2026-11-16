@@ -139,10 +139,21 @@ test(
       assert.equal(a.user.email, null)
       assert.equal(a.user.hasPassword, false)
       assert.match(a.user.username, /^qq_/)
-      await assert.rejects(
-        () => new AccountDeletion(db, platform).remove({ ...a.user, status: 'active' }, 'password'),
-        /先在用户中心设置/,
+      const disposable = await login('qq', 'DELETE-ME')
+      assert.equal(disposable.user.email, null)
+      assert.equal(disposable.user.hasPassword, false)
+      await new AccountDeletion(db, platform).remove({ ...disposable.user, status: 'active' })
+      assert.equal(
+        (await db.rows('SELECT * FROM oauth_identities WHERE user_id=?', [disposable.user.id])).length,
+        0,
       )
+      assert.equal(
+        (await db.rows<{ status: string }>('SELECT status FROM users WHERE id=?', [disposable.user.id]))[0]!
+          .status,
+        'deleted',
+      )
+      await assert.rejects(() => auth.session(disposable.session), /过期/)
+      assert.notEqual((await login('qq', 'DELETE-ME')).user.id, disposable.user.id)
       assert.equal((await request('oauth/discord/start', 'POST', { mode: 'bind' }, a, false)).status, 403)
       assert.equal((await request('oauth/qq', 'DELETE', {}, a, false)).status, 403)
       assert.equal((await request('credentials', 'POST', {}, a, false)).status, 403)
