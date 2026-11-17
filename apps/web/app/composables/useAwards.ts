@@ -60,7 +60,11 @@ export function useAwards() {
     ),
     myNominations = computed(() =>
       nominations.value.filter(
-        (n) => !!identity.account.value.id && !n.adminAdded && n.accountId === identity.account.value.id && n.status !== 'withdrawn',
+        (n) =>
+          !!identity.account.value.id &&
+          !n.adminAdded &&
+          n.accountId === identity.account.value.id &&
+          n.status !== 'withdrawn',
       ),
     )
   function refresh(options: { list?: boolean; force?: boolean } = {}): Promise<void> {
@@ -126,7 +130,14 @@ export function useAwards() {
       if (JSON.stringify(myBallot.value) !== JSON.stringify(data.myBallot)) myBallot.value = data.myBallot
       ballotVersion.value = data.ballotVersion ?? data.myBallot?.version ?? 0
       ballotCount.value = data.ballotCount
-      results.value = data.results
+      const nominationStudios = new Map(
+        data.nominations
+          .filter((item) => item.studio?.trim())
+          .map((item) => [item.candidateId, item.studio.trim()]),
+      )
+      results.value = data.results.map((item) =>
+        item.studio?.trim() ? item : { ...item, studio: nominationStudios.get(item.id) || '' },
+      )
       lastUpdated.value = Date.now()
       recommendations.value = data.recommendations || []
       ballots.value = data.ballots || []

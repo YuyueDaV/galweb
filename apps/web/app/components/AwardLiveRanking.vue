@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AwardCandidate, AwardResult } from '~/types/awards'
+import type { AwardCandidate, AwardResult, AwardPublicRecommendation } from '~/types/awards'
 import { nominationDisplayName } from '~/utils/awards'
 const props = defineProps<{
   results: AwardResult[]
@@ -11,6 +11,7 @@ const props = defineProps<{
   busy: boolean
   error: string
   query: string
+  recommendations?: AwardPublicRecommendation[]
 }>()
 defineEmits<{ refresh: [] }>()
 const rows = computed<(AwardResult & { recorded: boolean })[]>(() => {
@@ -88,12 +89,18 @@ const timestamp = computed(() =>
             >并列</small
           >
         </div>
+        <AwardRecommendationList
+          :items="recommendations?.filter((entry) => entry.candidateId === item.id) || []"
+        />
       </li>
     </ol>
     <p v-else class="empty-state">{{ query ? '没有匹配的作品。' : '暂时没有排名数据。' }}</p>
   </section>
 </template>
 <style scoped>
+.ranking-list li > .award-recommendations {
+  grid-column: 1 / -1;
+}
 .live-ranking {
   border: 1px solid var(--line);
   border-radius: 24px;

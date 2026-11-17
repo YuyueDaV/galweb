@@ -107,6 +107,7 @@ const scoreUnit = computed(() => (props.weighted ? '分' : '票'))
           <div class="rank-feature-body">
             <span>{{ entry.subtitle }}</span>
             <h3>{{ entry.title }}<AppIcon v-if="entry.to" name="arrowUpRight" :size="20" /></h3>
+            <span v-if="edition >= 2 && entry.studio" class="archive-studio">{{ entry.studio }}</span>
             <p>{{ entry.description }}</p>
             <span v-if="entry.tieBreakSummary" class="archive-recommendation-author">{{
               entry.tieBreakSummary
@@ -115,6 +116,7 @@ const scoreUnit = computed(() => (props.weighted ? '分' : '票'))
               >推荐 / {{ entry.recommendationAuthor }}</span
             >
             <small>提名 / {{ entry.nominator || '同好会成员' }}</small>
+            <AwardRecommendationList v-if="edition >= 2" :items="entry.recommendations || []" />
           </div>
         </component>
       </div>
@@ -151,6 +153,7 @@ const scoreUnit = computed(() => (props.weighted ? '分' : '票'))
             }}<small>{{ scoreUnit }}</small></strong
           >
           <AppIcon v-if="entry.to" name="arrowUpRight" :size="18" />
+          <AwardRecommendationList v-if="edition >= 2" :items="entry.recommendations || []" />
         </component>
       </div>
       <p v-if="edition !== 1" class="award-small-note archive-result-note">
@@ -174,6 +177,21 @@ const scoreUnit = computed(() => (props.weighted ? '分' : '票'))
 </template>
 
 <style scoped>
+.rank-feature-body > .archive-studio {
+  display: block;
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.8;
+  letter-spacing: normal;
+  color: var(--subtle);
+}
+.rank-row:has(> .award-recommendations) {
+  flex-wrap: wrap;
+}
+.rank-row > .award-recommendations {
+  flex: 0 0 100%;
+  margin-bottom: 8px;
+}
 .archive-pending-ties {
   margin-top: 1rem;
   padding: 1rem;

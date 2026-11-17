@@ -141,6 +141,28 @@ export class Awards {
     )[0]
     return row ? decode(row.data) : {}
   }
+  private async linkedStudios(records: { coverRank?: number }[], tx: PoolConnection) {
+    const ids = [
+      ...new Set(
+        records
+          .map((item) => item.coverRank)
+          .filter((id): id is number => Number.isInteger(id) && Number(id) > 0),
+      ),
+    ]
+    if (!ids.length) return new Map<number, string>()
+    const rows = await this.db.rows<{ id: number; data: unknown }>(
+      'SELECT id,data FROM works WHERE id IN (' + ids.map(() => '?').join(',') + ')',
+      ids,
+      tx,
+    )
+    const studios = new Map<number, string>()
+    for (const row of rows) {
+      const work = decode(row.data) as { studio?: string; catalogDeleted?: boolean; catalogVisible?: boolean }
+      if (!work.catalogDeleted && work.catalogVisible !== false && work.studio?.trim())
+        studios.set(row.id, work.studio.trim())
+    }
+    return studios
+  }
   private resultSnapshot(
     c: AwardCampaign,
     stored: StoredResults,
@@ -184,8 +206,20 @@ export class Awards {
         ended = ['results', 'archived'].includes(campaign.phase)
       const round = campaign.votingRound || 1,
         stored = await this.storedResults(id, tx)
+      const studios = await this.linkedStudios([...nominations, ...(stored.results || [])], tx)
       const current = await this.ballots(id, tx),
         candidates = collectAwardCandidates(nominations, id)
+      const recommendationCandidates = ended
+        ? [
+            ...new Map(
+              [
+                ...candidates,
+                ...(stored.results || []),
+                ...(stored.rounds || []).flatMap((previous) => previous.results),
+              ].map((candidate) => [candidate.id, candidate]),
+            ).values(),
+          ]
+        : candidates
       const results = this.resultSnapshot(campaign, stored, candidates, current)
       const mine = actor
         ? (
@@ -218,7 +252,9 @@ export class Awards {
           ...ballot,
           round,
           mode: awardVotingMode(campaign),
-          eligibleCandidateIds: awardVotingCandidates(campaign, candidates).map((item) => item.id),
+          eligibleCandidateIds: awardVotingCandidates(campaign, recommendationCandidates).map(
+            (item) => item.id,
+          ),
         })),
       ]
       const ids = [...new Set(roundBallots.map((ballot) => ballot.accountId))]
@@ -236,7 +272,12 @@ export class Awards {
       const sanitize = (n: AwardNomination) => {
         const latest = currentNominations.get(n.id) || n
         // Only presentation metadata changes; historical scores and original submissions stay intact.
-        const displayed = { ...n, qqSync: latest.qqSync, displayOverride: latest.displayOverride }
+        const displayed = {
+          ...n,
+          studio: studios.get(n.coverRank || 0) || n.studio,
+          qqSync: latest.qqSync,
+          displayOverride: latest.displayOverride,
+        }
         if (isStaff)
           return {
             ...displayed,
@@ -252,10 +293,14 @@ export class Awards {
           ? roundBallots.flatMap((ballot) => {
               if (ballot.mode === 'tie-break') return []
               const pool = ballot.eligibleCandidateIds
-                ? candidates.filter((candidate) => ballot.eligibleCandidateIds!.includes(candidate.id))
+                ? recommendationCandidates.filter((candidate) =>
+                    ballot.eligibleCandidateIds!.includes(candidate.id),
+                  )
                 : ballot.round === 2
-                  ? candidates.filter((candidate) => !campaign.lockedCandidateIds?.includes(candidate.id))
-                  : candidates
+                  ? recommendationCandidates.filter(
+                      (candidate) => !campaign.lockedCandidateIds?.includes(candidate.id),
+                    )
+                  : recommendationCandidates
               if (
                 validateWeightedBallot(
                   {
@@ -300,9 +345,11 @@ export class Awards {
           const currentWork = nominations.find((n) => n.candidateId === result.id)
           return {
             ...result,
-            ...(currentWork
-              ? { title: currentWork.title, studio: currentWork.studio, coverRank: currentWork.coverRank }
-              : {}),
+            ...(currentWork ? { title: currentWork.title, coverRank: currentWork.coverRank } : {}),
+            studio:
+              studios.get(currentWork?.coverRank || result.coverRank || 0) ||
+              currentWork?.studio.trim() ||
+              result.studio,
             nominations: live.map(sanitize),
           }
         }),
@@ -814,18 +861,9 @@ export class Awards {
         (n) => n.candidateId === input.candidateId && n.status === 'approved',
       )
       const afterNomination = ['voting', 'results', 'archived'].includes(campaign.phase)
-      if (
-        afterNomination &&
-        input.additions.length &&
-        !approvedTarget &&
-        current.role !== 'super_admin'
-      )
+      if (afterNomination && input.additions.length && !approvedTarget && current.role !== 'super_admin')
         throw reject('投票开始后只能给已通过的候选作品补充提名人。', 409)
-      const additionStatus = afterNomination
-        ? approvedTarget
-          ? 'approved'
-          : target?.status
-        : 'pending'
+      const additionStatus = afterNomination ? (approvedTarget ? 'approved' : target?.status) : 'pending'
       const removalIds = new Set(removals.map((n) => n.id))
       if (afterNomination) {
         for (const n of removals.filter((n) => n.status === 'approved')) {

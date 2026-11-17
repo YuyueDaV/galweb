@@ -130,6 +130,12 @@ test('公开提名署名、匿名分数、二次投票与归档书单完整流�
       .screenshot({ path: test.info().outputPath('admin-voting-data-mobile.png') })
     await visitor.reload()
     await expect(visitor.locator('.award-result-row')).toHaveCount(3)
+    await expect(
+      visitor.locator('.award-result-row').first().locator('.award-recommendations'),
+    ).toContainText('首轮公开署名推荐词')
+    await expect(
+      visitor.locator('.award-result-row').first().locator('.award-recommendations'),
+    ).toContainText('browser_member')
     const publicState = await (await member.request.get('/api/award-campaigns/' + id)).json()
     expect(publicState.ballots).toBeUndefined()
     expect(publicState.rounds).toBeUndefined()
@@ -143,6 +149,9 @@ test('公开提名署名、匿名分数、二次投票与归档书单完整流�
     await expect(visitor.locator('.rank-feature')).toHaveCount(3)
     await expect(visitor.locator('.rank-feature').first()).toContainText(titles[0])
     await expect(visitor.locator('.rank-feature').first()).toContainText('首轮公开署名推荐词')
+    await expect(visitor.locator('.rank-feature').first().locator('.award-recommendations')).toContainText(
+      'browser_member',
+    )
     await expect(visitor.locator('.rank-feature').first()).toContainText('4 分')
     await expect(visitor.locator('.rank-feature').first()).toHaveAttribute(
       'href',

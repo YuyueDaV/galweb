@@ -141,6 +141,7 @@ const archived = computed(() => campaign.value.phase === 'archived')
 const resultById = computed(() => new Map(results.value.map((item) => [item.id, item])))
 const qualifiedCount = computed(() => results.value.filter((item) => item.votes > 0).length)
 const isLocked = (id: string) => !!campaign.value.lockedCandidateIds?.includes(id)
+const recommendationsFor = (id: string) => awards.recommendations.value.filter((entry) => entry.candidateId === id)
 const winners = computed(() =>
   results.value
     .filter((item) => item.votes > 0 && item.rank <= campaign.value.winnerCount)
@@ -149,15 +150,14 @@ const winners = computed(() =>
 const archiveEntries = computed<AwardArchiveEntry[]>(() =>
   winners.value.map((item) => {
     const work = works.value.find((entry) => entry.rank === item.coverRank)
-    const recommendation = awards.recommendations.value.find((entry) => entry.candidateId === item.id)
     return {
       id: item.id,
       rank: item.rank,
       title: item.title,
-      subtitle: work?.subtitle || item.studio,
-      studio: item.studio,
-      description: recommendation?.text || item.nominations.map(nominationDisplayReason).find(Boolean) || work?.description || '',
-      recommendationAuthor: recommendation?.authorName,
+      subtitle: work?.subtitle || '',
+      studio: item.studio || work?.studio || '',
+      description: item.nominations.map(nominationDisplayReason).find(Boolean) || work?.description || '',
+      recommendations: recommendationsFor(item.id),
       nominator: [...new Set(item.nominations.map(nominationDisplayName))].join('、'),
       coverUrl: item.coverRank ? coverUrl(item.coverRank) : '/images/work-placeholder.svg',
       coverRank: item.coverRank,
@@ -449,7 +449,7 @@ async function withdrawBallot() {
                     :alt="`${item.title}封面`"
                   /><AppIcon v-else name="book" :size="25" />
                 </div>
-                <div>
+                <div class="award-result-copy">
                   <h3>{{ item.title }}</h3>
                   <span
                     >{{ item.studio || '成员提名作品'
@@ -464,6 +464,7 @@ async function withdrawBallot() {
                 <strong
                   >{{ item.votes }}<small>{{ weighted ? '分' : '票' }}</small></strong
                 >
+                <AwardRecommendationList v-if="campaign.edition >= 2" :items="recommendationsFor(item.id)" />
               </article>
             </div>
             <p class="award-small-note">
@@ -596,7 +597,7 @@ async function withdrawBallot() {
                   </div>
                 </article></div
             ></template>
-            <AwardLiveRanking v-else-if="tab==='ranking'" :results="results" :candidates="candidates" :weighted="weighted" :ended="ended" :archived="campaign.phase==='archived'" :updated-at="awards.lastUpdated.value" :busy="liveRefreshing" :error="liveError" :query="search" @refresh="refreshScores" />
+            <AwardLiveRanking v-else-if="tab==='ranking'" :results="results" :candidates="candidates" :weighted="weighted" :ended="ended" :archived="campaign.phase==='archived'" :updated-at="awards.lastUpdated.value" :busy="liveRefreshing" :error="liveError" :query="search" :recommendations="campaign.edition >= 2 && ended ? awards.recommendations.value : []" @refresh="refreshScores" />
             <template v-else-if="tab === 'mine'"
               ><div v-if="!myNominations.length" class="empty-state">
                 <AppIcon name="pen" :size="28" />
@@ -863,6 +864,9 @@ async function withdrawBallot() {
 </template>
 
 <style scoped>
+.award-result-row { flex-wrap: wrap; }
+.award-result-row > .award-recommendations { flex: 0 0 100%; }
+.award-result-copy { flex: 1 1 120px; min-width: 0; overflow-wrap: anywhere; }
 .award-candidate-copy>.award-information-source{font-size:max(14px,.7rem);line-height:1.8;overflow-wrap:anywhere}
 .award-archive-records {
   margin-top: 2rem;

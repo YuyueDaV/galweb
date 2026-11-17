@@ -1,3 +1,5 @@
+import type { AwardPublicRecommendation } from './awards'
+
 export interface AwardArchiveEntry {
   id: string
   rank: number
@@ -12,6 +14,7 @@ export interface AwardArchiveEntry {
   badge?: string
   votes?: number
   recommendationAuthor?: string
+  recommendations?: AwardPublicRecommendation[]
   tied?: boolean
   tieBreakSummary?: string
 }
