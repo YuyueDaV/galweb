@@ -229,6 +229,7 @@ export function useAwards() {
         reason: string
         source: string
         revision: string
+        approve?: true
       }[]
       candidateId: string
       additions: { nominatorName: string; nominatedAt: string; reason: string; source: string }[]

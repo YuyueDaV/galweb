@@ -182,13 +182,14 @@ const detailsDialog = ref<HTMLDialogElement | null>(null)
 const editingTitle = ref('')
 const detailsCampaignId = ref('')
 const editingCandidateId = ref('')
-const detailEntries = ref<{ key: string; original: AwardNomination | null; name: string; date: string; reason: string; source: string; removed: boolean }[]>([])
+const detailEntries = ref<{ key: string; original: AwardNomination | null; name: string; date: string; reason: string; source: string; removed: boolean; approve: boolean }[]>([])
+const canApproveBackfill = computed(() => identity.role.value === 'super_admin' && ['voting', 'results', 'archived'].includes(campaign.value.phase))
 const detailsError = ref(''), detailsBusy = ref(false)
 const additionsCount = computed(() => detailEntries.value.filter(entry => !entry.original && !entry.removed).length)
 const removalsCount = computed(() => detailEntries.value.filter(entry => entry.original && entry.removed).length)
 function addNominator() {
   if (detailsBusy.value) return
-  detailEntries.value.push({ key: crypto.randomUUID(), original: null, name: '', date: toAwardTimeInput(new Date().toISOString()), reason: '', source: '后台补录', removed: false })
+  detailEntries.value.push({ key: crypto.randomUUID(), original: null, name: '', date: toAwardTimeInput(new Date().toISOString()), reason: '', source: '后台补录', removed: false, approve: false })
   detailsError.value = ''
 }
 function removeNominator(index: number) {
@@ -209,7 +210,7 @@ async function openNominationDetails(item: AwardNomination) {
   editingCandidateId.value = item.candidateId
   detailEntries.value = campaignNominations.value
     .filter((n) => n.candidateId === item.candidateId)
-    .map((n) => ({ key: n.id, original: { ...n }, name: nominationDisplayName(n), date: toAwardTimeInput(nominationDisplayTime(n)), reason: nominationDisplayReason(n), source: nominationDisplaySource(n), removed: false }))
+    .map((n) => ({ key: n.id, original: { ...n }, name: nominationDisplayName(n), date: toAwardTimeInput(nominationDisplayTime(n)), reason: nominationDisplayReason(n), source: nominationDisplaySource(n), removed: false, approve: false }))
   detailsError.value = ''
   await nextTick()
   detailsDialog.value?.showModal()
@@ -233,7 +234,7 @@ async function saveNominationDetails() {
   detailsError.value = ''
   try {
     if (detailsCampaignId.value !== campaign.value.id) throw new Error('当前届次已切换，请重新打开编辑窗口。')
-    const entries: { id: string; nominatorName: string; nominatedAt: string; reason: string; source: string; revision: string }[] = []
+    const entries: { id: string; nominatorName: string; nominatedAt: string; reason: string; source: string; revision: string; approve?: true }[] = []
     const additions: { nominatorName: string; nominatedAt: string; reason: string; source: string }[] = []
     const removals: { id: string; revision: string }[] = []
     for (const entry of detailEntries.value) {
@@ -243,13 +244,13 @@ async function saveNominationDetails() {
         if (original) removals.push({ id: original.id, revision: original.detailsRevision! })
         continue
       }
-      if (original && entry.name.trim() === nominationDisplayName(original) && entry.date === toAwardTimeInput(nominationDisplayTime(original)) && entry.reason.trim() === nominationDisplayReason(original) && entry.source.trim() === nominationDisplaySource(original)) continue
+      if (original && !entry.approve && entry.name.trim() === nominationDisplayName(original) && entry.date === toAwardTimeInput(nominationDisplayTime(original)) && entry.reason.trim() === nominationDisplayReason(original) && entry.source.trim() === nominationDisplaySource(original)) continue
       const nominatedAt = original && entry.date === toAwardTimeInput(nominationDisplayTime(original))
         ? nominationDisplayTime(original)
         : fromAwardTimeInput(entry.date)
       if (!nominatedAt) throw new Error('请填写实际提名时间。')
       const input = { nominatorName: entry.name.trim(), nominatedAt, reason: entry.reason.trim(), source: entry.source.trim() }
-      if (original) entries.push({ ...input, id: original.id, revision: original.detailsRevision! })
+      if (original) entries.push({ ...input, id: original.id, revision: original.detailsRevision!, ...(entry.approve ? {approve:true as const} : {}) })
       else additions.push(input)
     }
     if (!entries.length && !additions.length && !removals.length) { detailsError.value = '尚未修改提名信息。'; return }
@@ -646,12 +647,13 @@ function review(id: string, status: 'approved' | 'rejected') {
       <dialog ref="detailsDialog" class="modal nomination-details-dialog" aria-labelledby="nomination-details-title" @cancel.prevent="closeNominationDetails">
         <template v-if="detailEntries.length">
           <header class="nomination-details-heading"><div><p class="eyebrow">第 {{ campaign.edition }} 届 · {{ detailEntries.filter(entry => !entry.removed).length }} 位提名人</p><h2 id="nomination-details-title">编辑提名人和提名词</h2><h3>{{ editingTitle }}</h3></div><button type="button" class="icon-button" aria-label="关闭提名编辑窗口" :disabled="detailsBusy" @click="closeNominationDetails"><AppIcon name="close" /></button></header>
-          <p class="nomination-edit-help">增删改统一在保存后生效。时间按北京时间 UTC+8 填写；提名词最多 600 字，不计推荐词加分。{{ identity.role.value==='super_admin'?'超级管理员可跨阶段补录提名人；投票后新增记录沿用作品的审核状态，已有选票保留。':'提名阶段新增记录需审核；投票开始后仅可为已通过的作品补录提名人。' }}已通过作品须保留至少一条已通过提名。</p>
+          <p class="nomination-edit-help">增删改统一在保存后生效。时间按北京时间 UTC+8 填写；提名词最多 600 字，不计推荐词加分。{{ identity.role.value==='super_admin'?'投票阶段及之后，新增补录提名直接通过；已有记录可勾选“设为有效提名”修正状态。投票中立即进入候选名单，公布或归档后不追加历史分数。':'提名阶段新增记录需审核；投票开始后仅可为已通过的作品补录提名人。' }}已通过作品须保留至少一条已通过提名。</p>
           <form class="award-form" @submit.prevent="saveNominationDetails">
             <fieldset v-for="(entry, index) in detailEntries" :key="entry.key" class="nomination-detail-entry" :class="{ 'pending-removal': entry.removed }" :disabled="detailsBusy">
-              <legend>提名 {{ index + 1 }} · {{ entry.removed ? '待删除' : entry.original ? statusNames[entry.original.status] : '新增提名人' }}</legend>
+              <legend>提名 {{ index + 1 }} · {{ entry.removed ? '待删除' : entry.approve ? '待设为有效提名' : entry.original ? statusNames[entry.original.status] : ['voting','results','archived'].includes(campaign.phase) ? '新增提名人（保存后已通过）' : '新增提名人' }}</legend>
               <p v-if="entry.removed" class="nomination-removal-note">{{ entry.name }} · 保存后删除此条提名及提名词，原始记录保留用于审计。</p>
               <template v-else>
+              <label v-if="canApproveBackfill && entry.original && entry.original.status !== 'approved'" class="nomination-approve-option"><input v-model="entry.approve" type="checkbox" />设为有效提名（已通过）</label>
               <div class="nomination-details-fields"><label>提名人<input v-model="entry.name" required maxlength="64" placeholder="填写实际提名人的昵称" /></label><label>实际提名时间（北京时间）<input v-model="entry.date" type="datetime-local" required /></label></div>
               <label>提名来源<input v-model="entry.source" maxlength="80" placeholder="例如：QQ群、网站、线下活动" /></label>
               <label>提名词<textarea v-model="entry.reason" rows="3" maxlength="600" placeholder="写下这位提名人想推荐它的理由，可留空"></textarea></label>
@@ -765,6 +767,8 @@ function review(id: string, status: 'approved' | 'rejected') {
 .award-tie-break-management > strong, .award-tie-break-management > p { font-size: max(14px, .7rem); line-height: 1.9; overflow-wrap: anywhere; }
 .award-tie-break-management > p { margin-block: .6rem; color: var(--subtle); }
 .nomination-edit-help { margin: 16px 0; padding: 12px 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--orange-soft); color: var(--subtle); font-size: max(14px, 0.75rem); line-height: 1.8; overflow-wrap: anywhere; }
+.award-form .nomination-approve-option { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; font-size: 15px; }
+.award-form .nomination-approve-option > input { width: 18px; height: 18px; margin: 0; padding: 0; flex: 0 0 18px; accent-color: var(--orange); }
 .nomination-record-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-block: 12px; }
 .nomination-record-actions .button { min-height: 44px; font-size: 14px; }
 .nomination-record-actions span, .nomination-original { color: var(--subtle); font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }

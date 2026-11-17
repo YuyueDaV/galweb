@@ -861,9 +861,13 @@ export class Awards {
         (n) => n.candidateId === input.candidateId && n.status === 'approved',
       )
       const afterNomination = ['voting', 'results', 'archived'].includes(campaign.phase)
+      if (updates.some(({ entry }) => entry.approve)) {
+        owner(current)
+        if (!afterNomination) throw reject('提名阶段请通过审核操作确认提名。', 422)
+      }
       if (afterNomination && input.additions.length && !approvedTarget && current.role !== 'super_admin')
         throw reject('投票开始后只能给已通过的候选作品补充提名人。', 409)
-      const additionStatus = afterNomination ? (approvedTarget ? 'approved' : target?.status) : 'pending'
+      const additionStatus = afterNomination ? 'approved' : 'pending'
       const removalIds = new Set(removals.map((n) => n.id))
       if (afterNomination) {
         for (const n of removals.filter((n) => n.status === 'approved')) {
@@ -874,12 +878,25 @@ export class Awards {
                 other.status === 'approved' &&
                 !removalIds.has(other.id),
             ) ||
-            (input.additions.length > 0 && input.candidateId === n.candidateId && approvedTarget)
+            (input.additions.length > 0 && input.candidateId === n.candidateId) ||
+            updates.some(({ entry, nomination }) => entry.approve && nomination.candidateId === n.candidateId)
           if (!hasApproved)
             throw reject('投票开始后，每部作品需保留至少一位已通过的提名人；可先增加提名人再删除。', 409)
         }
       }
       for (const { entry, nomination } of updates) {
+        if (entry.approve && nomination.status !== 'approved') {
+          const previousStatus = nomination.status
+          nomination.status = 'approved'
+          nomination.reviewedBy = current.nickname
+          nomination.reviewNote = '超级管理员补录确认'
+          await this.platform.audit(
+            current,
+            `补录确认有效提名 ${nomination.id}：${previousStatus} → approved`,
+            id,
+            tx,
+          )
+        }
         const previous = nomination.displayOverride || {
           nominatorName: nomination.qqSync?.nominatorName || nomination.accountName,
           nominatedAt: nomination.qqSync?.nominatedAt || nomination.createdAt,
@@ -892,8 +909,8 @@ export class Awards {
           source: entry.source ?? nomination.displayOverride?.source,
         }
         await this.db.execute(
-          'UPDATE award_nominations SET data=? WHERE id=? AND campaign_id=?',
-          [JSON.stringify(nomination), nomination.id, id],
+          'UPDATE award_nominations SET status=?,data=? WHERE id=? AND campaign_id=?',
+          [nomination.status, JSON.stringify(nomination), nomination.id, id],
           tx,
         )
         await this.platform.audit(
@@ -943,7 +960,7 @@ export class Awards {
           reason: entry.reason,
           accountId: current.id,
           accountName: current.nickname,
-          status: additionStatus!,
+          status: additionStatus,
           createdAt: new Date().toISOString(),
           adminAdded: true,
           displayOverride: {

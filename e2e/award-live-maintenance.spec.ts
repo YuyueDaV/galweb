@@ -174,7 +174,7 @@ test('超管投票期间补录作品、改资料来源与提名人、移除恢�
     (
       await page.request.patch('/api/award-campaigns/' + campaign.id + '/nominations/' + excluded.id, {
         headers,
-        data: { status: 'rejected', note: '仅维护提名资料' },
+        data: { status: 'withdrawn', note: '' },
       })
     ).ok(),
   ).toBeTruthy()
@@ -212,6 +212,12 @@ test('超管投票期间补录作品、改资料来源与提名人、移除恢�
   const excludedRecord = page.locator('.award-review-list article').filter({
     has: page.getByRole('heading', { name: excludedTitle, exact: true }),
   })
+  await page.getByRole('button', { name: '作品维护', exact: true }).click()
+  const excludedMaintenance = page
+    .locator('.maintenance-record')
+    .filter({ has: page.getByRole('heading', { name: new RegExp(excludedTitle) }) })
+  await expect(excludedMaintenance).toContainText('未入候选')
+  await page.getByRole('button', { name: '提名审核', exact: true }).click()
   await excludedRecord.getByRole('button', { name: /编辑本作提名/ }).click()
   await votingNominators.getByRole('button', { name: '增加提名人', exact: true }).click()
   const addedNominator = votingNominators.locator('fieldset').last()
@@ -226,12 +232,33 @@ test('超管投票期间补录作品、改资料来源与提名人、移除恢�
     (n: { displayOverride?: { nominatorName: string } }) =>
       n.displayOverride?.nominatorName === '投票期补录群友',
   )
-  expect(backfilled.status).toBe('rejected')
+  expect(backfilled.status).toBe('approved')
   expect(
     afterBackfill.results.map((n: { id: string; votes: number }) => ({ id: n.id, votes: n.votes })),
-  ).toEqual([{ id: initial.candidateId, votes: 2 }])
+  ).toEqual([
+    { id: initial.candidateId, votes: 2 },
+    { id: backfilled.candidateId, votes: 0 },
+  ])
+  // An earlier mistaken withdrawal can be corrected without adding duplicate people.
+  await excludedRecord
+    .first()
+    .getByRole('button', { name: /编辑本作提名/ })
+    .click()
+  await votingNominators.getByRole('checkbox', { name: '设为有效提名（已通过）', exact: true }).check()
+  await votingNominators.getByRole('button', { name: '保存全部修改', exact: true }).click()
+  await expect(votingNominators).not.toBeVisible()
+  const repairedState = await (await page.request.get('/api/award-campaigns/' + campaign.id)).json()
+  expect(repairedState.nominations.find((n: { id: string }) => n.id === excluded.id).status).toBe('approved')
+  expect(
+    repairedState.nominations.filter(
+      (n: { candidateId: string }) => n.candidateId === backfilled.candidateId,
+    ),
+  ).toHaveLength(2)
   await page.getByRole('button', { name: '作品维护', exact: true }).click()
   const panel = page.getByRole('region', { name: '提名作品维护', exact: true })
+  await expect(excludedMaintenance).toContainText('有效候选')
+  await choose(page, '记录状态', '有效候选')
+  await expect(excludedMaintenance).toBeVisible()
   await expect(panel).toContainText(title)
   await panel.getByRole('button', { name: '补录候选作品', exact: true }).click()
   await choose(page, '作品来源', '手动填写')
@@ -267,7 +294,7 @@ test('超管投票期间补录作品、改资料来源与提名人、移除恢�
   const restore = page.getByRole('dialog', { name: '恢复候选作品', exact: true })
   await restore.getByLabel('输入完整作品名称确认').fill(addedTitle)
   await restore.getByRole('button', { name: '确认恢复', exact: true }).click()
-  await choose(page, '记录状态', '当前候选')
+  await choose(page, '记录状态', '未移除作品')
   await expect(row).toContainText('更正提名人')
   await phase('results')
   const before = (await (await page.request.get('/api/award-campaigns/' + campaign.id)).json()).results.map(

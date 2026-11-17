@@ -209,7 +209,7 @@ test(
 )
 
 test(
-  '投票后超管可为未通过作品补录提名人，沿用审核状态并保留选票及已公布结果',
+  '投票后超管补录直接通过，可修正撤回状态并保留选票及已公布结果',
   { skip: process.env.AUTH_INTEGRATION !== '1' },
   async () => {
     await fixture(async ({ awards, db, owner, admin, member, marker }) => {
@@ -244,7 +244,8 @@ test(
         likeIds: [],
         recommendations: [],
       })
-      const ballots = await awards.ballots(campaign.id)
+      let ballots = await awards.ballots(campaign.id)
+      const scoredIds = [official.candidateId]
       for (const phase of ['voting', 'results', 'archived'] as const) {
         if (phase !== 'voting')
           await awards.phase(owner, campaign.id, phase, (await awards.campaign(campaign.id)).version!)
@@ -271,7 +272,12 @@ test(
               },
             ],
           }
-          await assert.rejects(() => awards.editNominationDetails(admin, campaign.id, input), /已通过/)
+          if (
+            !(await awards.nominations(campaign.id)).some(
+              (n) => n.candidateId === original.candidateId && n.status === 'approved',
+            )
+          )
+            await assert.rejects(() => awards.editNominationDetails(admin, campaign.id, input), /已通过/)
           assert.deepEqual(
             (await awards.nominations(campaign.id)).find((n) => n.id === before.id),
             before,
@@ -280,14 +286,21 @@ test(
           const records = (await awards.nominations(campaign.id)).filter(
             (n) => n.candidateId === original.candidateId,
           )
-          assert.ok(records.every((n) => n.status === before.status))
           const corrected = records.find((n) => n.id === before.id)!
+          assert.equal(corrected.status, before.status)
           assert.equal(nominationDisplayName(corrected), input.entries[0]!.nominatorName)
           assert.equal(corrected.accountId, before.accountId)
           assert.equal(corrected.createdAt, before.createdAt)
           const added = records.find((n) => nominationDisplayName(n) === input.additions[0]!.nominatorName)!
           assert.equal(added.adminAdded, true)
-          assert.equal(added.reviewedBy, undefined)
+          assert.equal(added.status, 'approved')
+          assert.equal(added.reviewedBy, owner.nickname)
+          assert.equal(
+            (
+              await db.rows<{ status: string }>('SELECT status FROM award_nominations WHERE id=?', [added.id])
+            )[0]!.status,
+            'approved',
+          )
           assert.equal(nominationDisplaySource(added), 'QQ群')
         }
         assert.deepEqual(await awards.ballots(campaign.id), ballots)
@@ -296,18 +309,70 @@ test(
           snapshot,
         )
         assert.deepEqual(
-          (await awards.state(campaign.id)).results.map((n) => n.id),
-          [official.candidateId],
+          (await awards.state(campaign.id)).results.filter((n) => n.votes > 0).map((n) => n.id),
+          scoredIds,
+        )
+        if (phase === 'voting') {
+          // A newly backfilled work is immediately available for a real ballot.
+          const candidateId = excluded[0]!.candidateId
+          await awards.vote(admin, campaign.id, [candidateId], 0, {
+            loveId: null,
+            likeIds: [candidateId],
+            recommendations: [],
+          })
+          assert.equal((await awards.state(campaign.id)).results.find((n) => n.id === candidateId)!.votes, 1)
+          scoredIds.push(candidateId)
+          ballots = await awards.ballots(campaign.id)
+        }
+      }
+      const originalsToRepair = (await awards.nominations(campaign.id)).filter((n) =>
+        excluded.some((entry) => entry.id === n.id),
+      )
+      const repairs = originalsToRepair.map((n) => ({
+        id: n.id,
+        revision: nominationDetailsRevision(n),
+        nominatorName: nominationDisplayName(n),
+        nominatedAt: nominationDisplayTime(n),
+        reason: nominationDisplayReason(n),
+        approve: true as const,
+      }))
+      const beforeRepair = await db.rows('SELECT data FROM award_results WHERE campaign_id=?', [campaign.id])
+      await assert.rejects(
+        () => awards.editNominationDetails(admin, campaign.id, { entries: repairs }),
+        /超级管理员/,
+      )
+      await awards.editNominationDetails(owner, campaign.id, { entries: repairs })
+      for (const original of originalsToRepair) {
+        const repaired = (await awards.nominations(campaign.id)).find((n) => n.id === original.id)!
+        assert.equal(repaired.status, 'approved')
+        assert.equal(repaired.accountId, original.accountId)
+        assert.equal(repaired.createdAt, original.createdAt)
+        assert.equal(
+          (
+            await db.rows<{ status: string }>('SELECT status FROM award_nominations WHERE id=?', [
+              original.id,
+            ])
+          )[0]!.status,
+          'approved',
         )
       }
+      assert.deepEqual(await awards.ballots(campaign.id), ballots)
+      assert.deepEqual(
+        await db.rows('SELECT data FROM award_results WHERE campaign_id=?', [campaign.id]),
+        beforeRepair,
+      )
+      await assert.rejects(
+        () => awards.editNominationDetails(owner, campaign.id, { entries: repairs }),
+        /已被修改/,
+      )
       await db.execute("UPDATE users SET role='admin' WHERE id=?", [owner.id])
+      const currentRepair = (await awards.nominations(campaign.id)).find((n) => n.id === repairs[0]!.id)!
       await assert.rejects(
         () =>
           awards.editNominationDetails(owner, campaign.id, {
-            candidateId: excluded[0]!.candidateId,
-            additions: [{ nominatorName: '失效权限', nominatedAt: official.createdAt, reason: '' }],
+            entries: [{ ...repairs[0]!, revision: nominationDetailsRevision(currentRepair) }],
           }),
-        /已通过/,
+        /超级管理员/,
       )
     })
   },
@@ -330,6 +395,7 @@ test('批量提名编辑拒绝空批次、重复编号、越权字段和非法�
     { revision: '' },
     { accountId: randomUUID() },
     { status: 'approved' },
+    { approve: false },
   ])
     assert.equal(nominationDetailsSchema.safeParse({ entries: [{ ...entry, ...patch }] }).success, false)
   assert.equal(nominationDetailsSchema.safeParse({ entries: [] }).success, false)

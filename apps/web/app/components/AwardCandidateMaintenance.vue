@@ -34,10 +34,14 @@ const confirmation = ref<HTMLDialogElement | null>(null),
   actionError = ref('')
 let revision = 0
 const endpoint = computed(() => '/admin/award-campaigns/' + props.campaignId)
+const eligible = (row: RecordEntry) => row.nominations.some((n) => !n.deletedAt && n.status === 'approved')
 const filtered = computed(() =>
   records.value.filter(
     (row) =>
-      (view.value === 'all' || row.removed === (view.value === 'removed')) &&
+      (view.value === 'all' ||
+        (view.value === 'removed'
+          ? row.removed
+          : !row.removed && (view.value === 'active' || eligible(row) === (view.value === 'eligible')))) &&
       `${row.title} ${row.studio} ${row.nominations.map(nominationDisplayName).join(' ')}`
         .toLowerCase()
         .includes(query.value.trim().toLowerCase()),
@@ -225,7 +229,9 @@ async function updated() {
       <label>搜索作品或提名人<input v-model="query" type="search" placeholder="搜索维护记录" /></label
       ><label
         >记录状态<select v-model="view">
-          <option value="active">当前候选</option>
+          <option value="active">未移除作品</option>
+          <option value="eligible">有效候选</option>
+          <option value="ineligible">未入候选</option>
           <option value="removed">已移除</option>
           <option value="all">全部记录</option>
         </select></label
@@ -239,7 +245,7 @@ async function updated() {
     <article v-for="row in filtered" :key="row.id" class="maintenance-record">
       <div>
         <h3>
-          {{ row.title }}<span>{{ row.removed ? '已移除' : '当前候选' }}</span>
+          {{ row.title }}<span>{{ row.removed ? '已移除' : eligible(row) ? '有效候选' : '未入候选' }}</span>
         </h3>
         <p>{{ row.studio || '制作组待补充' }} · 关联书库 #{{ row.coverRank || '待补全' }}</p>
         <p>

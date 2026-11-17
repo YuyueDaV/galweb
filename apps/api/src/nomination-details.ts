@@ -17,7 +17,10 @@ const details = qqNominationSchema.omit({ revision: true }).extend({
 const reference = z.object({ id: z.uuid(), revision: qqNominationSchema.shape.revision }).strict()
 export const nominationDetailsSchema = z
   .object({
-    entries: z.array(details.extend(reference.shape)).max(1000).default([]),
+    entries: z
+      .array(details.extend(reference.shape).extend({ approve: z.literal(true).optional() }))
+      .max(1000)
+      .default([]),
     additions: z.array(details).max(100, '每次最多新增 100 位提名人。').default([]),
     removals: z.array(reference).max(1000).default([]),
     candidateId: z.uuid().optional(),
