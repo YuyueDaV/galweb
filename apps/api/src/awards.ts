@@ -814,8 +814,18 @@ export class Awards {
         (n) => n.candidateId === input.candidateId && n.status === 'approved',
       )
       const afterNomination = ['voting', 'results', 'archived'].includes(campaign.phase)
-      if (afterNomination && input.additions.length && !approvedTarget)
+      if (
+        afterNomination &&
+        input.additions.length &&
+        !approvedTarget &&
+        current.role !== 'super_admin'
+      )
         throw reject('投票开始后只能给已通过的候选作品补充提名人。', 409)
+      const additionStatus = afterNomination
+        ? approvedTarget
+          ? 'approved'
+          : target?.status
+        : 'pending'
       const removalIds = new Set(removals.map((n) => n.id))
       if (afterNomination) {
         for (const n of removals.filter((n) => n.status === 'approved')) {
@@ -895,7 +905,7 @@ export class Awards {
           reason: entry.reason,
           accountId: current.id,
           accountName: current.nickname,
-          status: afterNomination ? 'approved' : 'pending',
+          status: additionStatus!,
           createdAt: new Date().toISOString(),
           adminAdded: true,
           displayOverride: {
@@ -904,7 +914,7 @@ export class Awards {
             reason: entry.reason,
             source: entry.source,
           },
-          ...(afterNomination ? { reviewedBy: current.nickname } : {}),
+          ...(additionStatus === 'approved' ? { reviewedBy: current.nickname } : {}),
         }
         await this.db.execute(
           'INSERT INTO award_nominations(id,campaign_id,candidate_id,user_id,status,data) VALUES (?,?,?,?,?,?)',

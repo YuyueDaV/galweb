@@ -208,6 +208,111 @@ test(
   },
 )
 
+test(
+  '投票后超管可为未通过作品补录提名人，沿用审核状态并保留选票及已公布结果',
+  { skip: process.env.AUTH_INTEGRATION !== '1' },
+  async () => {
+    await fixture(async ({ awards, db, owner, admin, member, marker }) => {
+      const campaign = await awards.create(owner)
+      await awards.settings(owner, campaign.id, { ...campaign, winnerCount: 1 })
+      await awards.phase(owner, campaign.id, 'nomination', (await awards.campaign(campaign.id)).version!)
+      for (const label of ['正式候选', '历史待审核', '已退回', '已撤回'])
+        await awards.nominate(owner, campaign.id, label + marker, '', '原提名词')
+      const originals = await awards.nominations(campaign.id)
+      const official = originals.find((n) => n.title === '正式候选' + marker)!
+      await awards.nominationAction(owner, campaign.id, official.id, 'approved')
+      const excluded = originals.filter((n) => n.id !== official.id)
+      for (const n of excluded)
+        await awards.nominationAction(
+          owner,
+          campaign.id,
+          n.id,
+          n.title === '已撤回' + marker ? 'withdrawn' : 'rejected',
+          '不加入正式候选',
+        )
+      await awards.phase(owner, campaign.id, 'voting', (await awards.campaign(campaign.id)).version!)
+      // Legacy/imported records may still be pending after the nomination window.
+      const pending = (await awards.nominations(campaign.id)).find((n) => n.title === '历史待审核' + marker)!
+      pending.status = 'pending'
+      await db.execute('UPDATE award_nominations SET status=?,data=? WHERE id=?', [
+        pending.status,
+        JSON.stringify(pending),
+        pending.id,
+      ])
+      await awards.vote(member, campaign.id, [official.candidateId], 0, {
+        loveId: official.candidateId,
+        likeIds: [],
+        recommendations: [],
+      })
+      const ballots = await awards.ballots(campaign.id)
+      for (const phase of ['voting', 'results', 'archived'] as const) {
+        if (phase !== 'voting')
+          await awards.phase(owner, campaign.id, phase, (await awards.campaign(campaign.id)).version!)
+        const snapshot = await db.rows('SELECT data FROM award_results WHERE campaign_id=?', [campaign.id])
+        for (const original of excluded) {
+          const before = (await awards.nominations(campaign.id)).find((n) => n.id === original.id)!
+          const input = {
+            candidateId: original.candidateId,
+            entries: [
+              {
+                id: before.id,
+                revision: nominationDetailsRevision(before),
+                nominatorName: '更正原提名人 ' + phase,
+                nominatedAt: before.createdAt,
+                reason: '更正原提名词 ' + phase,
+              },
+            ],
+            additions: [
+              {
+                nominatorName: '补录群友 ' + phase,
+                nominatedAt: before.createdAt,
+                reason: '补录提名词',
+                source: 'QQ群',
+              },
+            ],
+          }
+          await assert.rejects(() => awards.editNominationDetails(admin, campaign.id, input), /已通过/)
+          assert.deepEqual(
+            (await awards.nominations(campaign.id)).find((n) => n.id === before.id),
+            before,
+          )
+          await awards.editNominationDetails(owner, campaign.id, input)
+          const records = (await awards.nominations(campaign.id)).filter(
+            (n) => n.candidateId === original.candidateId,
+          )
+          assert.ok(records.every((n) => n.status === before.status))
+          const corrected = records.find((n) => n.id === before.id)!
+          assert.equal(nominationDisplayName(corrected), input.entries[0]!.nominatorName)
+          assert.equal(corrected.accountId, before.accountId)
+          assert.equal(corrected.createdAt, before.createdAt)
+          const added = records.find((n) => nominationDisplayName(n) === input.additions[0]!.nominatorName)!
+          assert.equal(added.adminAdded, true)
+          assert.equal(added.reviewedBy, undefined)
+          assert.equal(nominationDisplaySource(added), 'QQ群')
+        }
+        assert.deepEqual(await awards.ballots(campaign.id), ballots)
+        assert.deepEqual(
+          await db.rows('SELECT data FROM award_results WHERE campaign_id=?', [campaign.id]),
+          snapshot,
+        )
+        assert.deepEqual(
+          (await awards.state(campaign.id)).results.map((n) => n.id),
+          [official.candidateId],
+        )
+      }
+      await db.execute("UPDATE users SET role='admin' WHERE id=?", [owner.id])
+      await assert.rejects(
+        () =>
+          awards.editNominationDetails(owner, campaign.id, {
+            candidateId: excluded[0]!.candidateId,
+            additions: [{ nominatorName: '失效权限', nominatedAt: official.createdAt, reason: '' }],
+          }),
+        /已通过/,
+      )
+    })
+  },
+)
+
 test('批量提名编辑拒绝空批次、重复编号、越权字段和非法输入', () => {
   const entry = {
     id: randomUUID(),

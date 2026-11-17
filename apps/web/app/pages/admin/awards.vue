@@ -646,7 +646,7 @@ function review(id: string, status: 'approved' | 'rejected') {
       <dialog ref="detailsDialog" class="modal nomination-details-dialog" aria-labelledby="nomination-details-title" @cancel.prevent="closeNominationDetails">
         <template v-if="detailEntries.length">
           <header class="nomination-details-heading"><div><p class="eyebrow">第 {{ campaign.edition }} 届 · {{ detailEntries.filter(entry => !entry.removed).length }} 位提名人</p><h2 id="nomination-details-title">编辑提名人和提名词</h2><h3>{{ editingTitle }}</h3></div><button type="button" class="icon-button" aria-label="关闭提名编辑窗口" :disabled="detailsBusy" @click="closeNominationDetails"><AppIcon name="close" /></button></header>
-          <p class="nomination-edit-help">增删改统一在保存后生效。时间按北京时间 UTC+8 填写；提名词最多 600 字，不计推荐词加分。提名阶段新增记录需审核；投票开始后可补录提名人，每部作品须保留至少一条已通过的提名。</p>
+          <p class="nomination-edit-help">增删改统一在保存后生效。时间按北京时间 UTC+8 填写；提名词最多 600 字，不计推荐词加分。{{ identity.role.value==='super_admin'?'超级管理员可跨阶段补录提名人；投票后新增记录沿用作品的审核状态，已有选票保留。':'提名阶段新增记录需审核；投票开始后仅可为已通过的作品补录提名人。' }}已通过作品须保留至少一条已通过提名。</p>
           <form class="award-form" @submit.prevent="saveNominationDetails">
             <fieldset v-for="(entry, index) in detailEntries" :key="entry.key" class="nomination-detail-entry" :class="{ 'pending-removal': entry.removed }" :disabled="detailsBusy">
               <legend>提名 {{ index + 1 }} · {{ entry.removed ? '待删除' : entry.original ? statusNames[entry.original.status] : '新增提名人' }}</legend>

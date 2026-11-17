@@ -163,6 +163,21 @@ test('超管投票期间补录作品、改资料来源与提名人、移除恢�
   ).toBeTruthy()
   const initial = (await (await page.request.get('/api/award-campaigns/' + campaign.id)).json())
     .nominations[0]
+  const excludedTitle = '未通过候选' + marker
+  const excludedResponse = await page.request.post('/api/award-campaigns/' + campaign.id + '/nominations', {
+    headers,
+    data: { title: excludedTitle, studio: '会社', reason: '留存的提名记录' },
+  })
+  expect(excludedResponse.ok()).toBeTruthy()
+  const excluded = await excludedResponse.json()
+  expect(
+    (
+      await page.request.patch('/api/award-campaigns/' + campaign.id + '/nominations/' + excluded.id, {
+        headers,
+        data: { status: 'rejected', note: '仅维护提名资料' },
+      })
+    ).ok(),
+  ).toBeTruthy()
   await phase('voting')
   expect(
     (
@@ -180,7 +195,9 @@ test('超管投票期间补录作品、改资料来源与提名人、移除恢�
   await page.goto('/admin/awards?campaign=' + campaign.id)
   await page.getByRole('button', { name: '提名审核', exact: true }).click()
   await expect(page.getByRole('combobox', { name: '审核记录筛选', exact: true })).toHaveValue('all')
-  const votingRecord = page.locator('.award-review-list article').filter({ hasText: title })
+  const votingRecord = page.locator('.award-review-list article').filter({
+    has: page.getByRole('heading', { name: title, exact: true }),
+  })
   await expect(votingRecord.getByRole('button', { name: '编辑作品', exact: true })).toBeVisible()
   await votingRecord.getByRole('button', { name: '编辑作品', exact: true }).click()
   const votingEditor = page.getByRole('dialog', { name: '编辑作品资料', exact: true })
@@ -192,6 +209,27 @@ test('超管投票期间补录作品、改资料来源与提名人、移除恢�
   const votingNominators = page.getByRole('dialog', { name: '编辑提名人和提名词', exact: true })
   await expect(votingNominators.getByLabel('提名人', { exact: true })).toBeEditable()
   await votingNominators.getByRole('button', { name: '取消', exact: true }).click()
+  const excludedRecord = page.locator('.award-review-list article').filter({
+    has: page.getByRole('heading', { name: excludedTitle, exact: true }),
+  })
+  await excludedRecord.getByRole('button', { name: /编辑本作提名/ }).click()
+  await votingNominators.getByRole('button', { name: '增加提名人', exact: true }).click()
+  const addedNominator = votingNominators.locator('fieldset').last()
+  await addedNominator.getByLabel('提名人', { exact: true }).fill('投票期补录群友')
+  await addedNominator.getByLabel('提名来源', { exact: true }).fill('QQ群')
+  await addedNominator.getByLabel('提名词', { exact: true }).fill('补录说明')
+  await votingNominators.getByRole('button', { name: '保存全部修改', exact: true }).click()
+  await expect(votingNominators).not.toBeVisible()
+  await expect(excludedRecord).toHaveCount(2)
+  const afterBackfill = await (await page.request.get('/api/award-campaigns/' + campaign.id)).json()
+  const backfilled = afterBackfill.nominations.find(
+    (n: { displayOverride?: { nominatorName: string } }) =>
+      n.displayOverride?.nominatorName === '投票期补录群友',
+  )
+  expect(backfilled.status).toBe('rejected')
+  expect(
+    afterBackfill.results.map((n: { id: string; votes: number }) => ({ id: n.id, votes: n.votes })),
+  ).toEqual([{ id: initial.candidateId, votes: 2 }])
   await page.getByRole('button', { name: '作品维护', exact: true }).click()
   const panel = page.getByRole('region', { name: '提名作品维护', exact: true })
   await expect(panel).toContainText(title)
