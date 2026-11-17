@@ -15,7 +15,13 @@ const score = (id: string) =>
     .find((item) => item.id === id)
     ?.tieBreakScores?.find((item) => item.round === awards.campaign.value.votingRound)?.votes || 0
 watch(
-  [awards.myBallot, () => awards.campaign.value.votingRound],
+  () =>
+    JSON.stringify([
+      awards.myBallot.value,
+      awards.campaign.value.id,
+      awards.campaign.value.votingRound,
+      groups.value,
+    ]),
   () => {
     choices.value = Object.fromEntries(
       groups.value.map((group) => [
@@ -25,7 +31,7 @@ watch(
     )
     error.value = ''
   },
-  { immediate: true, deep: true },
+  { immediate: true },
 )
 async function save() {
   if (busy.value) return

@@ -35,6 +35,7 @@ export const nominationDetailsSchema = z
 
 export const candidateEditSchema = z
   .object({
+    informationSource: z.string().trim().max(300).optional(),
     workId: z.number({ error: '作品来源信息缺失，请刷新页面后重试。' }).int().positive().max(2147483647),
     title: z.string().trim().min(1, '请填写作品名称。').max(160),
     subtitle: z.string().trim().max(160),
@@ -54,3 +55,22 @@ export const candidateLinkSchema = z
   .strict()
 
 export const nominationDetailsRevision = qqNominationRevision
+
+export const ownerCandidateSchema = details
+  .extend({
+    title: z.string().trim().min(1).max(160),
+    studio: z.string().trim().max(200).default(''),
+    workId: z.number().int().positive().max(2147483647).optional(),
+    subjectId: z.number().int().positive().max(2147483647).optional(),
+    coverAssetId: z.uuid().optional(),
+    informationSource: z.string().trim().max(300).default(''),
+  })
+  .strict()
+
+export const candidateActionSchema = z
+  .object({
+    action: z.enum(['remove', 'restore']),
+    revision: z.string().regex(/^[a-f0-9]{64}$/),
+    confirmation: z.string().trim().min(1).max(160),
+  })
+  .strict()

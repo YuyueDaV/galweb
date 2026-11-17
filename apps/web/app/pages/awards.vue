@@ -79,30 +79,44 @@ watch(manualExistingWork, (work) => {
 const ballotError = ref('')
 const now = ref(Date.now())
 let clock: ReturnType<typeof setInterval> | undefined
+const liveError=ref(''),liveRefreshing=ref(false)
+let lastPollAt=0
+async function refreshScores(){
+  if(liveRefreshing.value)return
+  liveRefreshing.value=true
+  try{await awards.refresh({list:false});liveError.value=''}catch(cause){liveError.value=(cause as Error).message}finally{liveRefreshing.value=false}
+}
+function refreshVisibleScores(){if(!document.hidden&&activityReady.value&&campaign.value.phase!=='archived')void refreshScores()}
 
 onMounted(() => {
   void loadActivity()
+  lastPollAt=Date.now()
+  document.addEventListener('visibilitychange',refreshVisibleScores)
+  window.addEventListener('online',refreshVisibleScores)
   // Register synchronously: leaving during initialization must still clear it.
   clock = setInterval(() => {
     now.value = Date.now()
-    if (activityReady.value && !document.hidden && campaign.value.phase !== 'archived') {
-      void awards.refresh({ list: false }).catch(() => {})
+    if (activityReady.value && !document.hidden && campaign.value.phase !== 'archived'&&now.value-lastPollAt>=(campaign.value.phase==='voting'?5000:15000)) {
+      lastPollAt=now.value
+      void refreshScores()
     }
-  }, 15000)
+  }, 5000)
 })
 onBeforeUnmount(() => {
   activityRevision++
   coverUploadVersion++
   if (clock) clearInterval(clock)
+  document.removeEventListener('visibilitychange',refreshVisibleScores)
+  window.removeEventListener('online',refreshVisibleScores)
 })
 watch(
-  [myBallot, selectedCampaignId],
+  ()=>JSON.stringify([selectedCampaignId.value,campaign.value.votingRound,myBallot.value?.id,myBallot.value?.version]),
   () => {
     selected.value = [...(myBallot.value?.candidateIds || [])]
     ballotError.value = ''
     search.value = ''
   },
-  { immediate: true, deep: true },
+  { immediate: true },
 )
 const canRepeatNominations = computed(() => auth.user.value?.role === 'super_admin')
 const canEditStudio = computed(() => sourceMode.value === 'manual' || (sourceMode.value === 'bangumi' && !selectedWork.value?.studio?.trim()))
@@ -475,6 +489,7 @@ async function withdrawBallot() {
             </div>
             <div class="award-board-toolbar">
               <div class="award-tabs" role="group" aria-label="活动列表">
+                <button v-if="campaign.phase==='voting'||ended" :class="{active:tab==='ranking'}" :aria-pressed="tab==='ranking'" @click="tab='ranking'">实时排名</button>
                 <button
                   :class="{ active: tab === 'candidates' }"
                   :aria-pressed="tab === 'candidates'"
@@ -495,7 +510,7 @@ async function withdrawBallot() {
                   我的选票
                 </button>
               </div>
-              <label v-if="tab === 'candidates'" class="award-search"
+              <label v-if="tab === 'candidates'||tab==='ranking'" class="award-search"
                 ><AppIcon name="search" :size="15" /><input
                   v-model="search"
                   placeholder="搜索候选作品"
@@ -552,7 +567,8 @@ async function withdrawBallot() {
                     <span>{{ item.studio || '成员推荐' }}</span>
                     <h3>{{ item.title }}</h3>
                     <p>{{ item.nominations[0] ? nominationDisplayReason(item.nominations[0]) : '' }}</p>
-                    <p v-if="campaign.phase === 'voting' || ended" class="award-live-score">{{ tieBreak ? '原得分 ' : '' }}{{ resultById.get(item.id)?.votes || 0 }} {{ weighted ? '分' : '票' }}<span v-if="isLocked(item.id) && !tieBreak"> · 首轮已保留</span><span v-if="tieBreak && campaign.tieBreakGroups?.some(group => group.candidateIds.includes(item.id))"> · 本轮加赛 {{ resultById.get(item.id)?.tieBreakScores?.find(score => score.round === campaign.votingRound)?.votes || 0 }} 票</span></p>
+                    <p v-if="campaign.phase === 'voting' || ended" class="award-live-score">{{ tieBreak ? '原得分 ' : '' }}{{ resultById.get(item.id)?.votes || 0 }} {{ weighted ? '分' : '票' }}<span v-if="(resultById.get(item.id)?.votes||0)>0"> · 第 {{ resultById.get(item.id)?.rank }} 名</span><span v-if="isLocked(item.id) && !tieBreak"> · 首轮已保留</span><span v-if="tieBreak && campaign.tieBreakGroups?.some(group => group.candidateIds.includes(item.id))"> · 本轮加赛 {{ resultById.get(item.id)?.tieBreakScores?.find(score => score.round === campaign.votingRound)?.votes || 0 }} 票</span></p>
+                    <p v-if="item.nominations.some(n=>n.informationSource)" class="award-information-source">资料来源：{{ item.nominations.find(n=>n.informationSource)?.informationSource }}</p>
                     <details class="award-public-details">
                       <summary>提名人：{{ item.nominations.map(nominationDisplayName).join('、') }}</summary>
                       <div v-for="n in item.nominations" :key="n.id"><strong>{{ nominationDisplayName(n) }}</strong> · {{ statusNames[n.status] }}<time>{{ formatNominationTime(n) }}<span> · 来源：{{ nominationDisplaySource(n) }}</span></time><p v-if="nominationDisplayReason(n)">{{ nominationDisplayReason(n) }}</p></div>
@@ -580,6 +596,7 @@ async function withdrawBallot() {
                   </div>
                 </article></div
             ></template>
+            <AwardLiveRanking v-else-if="tab==='ranking'" :results="results" :candidates="candidates" :weighted="weighted" :ended="ended" :archived="campaign.phase==='archived'" :updated-at="awards.lastUpdated.value" :busy="liveRefreshing" :error="liveError" :query="search" @refresh="refreshScores" />
             <template v-else-if="tab === 'mine'"
               ><div v-if="!myNominations.length" class="empty-state">
                 <AppIcon name="pen" :size="28" />
@@ -846,6 +863,7 @@ async function withdrawBallot() {
 </template>
 
 <style scoped>
+.award-candidate-copy>.award-information-source{font-size:max(14px,.7rem);line-height:1.8;overflow-wrap:anywhere}
 .award-archive-records {
   margin-top: 2rem;
   border-top: 1px solid var(--line);

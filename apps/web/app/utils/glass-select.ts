@@ -261,7 +261,9 @@ export function installGlassSelect() {
   window.addEventListener('resize', position)
   window.visualViewport?.addEventListener('resize', position)
   const scroll = (event: Event) => {
-    if (source && event.target instanceof Node && !dialog.contains(event.target)) dismiss(false)
+    // Opening a picker can queue a scroll event on its parent dialog.
+    // Keep search usable while its anchor moves into view.
+    if (source && event.target instanceof Node && !dialog.contains(event.target)) position()
   }
   document.addEventListener('scroll', scroll, true)
   function refresh() {

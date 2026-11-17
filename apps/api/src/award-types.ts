@@ -67,6 +67,8 @@ export interface AwardCampaign {
 }
 
 export interface AwardNomination {
+  informationSource?: string
+  candidateRemovedAt?: string
   workSource?: { kind: 'catalog' | 'bangumi' | 'manual'; workId: number; subjectId?: number; title: string }
   adminAdded?: boolean
   deletedAt?: string

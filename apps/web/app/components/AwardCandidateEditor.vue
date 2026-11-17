@@ -18,7 +18,7 @@ const linkWorkId = ref<number | null>(null),
   linking = ref(false)
 const linkError = ref('')
 const linkTarget = computed(() => props.catalog.find((item) => item.rank === linkWorkId.value))
-const canLink = computed(() => ['draft', 'nomination'].includes(awards.campaign.value.phase))
+const canLink = computed(() => allowed.value)
 const sourceNames = { catalog: '从书库选择', bangumi: '从 Bangumi 导入', manual: '手动填写后匹配书库' }
 const loading = ref(false),
   saving = ref(false),
@@ -26,7 +26,7 @@ const loading = ref(false),
   error = ref('')
 const locked = computed(() => loading.value || saving.value || coverBusy.value || linking.value)
 const allowed = computed(() => auth.user.value?.role === 'super_admin')
-const form = reactive({ title: '', subtitle: '', studio: '', description: '' })
+const form = reactive({ title: '', subtitle: '', studio: '', description: '', informationSource: '' })
 async function open() {
   if (!allowed.value || locked.value) return
   error.value = ''
@@ -70,6 +70,10 @@ async function open() {
       subtitle: data.subtitle || '',
       studio: data.studio,
       description: data.description || '',
+      informationSource:
+        props.candidate.nominations.find((n) => n.informationSource)?.informationSource ||
+        data.informationSource ||
+        '',
     })
   } catch (e) {
     error.value = (e as Error).message
@@ -223,6 +227,12 @@ watch(linkWorkId, () => {
           <label class="community-field">原名／副标题<input v-model="form.subtitle" maxlength="160" /></label>
           <label class="community-field">制作组／会社<input v-model="form.studio" maxlength="200" /></label>
           <label class="community-field"
+            >作品资料来源<input
+              v-model="form.informationSource"
+              maxlength="300"
+              placeholder="例如：Bangumi 条目、官网链接或人工核对说明"
+          /></label>
+          <label class="community-field"
             >作品简介<textarea v-model="form.description" rows="4" maxlength="8000"></textarea>
           </label>
         </fieldset>
@@ -239,7 +249,7 @@ watch(linkWorkId, () => {
         <form class="candidate-source-panel" @submit.prevent="linkWork">
           <h3>更正书库关联</h3>
           <p class="candidate-edit-help">
-            重复或来源选错时，选择已有作品复用。本届已有该作品时合并提名人及提名词；原书库条目保留，不新增作品。
+            选择正确的书库作品。投票开始后保留候选编号和选票，同届已有的其他候选不合并；已公布分数不重算。提名阶段可合并重复作品。
           </p>
           <fieldset class="plain-fieldset" :disabled="locked || !canLink">
             <label class="community-field"
@@ -258,7 +268,7 @@ watch(linkWorkId, () => {
             <label v-if="linkTarget" class="inline-check"
               ><input v-model="linkConfirmed" type="checkbox" />确认将本作全部提名关联到《{{
                 linkTarget.title
-              }}》，如本届已有该作品则合并。</label
+              }}》，保留原始提名记录。</label
             >
             <button type="submit" class="button secondary" :disabled="!linkTarget || !linkConfirmed">
               {{ linking ? '正在更正…' : '保存书库关联' }}

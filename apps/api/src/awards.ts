@@ -46,6 +46,8 @@ import {
   candidateLinkSchema,
 } from './nomination-details'
 import type { z } from 'zod'
+import { AwardMaintenance } from './award-maintenance'
+import type { ownerCandidateSchema } from './nomination-details'
 type Row<T> = { data: T | string; version: number }
 type RoundArchive = {
   round: number
@@ -59,6 +61,36 @@ type RoundArchive = {
 }
 type StoredResults = { results?: AwardResult[]; ballotCount?: number; rounds?: RoundArchive[] }
 export class Awards {
+  get maintenance() {
+    return new AwardMaintenance(this)
+  }
+  platformActor(id: string) {
+    return this.platform.actor(id)
+  }
+  maintenanceAudit(actor: Actor, action: string, id: string, tx: PoolConnection) {
+    return this.platform.audit(actor, action, id, tx)
+  }
+  async writeNomination(nomination: AwardNomination, tx: PoolConnection) {
+    await this.db.execute(
+      'UPDATE award_nominations SET data=? WHERE id=? AND campaign_id=?',
+      [JSON.stringify(nomination), nomination.id, nomination.campaignId],
+      tx,
+    )
+  }
+  async updateMaintenanceGroups(
+    campaign: AwardCampaign,
+    groups: NonNullable<AwardCampaign['tieBreakGroups']>,
+    tx: PoolConnection,
+  ) {
+    await this.db.execute(
+      'UPDATE award_campaigns SET data=?,version=version+1 WHERE id=?',
+      [
+        JSON.stringify({ ...campaign, tieBreakGroups: groups, version: (campaign.version || 0) + 1 }),
+        campaign.id,
+      ],
+      tx,
+    )
+  }
   constructor(
     readonly db: Database,
     private platform: Platform,
@@ -127,13 +159,21 @@ export class Awards {
       tieBreak ? 'legacy' : c.votingRule,
       ballotRules(c),
     )
-    if (tieBreak)
-      return combineAwardTieBreakResults(
+    if (tieBreak) {
+      const combined = combineAwardTieBreakResults(
         stored.results || [],
         live,
         c.tieBreakGroups || [],
         c.votingRound || 1,
-      )
+      ).filter((result) => candidates.some((candidate) => candidate.id === result.id))
+      let previous = -1,
+        rank = 0
+      return combined.map((result, index) => {
+        if (result.rank !== previous) rank = index + 1
+        previous = result.rank
+        return { ...result, rank }
+      })
+    }
     return stored.rounds?.[0] ? combineAwardRoundResults(stored.rounds[0].results, live) : live
   }
   async state(id: string, actor?: Actor) {
@@ -260,7 +300,9 @@ export class Awards {
           const currentWork = nominations.find((n) => n.candidateId === result.id)
           return {
             ...result,
-            ...(currentWork ? { title: currentWork.title, studio: currentWork.studio } : {}),
+            ...(currentWork
+              ? { title: currentWork.title, studio: currentWork.studio, coverRank: currentWork.coverRank }
+              : {}),
             nominations: live.map(sanitize),
           }
         }),
@@ -643,6 +685,7 @@ export class Awards {
     studio: string,
     reason: string,
     source: { workId?: number; subjectId?: number; coverAssetId?: string } = {},
+    maintenance?: z.infer<typeof ownerCandidateSchema>,
   ) {
     await this.platform.actor(actor.id)
     if (source.workId && source.subjectId) throw reject('请选择一种作品来源。', 422)
@@ -650,7 +693,8 @@ export class Awards {
       throw reject('自选封面仅用于手动添加新作品。', 422)
     const subject = source.subjectId ? await this.catalog.bangumi.detail(source.subjectId, true) : undefined
     return this.mutate(actor, id, 'member', async (c, tx, current) => {
-      this.window(c, 'nomination')
+      if (maintenance) owner(current)
+      else this.window(c, 'nomination')
       const known = await this.catalog.nominationWork(current, tx, {
         title,
         studio,
@@ -697,7 +741,11 @@ export class Awards {
           ],
           tx,
         )
-      }
+      } else if (
+        !(await this.nominations(id, tx)).some((n) => n.candidateId === candidate!.id) &&
+        (await this.nominations(id, tx, true)).some((n) => n.candidateId === candidate!.id)
+      )
+        throw reject('该作品已移除，请在作品维护中恢复后再补录提名。', 409)
       const n: AwardNomination = {
         id: randomUUID(),
         campaignId: id,
@@ -714,15 +762,33 @@ export class Awards {
         reason,
         accountId: actor.id,
         accountName: current.nickname,
-        status: 'pending',
+        status: maintenance ? 'approved' : 'pending',
         createdAt: new Date().toISOString(),
+        ...(maintenance
+          ? {
+              adminAdded: true,
+              reviewedBy: current.nickname,
+              informationSource: maintenance.informationSource,
+              displayOverride: {
+                nominatorName: maintenance.nominatorName,
+                nominatedAt: maintenance.nominatedAt,
+                reason: maintenance.reason,
+                source: maintenance.source,
+              },
+            }
+          : {}),
       }
       await this.db.execute(
         'INSERT INTO award_nominations(id,campaign_id,candidate_id,user_id,status,data) VALUES (?,?,?,?,?,?)',
         [n.id, id, candidate.id, actor.id, n.status, JSON.stringify(n)],
         tx,
       )
-      await this.platform.audit(current, '提交作品提名', id, tx)
+      await this.platform.audit(
+        current,
+        maintenance ? '超级管理员补录候选作品及提名人' : '提交作品提名',
+        id,
+        tx,
+      )
       return { id: n.id }
     })
   }
@@ -969,6 +1035,26 @@ export class Awards {
       }
     })
   }
+  private async correctSnapshotMetadata(
+    id: string,
+    candidateId: string,
+    metadata: { title: string; studio: string; coverRank: number },
+    tx: PoolConnection,
+  ) {
+    const stored = await this.storedResults(id, tx)
+    if (!stored.results && !stored.rounds) return
+    for (const result of [
+      ...(stored.results || []),
+      ...(stored.rounds || []).flatMap((round) => round.results),
+    ]) {
+      if (result.id === candidateId) Object.assign(result, metadata)
+    }
+    await this.db.execute(
+      'UPDATE award_results SET data=? WHERE campaign_id=?',
+      [JSON.stringify(stored), id],
+      tx,
+    )
+  }
   async linkCandidateWork(
     actor: Actor,
     id: string,
@@ -977,8 +1063,7 @@ export class Awards {
   ) {
     return this.mutate(actor, id, 'admin', async (campaign, tx, current) => {
       owner(current)
-      if (!['draft', 'nomination'].includes(campaign.phase))
-        throw reject('投票开始后不可更换作品或合并候选；仍可编辑资料与提名人。', 409)
+      const preserveIdentity = !['draft', 'nomination'].includes(campaign.phase)
       await this.platform.lock('catalog', tx)
       const { nominations, work, works } = await this.candidateWork(id, candidateId, tx)
       if (work.rank !== input.currentWorkId || work.version !== input.currentVersion)
@@ -1007,6 +1092,8 @@ export class Awards {
       )
         throw reject('同名候选关联了另一部书库作品，请先核对作品版本。', 409)
       const nextId = known?.candidateId || sameTitle?.id || candidateId
+      if (preserveIdentity && nextId !== candidateId)
+        throw reject('本届已有这个书库作品；投票后不合并候选身份，请核对或移除重复候选。', 409)
       if (nextId !== candidateId)
         await this.db.execute(
           "UPDATE award_candidates SET normalized_title=?,data=JSON_SET(data,'$.mergedInto',?) WHERE id=? AND campaign_id=?",
@@ -1038,6 +1125,12 @@ export class Awards {
         current,
         `更正候选书库来源 ${candidateId}：#${work.rank} → #${target.rank}${nextId !== candidateId ? '，合并到候选 ' + nextId : ''}`,
         id,
+        tx,
+      )
+      await this.correctSnapshotMetadata(
+        id,
+        nextId,
+        { title: target.title, studio: target.studio, coverRank: target.rank },
         tx,
       )
       return { candidateId: nextId, workId: target.rank, merged: nextId !== candidateId }
@@ -1083,8 +1176,15 @@ export class Awards {
       for (const n of nominations) {
         n.title = work.title
         n.studio = work.studio
+        if (input.informationSource !== undefined) n.informationSource = input.informationSource
         await this.db.execute('UPDATE award_nominations SET data=? WHERE id=?', [JSON.stringify(n), n.id], tx)
       }
+      await this.correctSnapshotMetadata(
+        id,
+        candidateId,
+        { title: work.title, studio: work.studio, coverRank: work.rank },
+        tx,
+      )
       await this.platform.audit(current, `编辑候选作品 ${candidateId}：${work.title}`, id, tx)
       return work
     })
@@ -1193,6 +1293,8 @@ export class Awards {
             ? validateTieBreakBallot(ids, c.tieBreakGroups || [])
             : validateBallot(ids, available, c.voteLimit)
           if (error) throw reject(error, 422)
+          if (ids.some((candidateId) => !available.some((candidate) => candidate.id === candidateId)))
+            throw reject('候选名单已更新，请重新选择仍在本轮的作品。', 422)
           if (tieBreak) {
             if (weighted) throw reject('同票加赛每组一票，不使用真爱票、喜爱票或推荐词加分。', 422)
           } else if (c.votingRule === 'weighted-v1') {

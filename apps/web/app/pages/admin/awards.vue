@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AwardCampaign, AwardNomination, CampaignPhase } from '~/types/awards'
+import type {Work} from '~/types/forum'
 import {
   DEFAULT_BALLOT_RULES,
   normalizeCampaignConfirmation,
@@ -50,6 +51,19 @@ async function removeActivity() {
 const weightedRule = computed(() => campaign.value.votingRule === 'weighted-v1')
 const tab = ref('settings')
 const reviewFilter = ref('pending')
+const reviewCatalog=ref<Work[]>([])
+const reviewAuth=useAuth()
+async function refreshReviewCatalog(){
+  try{reviewCatalog.value=await reviewAuth.request<Work[]>('/works?view=summary')}
+  catch(cause){error.value=(cause as Error).message}
+}
+const reviewCandidate=(item:AwardNomination)=>({id:item.candidateId,title:item.title,studio:item.studio,coverRank:item.coverRank,nominations:campaignNominations.value.filter(n=>n.candidateId===item.candidateId)})
+watch(()=>JSON.stringify([campaign.value.id,campaign.value.phase,identity.role.value]),()=>{
+  if(identity.role.value==='super_admin')reviewFilter.value=['draft','nomination'].includes(campaign.value.phase)?'pending':'all'
+},{immediate:true})
+watch(()=>JSON.stringify([tab.value,campaign.value.id,identity.role.value]),()=>{
+  if(tab.value==='review'&&identity.role.value==='super_admin')void refreshReviewCatalog()
+})
 const reviewNotes = reactive<Record<string, string>>({})
 const error = ref('')
 const createDialog = ref<HTMLDialogElement | null>(null)
@@ -199,6 +213,14 @@ async function openNominationDetails(item: AwardNomination) {
   detailsError.value = ''
   await nextTick()
   detailsDialog.value?.showModal()
+}
+async function maintainNominators(item:AwardNomination){
+  try{
+    await awards.refresh({force:true,list:false})
+    const current=campaignNominations.value.find(n=>n.candidateId===item.candidateId)
+    if(!current){notify('提名记录已变化，请刷新作品维护列表。');return}
+    tab.value='review';reviewFilter.value='all';await nextTick();await openNominationDetails(current)
+  }catch(cause){notify((cause as Error).message)}
 }
 function closeNominationDetails() {
   if (detailsBusy.value) return
@@ -401,6 +423,7 @@ function review(id: string, status: 'approved' | 'rejected') {
           <AppIcon name="check" :size="16" />提名审核<span v-if="pendingCount">{{ pendingCount }}</span>
         </button>
         <button :class="{ active: tab === 'votes' }" @click="tab = 'votes'; error = ''; awards.initialize()"><AppIcon name="trophy" :size="16" />投票数据</button>
+        <button v-if="identity.role.value==='super_admin'" :class="{active:tab==='works'}" @click="tab='works'">作品维护</button>
       </nav>
       <p v-if="error" class="award-admin-error" role="alert"><AppIcon name="info" :size="16" />{{ error }}</p>
       <div v-if="tab === 'settings'" class="award-admin-settings-grid">
@@ -559,6 +582,7 @@ function review(id: string, status: 'approved' | 'rejected') {
           </section>
         </div>
       </div>
+      <AwardCandidateMaintenance v-else-if="tab==='works'&&identity.role.value==='super_admin'" :campaign-id="campaign.id" @nominators="maintainNominators" />
       <section v-else-if="tab === 'review'" class="award-admin-card">
         <div class="award-admin-card-heading">
           <div>
@@ -570,7 +594,7 @@ function review(id: string, status: 'approved' | 'rejected') {
             <option value="all">全部记录</option>
           </select>
         </div>
-        <p class="nomination-edit-help">各届均可按作品编辑多条提名，分别修改提名人、实际时间和提名词，一次保存。原始提交记录、审核状态和票数保留；已审核的记录请选择“全部记录”查看。</p>
+        <p class="nomination-edit-help">{{ identity.role.value==='super_admin'&&!['draft','nomination'].includes(campaign.phase)?'投票已开始，默认展示全部提名。超级管理员仍可编辑作品资料、来源、提名人和书库关联；已有选票保留，已公布分数不重算。':'各届均可按作品编辑多条提名，分别修改提名人、实际时间和提名词，一次保存。已审核记录可选择“全部记录”查看。' }}</p>
         <div v-if="!reviewItems.length" class="empty-state">
           <AppIcon name="check" :size="30" />
           <h3>暂时没有待处理的提名</h3>
@@ -589,7 +613,7 @@ function review(id: string, status: 'approved' | 'rejected') {
               <span :class="['award-status', item.status]">{{ statusNames[item.status] }}</span>
             </div>
             <blockquote>{{ nominationDisplayReason(item) || '未填写提名词' }}</blockquote>
-            <div class="nomination-record-actions"><button type="button" class="button secondary" :disabled="busy || detailsBusy" @click="openNominationDetails(item)">编辑本作提名（{{ sameWorkCount(item) }} 条）</button><span v-if="item.displayOverride || item.qqSync">原网站提交：{{ item.accountName }} · {{ formatAwardTime(item.createdAt) }}</span></div>
+            <div class="nomination-record-actions"><AwardCandidateEditor v-if="identity.role.value==='super_admin'&&reviewItems.find(n=>n.candidateId===item.candidateId)?.id===item.id" :candidate="reviewCandidate(item)" :campaign-id="campaign.id" :catalog="reviewCatalog" @updated="refreshReviewCatalog" /><button type="button" class="button secondary" :disabled="busy || detailsBusy" @click="openNominationDetails(item)">编辑本作提名（{{ sameWorkCount(item) }} 条）</button><span v-if="item.displayOverride || item.qqSync">原网站提交：{{ item.accountName }} · {{ formatAwardTime(item.createdAt) }}</span></div>
             <template v-if="item.status === 'pending' && campaign.phase === 'nomination'"
               ><label :for="`review-note-${item.id}`">审核备注 <span>退回时必填</span></label
               ><textarea

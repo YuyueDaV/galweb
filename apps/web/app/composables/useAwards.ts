@@ -47,6 +47,7 @@ export function useAwards() {
     ballots = useState<AwardAdminBallot[]>('award-admin-ballots', () => []),
     audit = useState<AwardAuditEntry[]>('award-audit', () => []),
     online = useState('awards-online', () => false),
+    lastUpdated = useState('awards-last-updated', () => 0),
     revision = useState('award-revision', () => 0)
   const campaign = computed(() => current.value),
     campaignNominations = computed(() => nominations.value),
@@ -126,6 +127,7 @@ export function useAwards() {
       ballotVersion.value = data.ballotVersion ?? data.myBallot?.version ?? 0
       ballotCount.value = data.ballotCount
       results.value = data.results
+      lastUpdated.value = Date.now()
       recommendations.value = data.recommendations || []
       ballots.value = data.ballots || []
       audit.value = data.audit.map((a) => ({ ...a, createdAt: new Date(Number(a.createdAt)).toISOString() }))
@@ -175,6 +177,7 @@ export function useAwards() {
     audit,
     ballotCount,
     online,
+    lastUpdated,
     initialize,
     refresh,
     persist: initialize,

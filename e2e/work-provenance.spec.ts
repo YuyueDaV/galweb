@@ -135,6 +135,10 @@ test('提交前普通管理员编辑，提交后只读；超管核对来源、�
     await expect(editor).toContainText('从书库选择 · 原关联书库 #' + a.rank)
     await editor.getByRole('combobox', { name: '关联已有书库作品', exact: true }).click()
     const picker = page.getByRole('dialog', { name: '关联已有书库作品', exact: true })
+    await expect(picker).toBeVisible()
+    // A queued parent scroll must not dismiss a newly opened searchable picker.
+    await editor.evaluate((node) => node.dispatchEvent(new Event('scroll', { bubbles: true })))
+    await expect(picker.getByLabel('搜索选项')).toBeVisible()
     await picker.getByLabel('搜索选项').fill(canonicalTitle)
     await picker.getByRole('option', { name: canonicalTitle + ' · 书库 #' + b.rank, exact: true }).click()
     await editor.getByRole('checkbox').check()

@@ -31,6 +31,7 @@ export interface ForumPost {
 }
 
 export interface Work {
+  informationSource?: string
   submittedForAwards?: boolean
   catalogDeleted?:boolean
   coverUrl?:string

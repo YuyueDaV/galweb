@@ -10,6 +10,7 @@ import { workAwardHonors, type PublishedAward, type AwardHonor } from './award-h
 import { TierVoting, validTierChoices, tierPublicationKey, type TierChoice } from './tier-voting'
 
 export interface CatalogWork {
+  informationSource?: string
   addedById?: string
   addedAt?: number
   coverAssetId?: string | null

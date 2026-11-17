@@ -9,7 +9,7 @@ import { Forum } from './forum'
 import { digest,equal,mac } from './security'
 import { Awards } from './awards'
 import { qqNominationSchema } from './qq-nominations'
-import { nominationDetailsSchema, candidateEditSchema, candidateLinkSchema } from './nomination-details'
+import { nominationDetailsSchema, candidateEditSchema, candidateLinkSchema,ownerCandidateSchema,candidateActionSchema } from './nomination-details'
 import {Assets} from './assets'
 import {readFile} from 'node:fs/promises'
 import {communityControllers} from './community-api'
@@ -57,6 +57,9 @@ export function businessControllers(db:Database,auth:Auth,platform:Platform,cook
   @Patch('award-campaigns/:id/nominations/:nominationId') async nomination(@Param('id') id:string,@Param('nominationId') nominationId:string,@Body() body:unknown,@Req() req:Request){const p=validate(z.object({status:z.enum(['withdrawn','approved','rejected']),note:z.string().trim().max(300).default('')}).strict(),body);await awards.nominationAction(await actor(req,true),id,nominationId,p.status,p.note);return {message:'提名已更新。'}}
   @Patch('admin/award-campaigns/:id/qq-nominations/:nominationId') async syncQqNomination(@Param('id') id:string,@Param('nominationId') nominationId:string,@Body() body:unknown,@Req() req:Request){return awards.syncQqNomination(await actor(req,true),id,validate(z.uuid(),nominationId),validate(qqNominationSchema,body))}
   @Patch('admin/award-campaigns/:id/nomination-details') async editNominationDetails(@Param('id') id:string,@Body() body:unknown,@Req() req:Request){return awards.editNominationDetails(await actor(req,true),id,validate(nominationDetailsSchema,body))}
+  @Get('admin/award-campaigns/:id/candidate-records') async candidateRecords(@Param('id') id:string,@Req() req:Request){return awards.maintenance.records(await actor(req),id)}
+  @Post('admin/award-campaigns/:id/candidates') async addCandidate(@Param('id') id:string,@Body() body:unknown,@Req() req:Request){const user=await actor(req,true);await auth.limit('award-owner-maintenance',user.id,30,60000);return awards.maintenance.create(user,id,validate(ownerCandidateSchema,body))}
+  @Patch('admin/award-campaigns/:id/candidates/:candidateId/status') async changeCandidate(@Param('id') id:string,@Param('candidateId') candidateId:string,@Body() body:unknown,@Req() req:Request){return awards.maintenance.change(await actor(req,true),id,validate(z.uuid(),candidateId),validate(candidateActionSchema,body))}
   @Patch('admin/award-campaigns/:id/candidates/:candidateId') async editCandidate(@Param('id') id:string,@Param('candidateId') candidateId:string,@Body() body:unknown,@Req() req:Request){return awards.editCandidate(await actor(req,true),id,validate(z.uuid(),candidateId),validate(candidateEditSchema,body))}
   @Get('admin/award-campaigns/:id/candidates/:candidateId') async candidateInfo(@Param('id') id:string,@Param('candidateId') candidateId:string,@Req() req:Request){return awards.candidateInfo(await actor(req),id,validate(z.uuid(),candidateId))}
   @Post('admin/award-campaigns/:id/candidates/:candidateId/library') async ensureCandidateLibrary(@Param('id') id:string,@Param('candidateId') candidateId:string,@Req() req:Request){return awards.ensureCandidateLibrary(await actor(req,true),id,validate(z.uuid(),candidateId))}

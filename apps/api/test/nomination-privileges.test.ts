@@ -352,7 +352,10 @@ test(
       })
       await awards.phase(admin, campaign.id, 'results', (await awards.campaign(campaign.id)).version!)
       await awards.phase(admin, campaign.id, 'archived', (await awards.campaign(campaign.id)).version!)
-      const snapshot = await db.rows('SELECT data FROM award_results WHERE campaign_id=?', [campaign.id])
+      const snapshot = await db.rows<{ data: { results: { title: string }[] } }>(
+        'SELECT data FROM award_results WHERE campaign_id=?',
+        [campaign.id],
+      )
       const score = (await awards.state(campaign.id)).results[0]!.votes
       rows = await awards.nominations(campaign.id)
       await assert.rejects(
@@ -375,6 +378,9 @@ test(
         version: edited.version,
       })
       assert.equal((await awards.state(campaign.id)).results[0]!.title, '归档后校正 ' + marker)
+      // Metadata corrections now update the historical label, with all score,
+      // ranking and ballot fields kept exactly as originally published.
+      snapshot[0]!.data.results[0]!.title = '归档后校正 ' + marker
       assert.deepEqual(
         await db.rows('SELECT data FROM award_results WHERE campaign_id=?', [campaign.id]),
         snapshot,

@@ -54,7 +54,7 @@ watch(
   },
 )
 watch(
-  () => [awards.campaign.value.id, awards.campaign.value.votingRound],
+  () => JSON.stringify([awards.campaign.value.id, awards.campaign.value.votingRound]),
   () => {
     keepLoginDraft.value = false
     restore()

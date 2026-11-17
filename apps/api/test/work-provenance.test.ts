@@ -169,16 +169,14 @@ test(
         recommendations: [],
       })
       const ballots = await awards.ballots(c.id)
-      await assert.rejects(
-        () =>
-          awards.linkCandidateWork(owner, c.id, canonicalNomination.candidateId, {
-            currentWorkId: canonical.rank,
-            currentVersion: canonical.version,
-            workId: b.rank,
-            version: b.version,
-          }),
-        /投票开始后/,
-      )
+      const corrected = await awards.linkCandidateWork(owner, c.id, canonicalNomination.candidateId, {
+        currentWorkId: canonical.rank,
+        currentVersion: (await catalog.detail(canonical.rank)).version,
+        workId: b.rank,
+        version: b.version,
+      })
+      assert.equal(corrected.candidateId, canonicalNomination.candidateId)
+      assert.equal((await awards.state(c.id)).results[0]!.coverRank, b.rank)
       assert.deepEqual(await awards.ballots(c.id), ballots)
       assert.ok(
         (await awards.state(c.id, owner)).audit.some((row) => row.action.includes('更正候选书库来源')),
