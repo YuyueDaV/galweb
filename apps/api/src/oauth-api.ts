@@ -7,7 +7,7 @@ import { Platform } from './platform'
 import type { Config } from './config'
 import { digest, equal } from './security'
 import { OAuth, oauthReturnPath } from './oauth'
-import { oauthLabel } from './oauth-providers'
+import { oauthLabel, oauthProviders, type OAuthProvider } from './oauth-providers'
 
 export function oauthControllers(
   db: Database,
@@ -23,7 +23,12 @@ export function oauthControllers(
     sameSite: 'lax' as const,
     path: '/',
   }
-  const flowCookie = config.NODE_ENV === 'production' ? '__Host-czx_oauth' : 'czx_oauth'
+  const flowCookie = (kind: OAuthProvider) =>
+    kind === 'qq-xinyue'
+      ? 'czx_oauth_xinyue'
+      : config.NODE_ENV === 'production'
+        ? '__Host-czx_oauth'
+        : 'czx_oauth'
   const cookie = (req: Request, name: string) =>
     (req.headers.cookie || '')
       .split(';')
@@ -35,7 +40,7 @@ export function oauthControllers(
     if (!parsed.success) throw new HttpException('授权请求不正确，请重新尝试。', 422)
     return parsed.data
   }
-  const provider = z.enum(['qq', 'discord'])
+  const provider = z.enum(config.NODE_ENV === 'production' ? ['qq', 'discord'] : oauthProviders)
   const actor = async (req: Request) => {
     const user = await auth.session(cookie(req, cookieName))
     if (!equal(digest(req.header('X-CSRF-Token') || ''), user.csrf_hash))
@@ -65,9 +70,14 @@ export function oauthControllers(
         body,
       )
       if (input.mode === 'bind') await actor(req)
-      await auth.limit('oauth-start', req.ip || 'unknown', 20, 60000)
+      await auth.limit(
+        kind === 'qq-xinyue' ? 'oauth-xinyue-start' : 'oauth-start',
+        req.ip || 'unknown',
+        20,
+        60000,
+      )
       const result = await oauth.start(kind, input.mode, input.returnTo, cookie(req, cookieName))
-      res.cookie(flowCookie, result.browser, { ...cookieOptions, maxAge: 600000 })
+      res.cookie(flowCookie(kind), result.browser, { ...cookieOptions, maxAge: 600000 })
       return { url: result.url }
     }
     @Get('oauth/:provider/callback') async callback(
@@ -82,20 +92,26 @@ export function oauthControllers(
         status = 'error',
         message = '授权未能完成，请重新尝试。'
       try {
+        const stateParam = kind === 'qq-xinyue' ? 'msg' : 'state'
         const input = parse(
           z.object({
-            state: z.string().max(128),
+            [stateParam]: z.string().max(128),
             code: z.string().max(4096).optional(),
             error: z.string().max(200).optional(),
             iss: z.string().max(200).optional(),
           }),
           query,
         )
-        await auth.limit('oauth-callback', req.ip || 'unknown', 60, 60000)
+        await auth.limit(
+          kind === 'qq-xinyue' ? 'oauth-xinyue-callback' : 'oauth-callback',
+          req.ip || 'unknown',
+          60,
+          60000,
+        )
         const result = await oauth.callback(
           kind,
-          input,
-          cookie(req, flowCookie) || '',
+          { ...input, state: input[stateParam]! },
+          cookie(req, flowCookie(kind)) || '',
           cookie(req, cookieName),
         )
         returnTo = result.returnTo
@@ -108,7 +124,7 @@ export function oauthControllers(
         const path = (error as { oauthReturnTo?: string }).oauthReturnTo
         if (path) returnTo = oauthReturnPath(path, config.WEB_ORIGIN)
       }
-      res.clearCookie(flowCookie, cookieOptions)
+      res.clearCookie(flowCookie(kind), cookieOptions)
       const target = new URL(returnTo, config.WEB_ORIGIN)
       target.searchParams.set('oauth', status)
       target.searchParams.set('oauth_provider', kind)
@@ -117,8 +133,9 @@ export function oauthControllers(
     }
     @Delete('oauth/:provider') async unlink(@Param('provider') value: string, @Req() req: Request) {
       const user = await actor(req)
-      await auth.limit('oauth-unlink', user.id, 10, 60000)
-      return oauth.unlink(user.id, parse(provider, value), cookie(req, cookieName)!)
+      const kind = parse(provider, value)
+      await auth.limit(kind === 'qq-xinyue' ? 'oauth-xinyue-unlink' : 'oauth-unlink', user.id, 10, 60000)
+      return oauth.unlink(user.id, kind, cookie(req, cookieName)!)
     }
     @Post('credentials') async credentials(@Body() body: unknown, @Req() req: Request) {
       const user = await actor(req)

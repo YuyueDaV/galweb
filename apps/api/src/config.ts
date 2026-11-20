@@ -10,6 +10,7 @@ const schema = z.object({
   SMTP_USER: z.string().trim().default(''), SMTP_PASSWORD: z.string().default(''), MAIL_FROM: z.string().trim().default(''),
   TRUST_PROXY: z.string().default('loopback'),
   QQ_CLIENT_ID: z.string().trim().default(''), QQ_CLIENT_SECRET: z.string().trim().default(''),
+  QQ_XINYUE_TOKEN: z.string().trim().default(''),
   DISCORD_CLIENT_ID: z.string().trim().default(''), DISCORD_CLIENT_SECRET: z.string().trim().default(''),
 })
 export type Config = z.infer<typeof schema>

@@ -2,10 +2,12 @@ import { createHash } from 'node:crypto'
 import { HttpException } from '@nestjs/common'
 import type { Config } from './config'
 
-export type OAuthProvider = 'qq' | 'discord'
+export const oauthProviders = ['qq', 'discord', 'qq-xinyue'] as const
+export type OAuthProvider = (typeof oauthProviders)[number]
 export type OAuthProfile = { subject: string; name: string }
-export const oauthProviders: OAuthProvider[] = ['qq', 'discord']
-export const oauthLabel = (provider: OAuthProvider) => (provider === 'qq' ? 'QQ' : 'Discord')
+const labels: Record<OAuthProvider, string> = { qq: 'QQ', discord: 'Discord', 'qq-xinyue': 'QQ（心月测试）' }
+export const oauthLabel = (provider: OAuthProvider) => labels[provider]
+const xinyueOrigin = 'https://qq.wch666.com'
 const failure = () => new HttpException('第三方授权未能完成，请重新尝试。', 502)
 
 export function decodeQqResponse(body: string): Record<string, unknown> {
@@ -26,12 +28,14 @@ export class OAuthProviders {
     private config: Config,
     private fetcher: typeof fetch = fetch,
   ) {}
-  credentials(provider: OAuthProvider) {
+  private credentials(provider: 'qq' | 'discord') {
     return provider === 'qq'
       ? { id: this.config.QQ_CLIENT_ID, secret: this.config.QQ_CLIENT_SECRET }
       : { id: this.config.DISCORD_CLIENT_ID, secret: this.config.DISCORD_CLIENT_SECRET }
   }
   enabled(provider: OAuthProvider) {
+    if (provider === 'qq-xinyue')
+      return this.config.NODE_ENV !== 'production' && !!this.config.QQ_XINYUE_TOKEN
     const { id, secret } = this.credentials(provider)
     return !!id && !!secret
   }
@@ -40,6 +44,10 @@ export class OAuthProviders {
   }
   authorize(provider: OAuthProvider, state: string, verifier: string) {
     if (!this.enabled(provider)) throw new HttpException('该登录方式暂未开放。', 503)
+    if (provider === 'qq-xinyue') {
+      const query = new URLSearchParams({ token: this.config.QQ_XINYUE_TOKEN, msg: state })
+      return `${xinyueOrigin}/api/qq.php?${query}`
+    }
     const url = new URL(
       provider === 'qq' ? 'https://graph.qq.com/oauth2.0/authorize' : 'https://discord.com/oauth2/authorize',
     )
@@ -78,6 +86,15 @@ export class OAuthProviders {
   }
   async profile(provider: OAuthProvider, code: string, verifier: string): Promise<OAuthProfile> {
     if (!this.enabled(provider)) throw new HttpException('该登录方式暂未开放。', 503)
+    if (provider === 'qq-xinyue') {
+      const query = new URLSearchParams({ code })
+      const info = await this.request(`${xinyueOrigin}/api/get_user_info.php?${query}`, {}, true)
+      const subject = info.open_id ?? info.openid
+      if (info.error || typeof subject !== 'string' || !/^[A-Za-z0-9_-]{8,128}$/.test(subject))
+        throw failure()
+      const nickname = typeof info.nickname === 'string' ? info.nickname : ''
+      return { subject, name: Array.from(nickname.trim()).slice(0, 24).join('') || 'QQ 同好' }
+    }
     const { id, secret } = this.credentials(provider)
     const params = new URLSearchParams({
       grant_type: 'authorization_code',

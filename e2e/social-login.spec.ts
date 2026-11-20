@@ -4,6 +4,7 @@ const origin = 'http://127.0.0.1:3117'
 const options = [
   { provider: 'qq', label: 'QQ', enabled: true },
   { provider: 'discord', label: 'Discord', enabled: true },
+  { provider: 'qq-xinyue', label: 'QQ（心月测试）', enabled: true },
 ]
 const bindings = options.map((option) => ({
   ...option,
@@ -18,6 +19,7 @@ test('未配置时保留邮箱登录；配置后手机端可选择 QQ 和 Discor
   await page.getByRole('banner').getByRole('button', { name: '登录 / 加入', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: '账号与登录' })
   await expect(dialog.getByRole('button', { name: 'QQ 登录', exact: true })).toHaveCount(0)
+  await expect(dialog.getByRole('button', { name: 'QQ（心月测试） 登录', exact: true })).toHaveCount(0)
   const disabled = await page.request.post('/api/auth/oauth/qq/start', {
     headers: { Origin: origin },
     data: { mode: 'login', returnTo: '/account' },
@@ -36,6 +38,7 @@ test('未配置时保留邮箱登录；配置后手机端可选择 QQ 和 Discor
   await page.getByRole('banner').getByRole('button', { name: '登录 / 加入', exact: true }).click()
   await expect(dialog.getByRole('button', { name: 'QQ 登录', exact: true })).toBeVisible()
   await expect(dialog.getByRole('button', { name: 'Discord 登录', exact: true })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'QQ（心月测试） 登录', exact: true })).toBeVisible()
   const button = dialog.getByRole('button', { name: 'QQ 登录', exact: true })
   expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44)
   expect(await button.evaluate((el) => getComputedStyle(el).fontSize)).toBe('16px')
@@ -115,15 +118,15 @@ test('用户中心展示绑定、解绑确认与失败提示，第三方用户�
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy()
   await section.screenshot({ path: test.info().outputPath('social-bindings-mobile.png') })
   let input: unknown
-  await page.route('**/api/auth/oauth/discord/start', async (route) => {
+  await page.route('**/api/auth/oauth/qq-xinyue/start', async (route) => {
     input = route.request().postDataJSON()
-    await route.fulfill({ json: { url: 'https://discord.com/oauth2/authorize?state=fixture' } })
+    await route.fulfill({ json: { url: 'https://qq.wch666.com/api/qq.php?token=fixture&msg=fixture' } })
   })
-  await page.route('https://discord.com/**', (route) =>
-    route.fulfill({ contentType: 'text/html', body: '<title>Discord 授权测试</title>' }),
+  await page.route('https://qq.wch666.com/**', (route) =>
+    route.fulfill({ contentType: 'text/html', body: '<title>心月授权测试</title>' }),
   )
-  await section.getByRole('button', { name: '绑定 Discord', exact: true }).click()
-  await expect(page).toHaveURL(/discord\.com\/oauth2\/authorize/)
+  await section.getByRole('button', { name: '绑定 QQ（心月测试）', exact: true }).click()
+  await expect(page).toHaveURL(/qq\.wch666\.com\/api\/qq\.php/)
   expect(input).toEqual({ mode: 'bind', returnTo: '/account' })
 })
 

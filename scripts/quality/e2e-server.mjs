@@ -32,6 +32,7 @@ const env = {
   BANGUMI_ACCESS_TOKEN: '',
   QQ_CLIENT_ID: '',
   QQ_CLIENT_SECRET: '',
+  QQ_XINYUE_TOKEN: '',
   DISCORD_CLIENT_ID: '',
   DISCORD_CLIENT_SECRET: '',
 }

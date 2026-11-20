@@ -24,6 +24,7 @@ test(
       ...readConfig(),
       QQ_CLIENT_ID: '123',
       QQ_CLIENT_SECRET: 'fixture',
+      QQ_XINYUE_TOKEN: 'fixture-test-registration',
       DISCORD_CLIENT_ID: '456',
       DISCORD_CLIENT_SECRET: 'fixture',
       WEB_ORIGIN: 'https://oauth.example.test',
@@ -38,7 +39,8 @@ test(
       prefix = randomUUID()
     class FakeProviders extends OAuthProviders {
       override async profile(provider: OAuthProvider, code: string) {
-        return { subject: prefix + '-' + provider + '-' + code, name: '授权同好' }
+        const namespace = provider === 'qq-xinyue' ? 'qq' : provider
+        return { subject: prefix + '-' + namespace + '-' + code, name: '授权同好' }
       }
     }
     const oauth = new OAuth(db, auth, platform, config, new FakeProviders(config))
@@ -83,11 +85,12 @@ test(
         )
         assert.equal(response.status, 201)
         const data = (await response.json()) as { url: string },
-          state = new URL(data.url).searchParams.get('state')!
+          state = new URL(data.url).searchParams.get(provider === 'qq-xinyue' ? 'msg' : 'state')!
         states.push(digest(state))
         const cookie = response.headers.getSetCookie()[0]!
         assert.match(cookie, /HttpOnly/)
         assert.match(cookie, /SameSite=Lax/)
+        assert.ok(cookie.startsWith(provider === 'qq-xinyue' ? 'czx_oauth_xinyue=' : 'czx_oauth='))
         return { state, cookie: cookie.split(';')[0]! }
       }
       const callback = async (
@@ -95,9 +98,12 @@ test(
         flow: { state: string; cookie: string },
         code: string,
         session?: { session: string },
+        stateParam = provider === 'qq-xinyue' ? 'msg' : 'state',
       ) => {
         const response = await fetch(
-          base + `/api/auth/oauth/${provider}/callback?` + new URLSearchParams({ state: flow.state, code }),
+          base +
+            `/api/auth/oauth/${provider}/callback?` +
+            new URLSearchParams({ [stateParam]: flow.state, code }),
           {
             redirect: 'manual',
             headers: { Cookie: flow.cookie + (session ? '; czx_session=' + session.session : '') },
@@ -128,7 +134,7 @@ test(
         ((await (await request('oauth/providers')).json()) as { enabled: boolean }[]).map(
           (row) => row.enabled,
         ),
-        [true, true],
+        [true, true, true],
       )
       assert.equal((await request('oauth/bindings')).status, 401)
       const a = await login('qq', 'A'),
@@ -139,6 +145,25 @@ test(
       assert.equal(a.user.email, null)
       assert.equal(a.user.hasPassword, false)
       assert.match(a.user.username, /^qq_/)
+      const xinyue = await start('qq-xinyue', 'bind', b)
+      assert.equal(
+        (await callback('qq-xinyue', xinyue, 'A', b, 'state')).url.searchParams.get('oauth'),
+        'error',
+      )
+      assert.equal((await callback('qq', xinyue, 'A', b)).url.searchParams.get('oauth'), 'error')
+      assert.equal((await callback('qq-xinyue', xinyue, 'A', b)).url.searchParams.get('oauth'), 'bound')
+      assert.equal((await callback('qq-xinyue', xinyue, 'A', b)).url.searchParams.get('oauth'), 'error')
+      assert.equal((await login('qq-xinyue', 'A')).user.id, b.user.id)
+      assert.equal((await login('qq', 'A')).user.id, a.user.id)
+      assert.equal((await request('oauth/qq', 'DELETE', {}, b)).status, 409, '测试通道不算长期恢复方式')
+      assert.equal((await request('oauth/qq-xinyue', 'DELETE', {}, b)).status, 200)
+      assert.equal((await login('qq', 'B')).user.id, b.user.id)
+      assert.deepEqual(
+        new OAuth(db, auth, platform, { ...config, NODE_ENV: 'production' })
+          .options()
+          .map((row) => row.provider),
+        ['qq', 'discord'],
+      )
       const disposable = await login('qq', 'DELETE-ME')
       assert.equal(disposable.user.email, null)
       assert.equal(disposable.user.hasPassword, false)
@@ -171,7 +196,15 @@ test(
         bound: boolean
         subject?: string
       }[]
-      assert.ok(bindings.every((row) => row.bound && !('subject' in row)))
+      assert.deepEqual(
+        bindings.map((row) => [row.provider, row.bound]),
+        [
+          ['qq', true],
+          ['discord', true],
+          ['qq-xinyue', false],
+        ],
+      )
+      assert.ok(bindings.every((row) => !('subject' in row)))
       const discordLogin = await login('discord', 'D')
       assert.equal(discordLogin.user.id, a.user.id)
       const restricted = new OAuth(db, auth, platform, {

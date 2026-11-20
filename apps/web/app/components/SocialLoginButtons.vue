@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { SocialProvider } from '~/composables/useSocialLogin'
 const social = useSocialLogin(),
   route = useRoute()
 const busy = ref(false),
@@ -6,7 +7,7 @@ const busy = ref(false),
 onMounted(() => {
   if (!social.loaded.value) void social.load().catch(() => {})
 })
-async function login(provider: 'qq' | 'discord') {
+async function login(provider: SocialProvider) {
   if (busy.value) return
   busy.value = true
   error.value = ''
@@ -68,10 +69,12 @@ async function login(provider: 'qq' | 'discord') {
   border: 0;
   color: #fff;
 }
-.social-login-buttons .social-qq {
+.social-login-buttons .social-qq,
+.social-login-buttons .social-qq-xinyue {
   background: #12b7f5;
 }
-.social-login-buttons .social-qq:hover {
+.social-login-buttons .social-qq:hover,
+.social-login-buttons .social-qq-xinyue:hover {
   background: #0ea5de;
 }
 .social-login-buttons .social-discord {

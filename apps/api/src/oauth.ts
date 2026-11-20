@@ -49,11 +49,13 @@ export class OAuth {
     readonly providers = new OAuthProviders(config),
   ) {}
   options() {
-    return oauthProviders.map((provider) => ({
-      provider,
-      label: oauthLabel(provider),
-      enabled: this.providers.enabled(provider),
-    }))
+    return oauthProviders
+      .map((provider) => ({
+        provider,
+        label: oauthLabel(provider),
+        enabled: this.providers.enabled(provider),
+      }))
+      .filter((option) => option.provider !== 'qq-xinyue' || option.enabled)
   }
   async start(provider: OAuthProvider, mode: 'login' | 'bind', returnTo: string, rawSession?: string) {
     if (!this.providers.enabled(provider)) throw reject('该登录方式暂未开放。', 503)
@@ -165,7 +167,7 @@ export class OAuth {
         let userId = owned?.user_id
         if (!userId) {
           userId = randomUUID()
-          const username = (provider + '_' + userId.replaceAll('-', '')).slice(0, 24)
+          const username = (provider.replaceAll('-', '_') + '_' + userId.replaceAll('-', '')).slice(0, 24)
           await this.db.execute(
             "INSERT INTO users(id,email,email_key,username,username_key,nickname,password_hash,email_verified_at,created_at) VALUES (?,NULL,NULL,?,?,?,'',0,?)",
             [userId, username, usernameKey(username), profile.name, Date.now()],
@@ -235,7 +237,8 @@ export class OAuth {
       )
       if (!rows.some((row) => row.provider === provider)) return { message: '该登录方式尚未绑定。' }
       const alternative = rows.some(
-        (row) => row.provider !== provider && this.providers.enabled(row.provider),
+        (row) =>
+          row.provider !== provider && row.provider !== 'qq-xinyue' && this.providers.enabled(row.provider),
       )
       if (!user.password_hash && !(user.email && Number(user.email_verified_at) > 0) && !alternative)
         throw reject('请先设置邮箱和密码，或绑定另一种登录方式，再解绑。', 409)
@@ -244,7 +247,13 @@ export class OAuth {
         [userId, provider],
         tx,
       )
-      await this.db.execute('DELETE FROM oauth_flows WHERE user_id=?', [userId], tx)
+      if (provider === 'qq-xinyue')
+        await this.db.execute(
+          'DELETE FROM oauth_flows WHERE user_id=? AND provider=?',
+          [userId, provider],
+          tx,
+        )
+      else await this.db.execute('DELETE FROM oauth_flows WHERE user_id=?', [userId], tx)
       await this.platform.audit(user, '解绑 ' + oauthLabel(provider) + ' 登录身份', null, tx)
       return { message: oauthLabel(provider) + ' 已解绑。' }
     })

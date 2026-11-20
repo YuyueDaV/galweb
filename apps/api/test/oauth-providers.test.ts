@@ -110,6 +110,40 @@ test('Discord 服务端 POST 换令牌、传 PKCE verifier，再以 Bearer 查�
   )
 })
 
+test('心月测试使用独立回调、msg 校验值和服务端授权码查询，生产环境关闭', async () => {
+  const testing = { ...config, NODE_ENV: 'test' as const, QQ_XINYUE_TOKEN: 'test-registration-token' }
+  const calls: URL[] = []
+  const providers = new OAuthProviders(testing, async (input, options) => {
+    calls.push(new URL(String(input)))
+    assert.equal(options?.redirect, 'error')
+    return Response.json({ open_id: 'test-qq-open-id', nickname: ' 心月同好 ', qq: '10001' })
+  })
+  assert.equal(providers.enabled('qq'), true)
+  assert.equal(providers.enabled('discord'), true)
+  assert.equal(providers.callback('qq-xinyue'), config.WEB_ORIGIN + '/api/auth/oauth/qq-xinyue/callback')
+  const start = new URL(providers.authorize('qq-xinyue', 'test-state', 'unused-verifier'))
+  assert.equal(start.origin + start.pathname, 'https://qq.wch666.com/api/qq.php')
+  assert.deepEqual(Object.fromEntries(start.searchParams), {
+    token: testing.QQ_XINYUE_TOKEN,
+    msg: 'test-state',
+  })
+  assert.deepEqual(await providers.profile('qq-xinyue', 'one+time/code', 'unused-verifier'), {
+    subject: 'test-qq-open-id',
+    name: '心月同好',
+  })
+  assert.equal(calls[0]!.origin + calls[0]!.pathname, 'https://qq.wch666.com/api/get_user_info.php')
+  assert.deepEqual(Object.fromEntries(calls[0]!.searchParams), { code: 'one+time/code' })
+  const invalid = new OAuthProviders(testing, async () =>
+    Response.json({ qq: '100010001', nickname: '同好' }),
+  )
+  await assert.rejects(() => invalid.profile('qq-xinyue', 'code', 'verifier'), /第三方授权/)
+  const production = new OAuthProviders({ ...testing, NODE_ENV: 'production' })
+  assert.equal(production.enabled('qq'), true)
+  assert.equal(production.enabled('qq-xinyue'), false)
+  assert.throws(() => production.authorize('qq-xinyue', 'state', 'verifier'), /暂未开放/)
+  await assert.rejects(() => production.profile('qq-xinyue', 'code', 'verifier'), /暂未开放/)
+})
+
 test('OAuth 仅返回站内普通页面，拒绝开放跳转和 API 路径', () => {
   assert.equal(oauthReturnPath('/awards?tab=ballot#vote', config.WEB_ORIGIN), '/awards?tab=ballot#vote')
   for (const path of ['https://evil.example', '//evil.example', '/\\evil.example', '/api/auth/me', '/a\n'])

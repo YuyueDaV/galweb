@@ -1,4 +1,4 @@
-export type SocialProvider = 'qq' | 'discord'
+export type SocialProvider = 'qq' | 'discord' | 'qq-xinyue'
 export type SocialOption = { provider: SocialProvider; label: string; enabled: boolean }
 export type SocialBinding = SocialOption & { bound: boolean; displayName: string; boundAt: number | null }
 

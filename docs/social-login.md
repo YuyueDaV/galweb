@@ -37,6 +37,17 @@ DISCORD_CLIENT_SECRET=你的Discord应用ClientSecret
 
 本地测试需要在平台允许的测试应用中登记相应地址，例如 `http://127.0.0.1:3100/api/auth/oauth/discord/callback`。若平台不允许本地地址，使用你控制的 HTTPS 测试域名并相应修改测试环境 `WEB_ORIGIN`，不要把生产密钥放进前端。
 
+## 临时测试心月互联
+
+[心月互联](https://qq.wch666.com/) 提供开发测试用的 QQ 授权。后端配置 `QQ_XINYUE_TOKEN` 后，开发和测试环境会出现独立的「QQ（心月测试）」登录和绑定入口。它有独立的回调、会话校验 Cookie 和身份记录，可与官方 QQ 和 Discord 同时使用。生产环境忽略此配置。
+
+1. 用独立测试数据库启动本地站点。在心月互联点击「开始接入」，按测试环境 `WEB_ORIGIN` 填写回调。若前端为 `http://127.0.0.1:3100`，完整回调为 `http://127.0.0.1:3100/api/auth/oauth/qq-xinyue/callback`。
+2. 「私钥」填写自己生成并留存的随机字符串，可用 `node -p "require('node:crypto').randomBytes(32).toString('hex')"` 在本机生成。填写验证码并提交后，记录返回的 Token 和有效期。私钥用于心月互联的查询和续期。
+3. 将返回的 Token 写入本地后端 `apps/api/.env` 的 `QQ_XINYUE_TOKEN`，重启 API，然后用测试账号验证登录和绑定。回调地址里的主机、端口和路径须与实际访问地址一致。
+4. 测试结束后清除 `QQ_XINYUE_TOKEN` 并重启 API，测试入口随即隐藏。
+
+心月回调的 `msg` 必须匹配本站发起的随机校验值，后端使用回调中的 `code` 获取授权身份。接口用法参考 [公开项目的心月互联实现](https://github.com/northland-studio/xuanjian.top/blob/3cb443462cf107df84c0a5627195c2b38fa9b41b/routes/auth.js#L522)。
+
 ## 更新部署
 
 这次更新需要同时更新 API 和前端，并执行数据库迁移。迁移新增 `oauth_identities`、`oauth_flows`，将用户邮箱列改成允许空值；保留已有账号、密码、邮箱唯一约束和所有社区数据，可重复执行。
