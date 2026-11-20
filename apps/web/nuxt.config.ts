@@ -41,6 +41,7 @@ export default defineNuxtConfig({
     '~/assets/css/catalog.css',
     '~/assets/css/foundations.css',
     '~/assets/css/liquid-glass.css',
+    '~/assets/css/interaction.css',
   ],
   app: {
     head: {

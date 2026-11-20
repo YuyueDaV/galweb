@@ -35,10 +35,37 @@ export function useForum(){
  async function fetchPost(id:string){const post=await auth.request<ForumPost>(`/posts/${encodeURIComponent(id)}`);const at=posts.value.findIndex(p=>p.id===id);if(at<0)posts.value.push(post);else posts.value[at]=post;const data=await auth.request<(Reply&{createdAt:number})[]>(`/posts/${encodeURIComponent(id)}/replies`);replies.value=[...replies.value.filter(r=>r.postId!==id),...data.map(r=>({...r,time:new Date(Number(r.createdAt)).toLocaleString('zh-CN')}))];return post}
  function reactionPending(id:string,kind:'like'|'bookmark'){return pendingReactions.value.includes(`${kind}:${id}`)}
  async function reaction(id:string,kind:'like'|'bookmark'){
-  if(!auth.requireLogin(kind==='like'?'请先登录后点赞。':'请先登录后收藏帖子。'))return
-  if(reactionPending(id,kind))return
-  const key=`${kind}:${id}`;pendingReactions.value.push(key)
-  try{requireLogin();const userId=auth.user.value!.id,collection=kind==='like'?likes:bookmarks,active=!collection.value.includes(id);await auth.request(`/posts/${encodeURIComponent(id)}/reactions`,{kind,active},'PUT');if(auth.user.value?.id!==userId)return;collection.value=active?[...new Set([...collection.value,id])]:collection.value.filter(item=>item!==id);if(kind==='like'){const post=await auth.request<ForumPost>(`/posts/${encodeURIComponent(id)}`);if(auth.user.value?.id!==userId)return;const index=posts.value.findIndex(p=>p.id===id);if(index>=0)posts.value[index]=post}else{if(feedOptions.value.saved==='true')await loadFeed();notify(active?'已收藏。':'已取消收藏。')}}catch(e){notify((e as Error).message)}finally{pendingReactions.value=pendingReactions.value.filter(item=>item!==key)}
+  if (!auth.requireLogin(kind === 'like' ? '请先登录后点赞。' : '请先登录后收藏帖子。')) return false
+  if (reactionPending(id, kind)) return false
+
+  const key = `${kind}:${id}`
+  const userId = auth.user.value!.id
+  const collection = kind === 'like' ? likes : bookmarks
+  const active = !collection.value.includes(id)
+  let activated = false
+  pendingReactions.value.push(key)
+  try {
+   await auth.request(`/posts/${encodeURIComponent(id)}/reactions`, { kind, active }, 'PUT')
+   if (auth.user.value?.id !== userId) return false
+   collection.value = active
+    ? [...new Set([...collection.value, id])]
+    : collection.value.filter(item => item !== id)
+   activated = active
+   if (kind === 'like') {
+    const post = await auth.request<ForumPost>(`/posts/${encodeURIComponent(id)}`)
+    if (auth.user.value?.id !== userId) return false
+    const index = posts.value.findIndex(p => p.id === id)
+    if (index >= 0) posts.value[index] = post
+   } else {
+    if (feedOptions.value.saved === 'true') await loadFeed()
+    notify(active ? '已收藏。' : '已取消收藏。')
+   }
+  } catch (e) {
+   notify((e as Error).message)
+  } finally {
+   pendingReactions.value = pendingReactions.value.filter(item => item !== key)
+  }
+  return activated && auth.user.value?.id === userId
  }
  async function recordView(id:string){const data=await auth.request<{views:number}>(`/posts/${encodeURIComponent(id)}/views`,{});const post=posts.value.find(p=>p.id===id);if(post)post.views=data.views}
  async function createPost(title:string,content:string,postCategory:Category,spoiler:boolean,assetId?:string,extra?:{format:'markdown',assetIds:string[],workId:number|null,tags?:string[]}){requireLogin();const {id}=await auth.request<{id:string}>('/posts',{title,content,category:postCategory,spoiler,...assetId?{assetId}:{},...extra});await fetchPost(id);composerOpen.value=false;notify('帖子已发布。');return id}

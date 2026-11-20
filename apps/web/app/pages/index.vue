@@ -58,7 +58,19 @@ useSeoMeta({ title:()=>settings.value.title+' · 澄之响',description:()=>sett
           <div class="section-heading"><div><p class="eyebrow">OUR COMMUNITY</p><h2 id="feed-title">{{ route.query.saved ? '我的收藏' : '广场里的新鲜事' }}<span class="heading-dot">。</span></h2></div><button class="write-link" @click="composerOpen = true"><AppIcon name="pen" :size="15" />发起讨论</button></div>
           <div class="feed-toolbar"><div class="feed-tabs" role="group" aria-label="帖子类型"><button v-for="item in ['最新回响', '精选好文', '等你回复']" :key="item" :class="{ active: tab === item }" :aria-pressed="tab === item" @click="tab = item"><AppIcon v-if="item === '最新回响'" name="clock" :size="15" />{{ item }}</button></div><label class="feed-sort"><AppIcon name="filter" :size="14" /><span class="sr-only">帖子排序</span><select v-model="sort"><option value="latest">最新发布</option><option value="hot">最多回复</option></select></label></div>
           <div v-if="query || selectedTopic || category !== '全部' || route.query.saved || tab !== '最新回响'" class="active-filters"><span v-if="query">搜索：{{ query }}</span><span v-if="selectedTopic">话题：#{{ selectedTopic }}</span><span v-if="category !== '全部'">{{ category }}</span><span v-if="tab !== '最新回响'">{{ tab }}</span><span>{{ pending||!feedLoaded?'正在查找…':`共 ${feedTotal} 篇帖子` }}</span><button @click="query = ''; category = '全部'; tab = '最新回响'; navigateTo('/#discussions')">清除筛选<AppIcon name="close" :size="13" /></button></div>
-          <div v-if="pending||!feedLoaded" class="empty-state" role="status"><p>正在寻找新的回响…</p></div><div v-else-if="feedError&&!visiblePosts.length" class="empty-state" role="alert"><p>{{ feedError }}</p><button class="button secondary" @click="retry">重试加载</button></div><div v-else class="post-list"><PostCard v-for="post in visiblePosts" :key="post.id" :post="post" /><div v-if="!visiblePosts.length" class="empty-state"><AppIcon :name="route.query.saved ? 'bookmark' : 'comment'" :size="32" /><h3>{{ route.query.saved ? '把喜欢的故事收进来' : '这里还在等第一声回响' }}</h3><p>{{ route.query.saved ? '点击帖子旁的收藏图标，就能在这里找到它。' : '换个关键词，或者由你来开启这场讨论。' }}</p><button class="button secondary" @click="composerOpen = true">写一篇帖子<AppIcon name="plus" :size="15" /></button></div></div>
+          <div v-if="pending || !feedLoaded" class="feed-skeleton" role="status">
+            <span class="sr-only">正在寻找新的回响…</span>
+            <div v-for="row in 3" :key="row" class="feed-skeleton-row" aria-hidden="true">
+              <span class="feed-skeleton-avatar"></span>
+              <div class="feed-skeleton-body">
+                <span class="feed-skeleton-meta"></span>
+                <span class="feed-skeleton-title"></span>
+                <span class="feed-skeleton-excerpt"></span>
+                <span class="feed-skeleton-tags"></span>
+              </div>
+            </div>
+          </div>
+          <div v-else-if="feedError&&!visiblePosts.length" class="empty-state" role="alert"><p>{{ feedError }}</p><button class="button secondary" @click="retry">重试加载</button></div><div v-else class="post-list"><PostCard v-for="post in visiblePosts" :key="post.id" :post="post" /><div v-if="!visiblePosts.length" class="empty-state"><AppIcon :name="route.query.saved ? 'bookmark' : 'comment'" :size="32" /><h3>{{ route.query.saved ? '把喜欢的故事收进来' : '这里还在等第一声回响' }}</h3><p>{{ route.query.saved ? '点击帖子旁的收藏图标，就能在这里找到它。' : '换个关键词，或者由你来开启这场讨论。' }}</p><button class="button secondary" @click="composerOpen = true">写一篇帖子<AppIcon name="plus" :size="15" /></button></div></div>
           <p v-if="feedError&&visiblePosts.length" class="form-error" role="alert">{{ feedError }}</p><button v-if="hasMore&&!pending" class="load-more" :disabled="loadingFeed" @click="more">{{ loadingFeed?'正在加载…':'再听听更多故事' }}<AppIcon name="chevronDown" :size="16" /></button><p v-else-if="visiblePosts.length&&!pending&&!loadingFeed" class="feed-end"><span></span>故事还在继续，等你写下下一页。<span></span></p>
         </section>
         <NuxtLink to="/awards" class="awards-banner"><div><span class="small-kicker">THE TWELVE ORANGES / VOL. 02</span><h2>新一届十二橙器，等你的喜欢。</h2><p>参与作品提名与投票，也可以重温第一届书单</p></div><span class="awards-banner-mark">12<span><DecorativeSpark /></span></span><span class="round-arrow"><AppIcon name="arrowUpRight" :size="22" /></span></NuxtLink>
@@ -68,4 +80,52 @@ useSeoMeta({ title:()=>settings.value.title+' · 澄之响',description:()=>sett
   </div>
 </template>
 
-<style scoped>.hero-links { flex-wrap: wrap; }</style>
+<style scoped>
+.hero-links {
+  flex-wrap: wrap;
+}
+.feed-skeleton-row {
+  --skeleton-fill: color-mix(in srgb, var(--muted) 20%, transparent);
+  display: flex;
+  gap: 0.75rem;
+  padding: 1.35rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.feed-skeleton-avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--skeleton-fill);
+  flex: none;
+}
+.feed-skeleton-body {
+  flex: 1;
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.feed-skeleton-body > span {
+  height: 0.5rem;
+  border-radius: 0.25rem;
+  background: var(--skeleton-fill);
+}
+.feed-skeleton-body .feed-skeleton-meta {
+  width: min(38%, 7rem);
+}
+.feed-skeleton-body .feed-skeleton-title {
+  width: 68%;
+  height: 0.75rem;
+}
+.feed-skeleton-body .feed-skeleton-excerpt {
+  width: 88%;
+}
+.feed-skeleton-body .feed-skeleton-tags {
+  width: min(28%, 5rem);
+}
+.feed-skeleton-row:nth-child(2) .feed-skeleton-title {
+  width: 54%;
+}
+.feed-skeleton-row:nth-child(3) .feed-skeleton-excerpt {
+  width: 72%;
+}
+</style>

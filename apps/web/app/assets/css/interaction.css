@@ -1,0 +1,56 @@
+/* Use individual scale so pressing can coexist with a control's hover transform. */
+@media (prefers-reduced-motion: no-preference) {
+  .site-wrap
+    :is(
+      .button,
+      .icon-button,
+      .category-card,
+      .feed-tabs button,
+      .write-link,
+      .load-more,
+      .post-stats button,
+      .detail-actions button[aria-pressed]
+    ) {
+    transition-property: scale, transform, background-color, border-color, color, box-shadow;
+    transition-duration: var(--motion-fast);
+    transition-timing-function: var(--motion-ease);
+  }
+
+  .site-wrap
+    :is(
+      .button,
+      .icon-button,
+      .category-card,
+      .feed-tabs button,
+      .write-link,
+      .load-more,
+      .post-stats button,
+      .detail-actions button[aria-pressed]
+    ):is(:active, [data-touch-pressed]):not(:disabled, [aria-disabled='true']) {
+    scale: 0.97;
+    transition-duration: 90ms;
+  }
+}
+
+@media (hover: none) {
+  .site-wrap :is(.button, .category-card):hover {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-wrap
+    :is(
+      .button,
+      .icon-button,
+      .category-card,
+      .feed-tabs button,
+      .write-link,
+      .load-more,
+      .post-stats button,
+      .detail-actions button[aria-pressed]
+    ):is(:active, [data-touch-pressed]):not(:disabled, [aria-disabled='true']) {
+    background-color: color-mix(in srgb, var(--orange) 18%, var(--surface));
+    color: var(--ink);
+  }
+}

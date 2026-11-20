@@ -10,58 +10,93 @@ withDefaults(defineProps<{ initial?: boolean }>(), { initial: false })
     aria-live="polite"
     aria-atomic="true"
   >
-    <span class="loading-scene" aria-hidden="true">
-      <span class="loading-shadow"></span>
-      <svg class="loading-orange" viewBox="0 0 80 86" fill="none" focusable="false">
-        <path class="loading-stem" d="M40 27c-2-7 0-12 3-16" />
-        <path class="loading-leaf" d="M41 22C39 10 49 6 62 8c-2 13-11 18-21 14Z" />
-        <path
-          class="loading-body"
-          d="M40 28C21 20 9 33 10 51c1 18 12 28 30 28s29-10 30-28C71 33 59 20 40 28Z"
-        />
-        <path class="loading-highlight" d="M24 36c-5 3-8 8-8 14" />
-        <g class="loading-peel">
-          <circle cx="57" cy="59" r="1.4" />
-          <circle cx="60" cy="54" r="1" />
-          <circle cx="52" cy="64" r="1" />
-        </g>
-        <path class="loading-smile" d="M33 54c4 4 10 4 14 0" />
-      </svg>
-    </span>
-    <span class="loading-copy">
-      <span class="loading-label"
-        >{{ initial ? '正在加载故事' : '正在翻开下一页'
-        }}<span class="loading-dots" aria-hidden="true"><i></i><i></i><i></i></span
-      ></span>
-      <small>让喜欢，慢慢回响。</small>
-    </span>
+    <div class="loading-panel">
+      <span class="loading-scene" aria-hidden="true">
+        <span class="loading-shadow"></span>
+        <svg class="loading-orange" viewBox="0 0 80 86" fill="none" focusable="false">
+          <path class="loading-stem" d="M40 27c-2-7 0-12 3-16" />
+          <path class="loading-leaf" d="M41 22C39 10 49 6 62 8c-2 13-11 18-21 14Z" />
+          <path
+            class="loading-body"
+            d="M40 28C21 20 9 33 10 51c1 18 12 28 30 28s29-10 30-28C71 33 59 20 40 28Z"
+          />
+          <path class="loading-highlight" d="M24 36c-5 3-8 8-8 14" />
+          <g class="loading-peel">
+            <circle cx="57" cy="59" r="1.4" />
+            <circle cx="60" cy="54" r="1" />
+            <circle cx="52" cy="64" r="1" />
+          </g>
+          <path class="loading-smile" d="M33 54c4 4 10 4 14 0" />
+        </svg>
+      </span>
+      <span class="loading-copy">
+        <span class="loading-label"
+          >{{ initial ? '正在加载故事' : '正在翻开下一页'
+          }}<span class="loading-dots" aria-hidden="true"><i></i><i></i><i></i></span
+        ></span>
+        <small>让喜欢，慢慢回响。</small>
+      </span>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .app-loading {
-  --loading-y: 0px;
   position: fixed;
   bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   left: 50%;
   z-index: 2000;
+  max-width: calc(100vw - 32px);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.loading-panel {
   display: flex;
   align-items: center;
   gap: 14px;
   box-sizing: border-box;
-  max-width: calc(100vw - 32px);
   padding: 12px 24px 12px 16px;
   border: 1px solid var(--line);
   border-radius: 24px;
   background: var(--surface-solid);
   color: var(--ink);
   box-shadow: 0 12px 40px #443a2120;
-  transform: translate(-50%, var(--loading-y));
-  pointer-events: none;
   animation: loading-appear 160ms ease-out both;
 }
 .app-loading.is-initial {
-  animation-delay: 220ms;
+  --loading-hop-height: -22px;
+  inset: 0;
+  max-width: none;
+  transform: none;
+}
+.is-initial .loading-panel {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  width: 100%;
+  height: 100%;
+  gap: 18px;
+  padding: 24px;
+  border: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(ellipse at center, color-mix(in srgb, var(--orange) 9%, transparent), transparent 66%),
+    var(--bg);
+  box-shadow: none;
+  text-align: center;
+  /* Keep the server-rendered page reachable if the client fails to start. */
+  animation:
+    loading-reveal 160ms ease-out 220ms both,
+    loading-uncover 1ms step-start 10s forwards;
+}
+.app-loading-leave-active {
+  transition: opacity 180ms ease-out;
+}
+.app-loading-leave-active .loading-panel {
+  animation-play-state: paused;
+}
+.app-loading-leave-to {
+  opacity: 0;
 }
 .loading-scene {
   position: relative;
@@ -149,8 +184,26 @@ withDefaults(defineProps<{ initial?: boolean }>(), { initial: false })
 .loading-dots i:nth-child(3) {
   animation-delay: 300ms;
 }
-:global(html[data-theme='dark']) .app-loading {
+:global(html[data-theme='dark']) .app-loading:not(.is-initial) .loading-panel {
   box-shadow: 0 12px 40px #0005;
+}
+.is-initial .loading-scene {
+  width: 96px;
+  height: 110px;
+}
+.is-initial .loading-orange {
+  width: 96px;
+  height: 103px;
+}
+.is-initial .loading-shadow {
+  left: 24px;
+  width: 48px;
+  height: 8px;
+  bottom: 5px;
+}
+.is-initial .loading-label {
+  justify-content: center;
+  font-size: 18px;
 }
 @keyframes orange-hop {
   0%,
@@ -203,17 +256,32 @@ withDefaults(defineProps<{ initial?: boolean }>(), { initial: false })
 @keyframes loading-appear {
   from {
     opacity: 0;
-    transform: translate(-50%, calc(var(--loading-y) + 8px));
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, var(--loading-y));
+    transform: translateY(0);
+  }
+}
+@keyframes loading-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes loading-uncover {
+  to {
+    visibility: hidden;
   }
 }
 @media (min-width: 900px) {
-  .app-loading {
-    min-width: 300px;
+  .app-loading:not(.is-initial) {
     bottom: 32px;
+  }
+  .app-loading:not(.is-initial) .loading-panel {
+    min-width: 300px;
     gap: 18px;
     padding: 16px 28px 16px 20px;
   }
@@ -238,18 +306,6 @@ withDefaults(defineProps<{ initial?: boolean }>(), { initial: false })
   .loading-copy small {
     font-size: 13px;
   }
-  .app-loading.is-initial {
-    --loading-y: -50%;
-    --loading-hop-height: -18px;
-    top: 50%;
-    bottom: auto;
-    display: grid;
-    justify-items: center;
-    gap: 16px;
-    min-width: 300px;
-    padding: 28px 40px 32px;
-    border-radius: 28px;
-  }
   .is-initial .loading-scene {
     width: 112px;
     height: 128px;
@@ -264,18 +320,12 @@ withDefaults(defineProps<{ initial?: boolean }>(), { initial: false })
     height: 8px;
     bottom: 5px;
   }
-  .is-initial .loading-copy {
-    text-align: center;
-    gap: 8px;
-  }
-  .is-initial .loading-label {
-    justify-content: center;
-    font-size: 18px;
-  }
 }
 @media (max-width: 599px) {
-  .app-loading {
+  .app-loading:not(.is-initial) {
     bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+  .app-loading:not(.is-initial) .loading-panel {
     gap: 10px;
     padding: 10px 16px 10px 12px;
     border-radius: 20px;
@@ -285,12 +335,24 @@ withDefaults(defineProps<{ initial?: boolean }>(), { initial: false })
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .app-loading,
+  .app-loading-leave-active {
+    transition: none;
+  }
+  .app-loading:not(.is-initial) .loading-panel,
   .loading-orange,
   .loading-leaf,
   .loading-shadow,
   .loading-dots i {
     animation: none;
+  }
+  .is-initial .loading-panel {
+    animation-duration: 1ms, 1ms;
+    animation-timing-function: step-start, step-start;
+  }
+}
+@media (scripting: none) {
+  .app-loading {
+    display: none;
   }
 }
 </style>

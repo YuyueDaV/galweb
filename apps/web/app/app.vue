@@ -10,6 +10,20 @@ await Promise.all([
 ])
 const route = useRoute()
 const mobileOpen = ref(false)
+let touchPress: { control: HTMLElement; pointerId: number } | null = null
+function releaseTouchPress(event?: PointerEvent) {
+  if (!touchPress || (event && touchPress.pointerId !== event.pointerId)) return
+  delete touchPress.control.dataset.touchPressed
+  touchPress = null
+}
+function startTouchPress(event: PointerEvent) {
+  if (event.pointerType === 'mouse' || !event.isPrimary || !(event.target instanceof Element)) return
+  const control = event.target.closest<HTMLElement>('button:not(:disabled), a[href]')
+  if (!control || control.matches('[aria-disabled="true"]')) return
+  releaseTouchPress()
+  control.dataset.touchPressed = ''
+  touchPress = { control, pointerId: event.pointerId }
+}
 const themeCookie=useCookie<'light'|'dark'>('czx-theme',{sameSite:'lax',maxAge:31536000})
 const dark = ref(themeCookie.value==='dark')
 const booting=ref(true)
@@ -37,7 +51,10 @@ onMounted(async () => {
 watch(()=>auth.user.value?.id,()=>{
   if(import.meta.client)void Promise.all([forum.syncMine(),inbox.load()]).catch(e=>forum.notify((e as Error).message))
 },{immediate:true})
-watch(() => route.fullPath, () => { mobileOpen.value = false })
+watch(() => route.fullPath, () => {
+  mobileOpen.value = false
+  releaseTouchPress()
+})
 let notificationTimer:ReturnType<typeof setInterval>|undefined
 onMounted(()=>{notificationTimer=setInterval(()=>{if(document.visibilityState==='visible')void inbox.load(1,true).catch(()=>{})},60000)})
 onBeforeUnmount(()=>clearInterval(notificationTimer))
@@ -61,9 +78,17 @@ function resetFeed() { query.value = ''; category.value = '全部' }
 </script>
 
 <template>
-  <div class="site-wrap">
+  <div
+    class="site-wrap"
+    @pointerdown.passive="startTouchPress"
+    @pointerup.passive="releaseTouchPress"
+    @pointercancel.passive="releaseTouchPress"
+    @lostpointercapture.passive="releaseTouchPress"
+  >
     <NuxtLoadingIndicator color="var(--orange)" :throttle="220" />
-    <AppLoading v-if="booting||pageLoading" :initial="booting" />
+    <Transition name="app-loading">
+      <AppLoading v-if="booting || pageLoading" :key="booting ? 'initial' : 'navigation'" :initial="booting" />
+    </Transition>
     <SiteBackground />
     <a class="skip-link" href="#main-content">跳转到正文</a>
     <LiquidGlass as="header" class="site-header" :class="{ 'is-scrolled': headerScrolled }" :radius="30" :scale="24" :bevel-depth="12" :aberration="1.2" :tint="0.64" :frost="0.6">

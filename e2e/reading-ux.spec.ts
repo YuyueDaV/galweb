@@ -1,7 +1,7 @@
 import { test, expect } from './fixtures'
 import { createRequire } from 'node:module'
 
-test('主题在脚本加载前生效；慢请求展示加载提示并在完成后退出', async ({ page }) => {
+test('主题在脚本加载前生效；慢启动显示全屏小橙子并在完成后淡出', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.addInitScript(() => {
     if (!localStorage.getItem('chengzhixiang-theme')) localStorage.setItem('chengzhixiang-theme', 'dark')
@@ -25,21 +25,22 @@ test('主题在脚本加载前生效；慢请求展示加载提示并在完成�
     await page.goto('/', { waitUntil: 'commit' })
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
     await expect(page.locator('html')).toHaveCSS('color-scheme', 'dark')
-    await expect(page.locator('.app-loading .loading-orange')).toBeVisible()
     const initialLoader = page.locator('.app-loading.is-initial')
+    await expect(initialLoader.locator('.loading-panel')).toHaveCSS('opacity', '1')
+    await expect(initialLoader.locator('.loading-panel')).toHaveCSS('background-color', 'rgb(29, 32, 28)')
     await expect(initialLoader.locator('.loading-orange')).toHaveCSS('width', '112px')
-    await expect
-      .poll(async () => {
-        const box = await initialLoader.boundingBox()
-        return Math.abs(box!.y + box!.height / 2 - 500)
-      })
-      .toBeLessThan(2)
+    expect(await initialLoader.boundingBox()).toEqual({ x: 0, y: 0, width: 1440, height: 1000 })
     await initialLoader.screenshot({ path: test.info().outputPath('orange-desktop-initial-dark.png') })
+    await page.setViewportSize({ width: 390, height: 844 })
+    expect(await initialLoader.boundingBox()).toEqual({ x: 0, y: 0, width: 390, height: 844 })
+    await expect(initialLoader.locator('.loading-orange')).toHaveCSS('width', '96px')
+    await initialLoader.screenshot({ path: test.info().outputPath('orange-mobile-initial-dark.png') })
     start()
     await expect(page.getByRole('status').filter({ hasText: '正在加载故事' })).toBeVisible()
     finish()
     await expect(page.locator('.app-loading')).toHaveCount(0)
     await expect(page.getByRole('button', { name: '切换浅色模式', exact: true })).toBeVisible()
+    await page.setViewportSize({ width: 1440, height: 1000 })
     await page.unroute('**/_nuxt/*.js')
     const response = await page.reload()
     expect(await response!.text()).toMatch(/data-theme="dark"/)
