@@ -147,6 +147,7 @@ test('慢书库不阻塞活动展示，轮询只拉详情且归档后停止', as
     expect(catalogs).toBe(1)
     await page.clock.runFor(16000)
     await expect.poll(() => details).toBe(2)
+    await expect(page.locator('.app-loading')).toHaveCount(0)
     // Stay inside the API client's 15-second timeout while the response is held.
     await page.clock.runFor(5000)
     expect(details).toBe(2)
@@ -160,6 +161,51 @@ test('慢书库不阻塞活动展示，轮询只拉详情且归档后停止', as
   } finally {
     catalogGate.release()
     detailGate.release()
+  }
+})
+
+test('侧栏进入十二橙器时全屏等待活动列表和详情，书库独立加载', async ({ page }) => {
+  const data = activity(),
+    listGate = gate(),
+    detailGate = gate(),
+    detailStarted = gate(),
+    catalogGate = gate()
+  await page.route('**/api/award-campaigns', async (route) => {
+    await listGate.promise
+    await route.fulfill({ json: [data.campaign] })
+  })
+  await page.route('**/api/award-campaigns/*', async (route) => {
+    detailStarted.release()
+    await detailGate.promise
+    await route.fulfill({ json: data })
+  })
+  await page.route('**/api/works?view=summary', async (route) => {
+    await catalogGate.promise
+    await route.fulfill({ json: [] })
+  })
+  await page.setViewportSize({ width: 1366, height: 900 })
+  await page.goto('/')
+  await expect(page.locator('.app-loading')).toHaveCount(0)
+  try {
+    await page
+      .getByRole('complementary', { name: '社区导航' })
+      .getByRole('link', { name: /十二橙器/ })
+      .click()
+    const loader = page.getByRole('status').filter({ hasText: '正在翻开下一页' })
+    await expect(loader.locator('.loading-panel')).toHaveCSS('opacity', '1')
+    expect(await loader.boundingBox()).toEqual({ x: 0, y: 0, width: 1366, height: 900 })
+    listGate.release()
+    await detailStarted.promise
+    await expect(loader).toBeVisible()
+    await expect(page.locator('#main-content')).toHaveAttribute('aria-busy', 'true')
+    detailGate.release()
+    await expect(page.locator('.award-stepper')).toBeVisible()
+    await expect(page.locator('.app-loading')).toHaveCount(0)
+    await expect(page.locator('#main-content')).toHaveAttribute('aria-busy', 'false')
+  } finally {
+    listGate.release()
+    detailGate.release()
+    catalogGate.release()
   }
 })
 
@@ -185,11 +231,13 @@ test('初始化请求未完成就离开活动页，不会在离开后创建轮�
   try {
     await openAwards(page)
     await seen.promise
+    await expect(page.getByRole('status').filter({ hasText: '正在翻开下一页' })).toBeVisible()
     await page
       .getByRole('navigation', { name: '主导航' })
       .getByRole('link', { name: '作品书架', exact: true })
       .click()
     await expect(page.locator('.work-card').first()).toBeVisible()
+    await expect(page.locator('.app-loading')).toHaveCount(0)
     pending.release()
     await expect.poll(() => details).toBe(1)
     await page.clock.runFor(31000)

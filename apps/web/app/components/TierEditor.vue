@@ -158,7 +158,8 @@ async function addBangumi(payload: { subject: BangumiSubject }) {
     busy.value = false
   }
 }
-onMounted(load)
+const { track: trackPageLoad } = usePageLoading()
+onMounted(() => trackPageLoad(load))
 watch(() => auth.user.value?.id, load)
 onBeforeUnmount(() => {
   ++revision

@@ -163,7 +163,8 @@ async function moderateReply(id: string, status: string) {
     error.value = (e as Error).message
   }
 }
-onMounted(load)
+const { track: trackPageLoad } = usePageLoading()
+onMounted(() => trackPageLoad(load))
 watch(() => auth.user.value?.id, load)
 onBeforeUnmount(() => {
   ++loadVersion

@@ -42,52 +42,33 @@ withDefaults(defineProps<{ initial?: boolean }>(), { initial: false })
 
 <style scoped>
 .app-loading {
+  --loading-hop-height: -22px;
   position: fixed;
-  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
-  left: 50%;
+  inset: 0;
   z-index: 2000;
-  max-width: calc(100vw - 32px);
-  transform: translateX(-50%);
   pointer-events: none;
 }
 .loading-panel {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  box-sizing: border-box;
-  padding: 12px 24px 12px 16px;
-  border: 1px solid var(--line);
-  border-radius: 24px;
-  background: var(--surface-solid);
-  color: var(--ink);
-  box-shadow: 0 12px 40px #443a2120;
-  animation: loading-appear 160ms ease-out both;
-}
-.app-loading.is-initial {
-  --loading-hop-height: -22px;
-  inset: 0;
-  max-width: none;
-  transform: none;
-}
-.is-initial .loading-panel {
   display: grid;
   place-content: center;
   justify-items: center;
   width: 100%;
   height: 100%;
+  box-sizing: border-box;
   gap: 18px;
   padding: 24px;
-  border: 0;
-  border-radius: 0;
   background:
     radial-gradient(ellipse at center, color-mix(in srgb, var(--orange) 9%, transparent), transparent 66%),
     var(--bg);
-  box-shadow: none;
+  color: var(--ink);
   text-align: center;
-  /* Keep the server-rendered page reachable if the client fails to start. */
+  /* Let the current page show through if the next render never becomes ready. */
   animation:
-    loading-reveal 160ms ease-out 220ms both,
+    loading-reveal 160ms ease-out both,
     loading-uncover 1ms step-start 10s forwards;
+}
+.is-initial .loading-panel {
+  animation-delay: 220ms, 10s;
 }
 .app-loading-leave-active {
   transition: opacity 180ms ease-out;
@@ -100,15 +81,14 @@ withDefaults(defineProps<{ initial?: boolean }>(), { initial: false })
 }
 .loading-scene {
   position: relative;
-  flex: 0 0 64px;
-  width: 64px;
-  height: 76px;
+  width: 96px;
+  height: 110px;
 }
 .loading-orange {
   position: absolute;
   inset: 0;
-  width: 64px;
-  height: 69px;
+  width: 96px;
+  height: 103px;
   transform-origin: 50% 80%;
   animation: orange-hop 1100ms ease-in-out infinite;
 }
@@ -142,10 +122,10 @@ withDefaults(defineProps<{ initial?: boolean }>(), { initial: false })
 }
 .loading-shadow {
   position: absolute;
-  bottom: 3px;
-  left: 16px;
-  width: 32px;
-  height: 6px;
+  bottom: 5px;
+  left: 24px;
+  width: 48px;
+  height: 8px;
   border-radius: 50%;
   background: var(--orange);
   opacity: 0.2;
@@ -159,13 +139,14 @@ withDefaults(defineProps<{ initial?: boolean }>(), { initial: false })
 .loading-label {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  font: 500 15px/1.5 var(--sans);
+  font: 500 18px/1.5 var(--sans);
   white-space: nowrap;
 }
 .loading-copy small {
   color: var(--subtle);
-  font: 400 12px/1.5 var(--sans);
+  font: 400 13px/1.5 var(--sans);
 }
 .loading-dots {
   display: inline-flex;
@@ -183,27 +164,6 @@ withDefaults(defineProps<{ initial?: boolean }>(), { initial: false })
 }
 .loading-dots i:nth-child(3) {
   animation-delay: 300ms;
-}
-:global(html[data-theme='dark']) .app-loading:not(.is-initial) .loading-panel {
-  box-shadow: 0 12px 40px #0005;
-}
-.is-initial .loading-scene {
-  width: 96px;
-  height: 110px;
-}
-.is-initial .loading-orange {
-  width: 96px;
-  height: 103px;
-}
-.is-initial .loading-shadow {
-  left: 24px;
-  width: 48px;
-  height: 8px;
-  bottom: 5px;
-}
-.is-initial .loading-label {
-  justify-content: center;
-  font-size: 18px;
 }
 @keyframes orange-hop {
   0%,
@@ -253,16 +213,6 @@ withDefaults(defineProps<{ initial?: boolean }>(), { initial: false })
     opacity: 1;
   }
 }
-@keyframes loading-appear {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 @keyframes loading-reveal {
   from {
     opacity: 0;
@@ -277,75 +227,30 @@ withDefaults(defineProps<{ initial?: boolean }>(), { initial: false })
   }
 }
 @media (min-width: 900px) {
-  .app-loading:not(.is-initial) {
-    bottom: 32px;
-  }
-  .app-loading:not(.is-initial) .loading-panel {
-    min-width: 300px;
-    gap: 18px;
-    padding: 16px 28px 16px 20px;
-  }
   .loading-scene {
-    flex-basis: 80px;
-    width: 80px;
-    height: 92px;
-  }
-  .loading-orange {
-    width: 80px;
-    height: 86px;
-  }
-  .loading-shadow {
-    left: 20px;
-    width: 40px;
-    height: 7px;
-    bottom: 4px;
-  }
-  .loading-label {
-    font-size: 16px;
-  }
-  .loading-copy small {
-    font-size: 13px;
-  }
-  .is-initial .loading-scene {
     width: 112px;
     height: 128px;
   }
-  .is-initial .loading-orange {
+  .loading-orange {
     width: 112px;
     height: 120px;
   }
-  .is-initial .loading-shadow {
+  .loading-shadow {
     left: 28px;
     width: 56px;
-    height: 8px;
-    bottom: 5px;
-  }
-}
-@media (max-width: 599px) {
-  .app-loading:not(.is-initial) {
-    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-  }
-  .app-loading:not(.is-initial) .loading-panel {
-    gap: 10px;
-    padding: 10px 16px 10px 12px;
-    border-radius: 20px;
-  }
-  .loading-label {
-    font-size: 14px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .app-loading-leave-active {
     transition: none;
   }
-  .app-loading:not(.is-initial) .loading-panel,
   .loading-orange,
   .loading-leaf,
   .loading-shadow,
   .loading-dots i {
     animation: none;
   }
-  .is-initial .loading-panel {
+  .loading-panel {
     animation-duration: 1ms, 1ms;
     animation-timing-function: step-start, step-start;
   }

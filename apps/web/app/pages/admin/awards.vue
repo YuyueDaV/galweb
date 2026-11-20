@@ -284,9 +284,10 @@ function loadSettings() {
   deleteTitle.value = ''
   deleteError.value = ''
 }
+const { track: trackPageLoad } = usePageLoading()
 onMounted(async () => {
   if (typeof route.query.campaign === 'string') selectedCampaignId.value = route.query.campaign
-  await awards.initialize()
+  await trackPageLoad(awards.initialize)
   loadSettings()
   if (typeof route.query.candidate === 'string') {
     const item = campaignNominations.value.find(n => n.candidateId === route.query.candidate)

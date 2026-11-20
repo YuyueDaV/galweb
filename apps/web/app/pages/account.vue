@@ -13,7 +13,8 @@ const dirty=computed(()=>!!auth.user.value&&(nickname.value!==auth.user.value.ni
 const signatureLength=computed(()=>Array.from(signature.value).length)
 watch(()=>auth.user.value,user=>{nickname.value=user?.nickname||'';signature.value=user?.signature||'';avatarAssetId.value=user?.avatarAssetId||null},{immediate:true})
 watch([nickname,signature,avatarAssetId],()=>{saved.value=false})
-onMounted(()=>auth.initialize())
+const { track: trackPageLoad } = usePageLoading()
+onMounted(() => trackPageLoad(auth.initialize))
 useSeoMeta({title:'用户中心 · 澄之响',robots:'noindex,nofollow'})
 async function uploadAvatar(event:Event){
  const input=event.target as HTMLInputElement,file=input.files?.[0]

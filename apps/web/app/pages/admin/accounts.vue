@@ -14,6 +14,8 @@ const allowed = computed(() => identity.can('account.view'))
 const matrixRoles: AccountRole[] = ['member', 'admin', 'super_admin']
 const statusNames = { active: '正常', disabled: '已禁用', deleted: '已注销' }
 let requestVersion = 0
+let firstAccountLoad = true
+const { track: trackPageLoad } = usePageLoading()
 
 useSeoMeta({ title: '账号权限 · 澄之响' })
 
@@ -69,7 +71,11 @@ watch([auth.ready, identity.selectedId, identity.role], () => {
   error.value = ''
   for (const id of Object.keys(roleDrafts)) delete roleDrafts[id]
   if (!auth.ready.value) { loading.value = true; return }
-  if (allowed.value) void loadAccounts()
+  if (allowed.value) {
+    if (firstAccountLoad) void trackPageLoad(loadAccounts)
+    else void loadAccounts()
+    firstAccountLoad = false
+  }
   else loading.value = false
 }, { immediate: true })
 onMounted(() => auth.initialize())

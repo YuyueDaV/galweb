@@ -52,13 +52,15 @@ function changeSource() {
 const awards = useAwards()
 const route = useRoute()
 const activityReady = ref(false)
+const { track: trackPageLoad } = usePageLoading()
 let activityRevision = 0
 async function loadActivity(keepContent = false) {
   const revision = ++activityRevision
   if (!keepContent) activityReady.value = false
   const requested = route.query.campaign
   if (typeof requested === 'string') awards.selectedCampaignId.value = requested
-  await awards.initialize()
+  if (activityReady.value) await awards.initialize()
+  else await trackPageLoad(awards.initialize)
   if (revision === activityRevision) activityReady.value = true
 }
 const identity = usePreviewIdentity()

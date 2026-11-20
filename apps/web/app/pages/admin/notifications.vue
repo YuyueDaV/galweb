@@ -152,7 +152,8 @@ watch(
     void load()
   },
 )
-onMounted(load)
+const { track: trackPageLoad } = usePageLoading()
+onMounted(() => trackPageLoad(load))
 useSeoMeta({ title: '站点通知管理 · 澄之响', robots: 'noindex,nofollow' })
 </script>
 

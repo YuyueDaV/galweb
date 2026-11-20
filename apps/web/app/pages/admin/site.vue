@@ -54,7 +54,8 @@ async function save() {
     busy.value = false
   }
 }
-onMounted(load)
+const { track: trackPageLoad } = usePageLoading()
+onMounted(() => trackPageLoad(load))
 watch(() => auth.user.value?.id, load)
 useSeoMeta({ title: '站点配置 · 澄之响', robots: 'noindex,nofollow' })
 </script>

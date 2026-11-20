@@ -6,6 +6,8 @@ const auth = useAuth(),
 const page = ref(1),
   error = ref(''),
   busy = ref(false)
+const initialLoading = ref(true)
+const { track: trackPageLoad } = usePageLoading()
 async function load() {
   await auth.initialize()
   error.value = ''
@@ -57,7 +59,13 @@ watch(
     void load()
   },
 )
-onMounted(load)
+onMounted(async () => {
+  try {
+    await trackPageLoad(load)
+  } finally {
+    initialLoading.value = false
+  }
+})
 useSeoMeta({ title: '消息通知 · 澄之响', robots: 'noindex,nofollow' })
 </script>
 
@@ -80,8 +88,9 @@ useSeoMeta({ title: '消息通知 · 澄之响', robots: 'noindex,nofollow' })
     </header>
     <p v-if="error" class="form-error" role="alert">{{ error }}</p>
     <template v-if="auth.user.value">
-      <div v-if="!inbox.items.value.length" class="empty-state notification-empty">暂时没有新的通知。</div>
-      <div v-else class="notification-list">
+      <div v-if="initialLoading && !inbox.items.value.length" class="empty-state notification-empty" role="status">正在加载通知…</div>
+      <div v-else-if="!error && !inbox.items.value.length" class="empty-state notification-empty">暂时没有新的通知。</div>
+      <div v-else-if="inbox.items.value.length" class="notification-list">
         <article
           v-for="item in inbox.items.value"
           :key="item.id"

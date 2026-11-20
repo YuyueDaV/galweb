@@ -27,8 +27,26 @@ function startTouchPress(event: PointerEvent) {
 const themeCookie=useCookie<'light'|'dark'>('czx-theme',{sameSite:'lax',maxAge:31536000})
 const dark = ref(themeCookie.value==='dark')
 const booting=ref(true)
-const loadingIndicator=useLoadingIndicator({throttle:220,hideDelay:160,resetDelay:180})
-const pageLoading=computed(()=>loadingIndicator.isLoading.value&&!loadingIndicator.error.value)
+const loadingIndicator = useLoadingIndicator({ throttle: 0, hideDelay: 0 })
+const { pending: pageRequestsPending } = usePageLoading()
+const pageBusy = computed(() => pageRequestsPending.value ||
+  (loadingIndicator.isLoading.value && !loadingIndicator.error.value))
+const pageLoading = ref(false)
+const screenLoading = computed(() => booting.value || pageLoading.value)
+const initialLoad = ref(true)
+if (import.meta.client) {
+  watch(pageBusy, (busy, _, onCleanup) => {
+    if (!busy || booting.value) {
+      pageLoading.value = busy
+      return
+    }
+    const timer = window.setTimeout(() => { pageLoading.value = true }, 220)
+    onCleanup(() => window.clearTimeout(timer))
+  }, { immediate: true })
+  watch(screenLoading, (loading) => {
+    if (!loading) initialLoad.value = false
+  })
+}
 const headerScrolled = ref(false)
 const searchInput = ref<HTMLInputElement | null>(null)
 const searchExpanded = ref(false)
@@ -85,9 +103,8 @@ function resetFeed() { query.value = ''; category.value = '全部' }
     @pointercancel.passive="releaseTouchPress"
     @lostpointercapture.passive="releaseTouchPress"
   >
-    <NuxtLoadingIndicator color="var(--orange)" :throttle="220" />
     <Transition name="app-loading">
-      <AppLoading v-if="booting || pageLoading" :key="booting ? 'initial' : 'navigation'" :initial="booting" />
+      <AppLoading v-if="screenLoading" :initial="initialLoad" />
     </Transition>
     <SiteBackground />
     <a class="skip-link" href="#main-content">跳转到正文</a>
@@ -146,7 +163,7 @@ function resetFeed() { query.value = ''; category.value = '全部' }
         </div>
       </aside>
 
-      <main id="main-content" class="page-content" :aria-busy="booting||pageLoading"><NuxtPage /></main>
+      <main id="main-content" class="page-content" :aria-busy="booting || pageBusy"><NuxtPage /></main>
     </div>
 
     <footer class="site-footer shell"><span><span class="footer-mark"><DecorativeSpark /></span> 澄之响 <span class="footer-separator">/</span> 南京工程学院视觉小说同好会</span><span><NuxtLink to="/about#join-club" class="footer-club-link">加入 QQ 群<AppIcon name="arrowUpRight" :size="12" /></NuxtLink>故事有终章，热爱有回响。<span class="footer-year">© {{ new Date().getFullYear() }}</span></span></footer>
