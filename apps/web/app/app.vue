@@ -1,6 +1,16 @@
 <script setup lang="ts">
 const forum = useForum()
 const site=useSiteSettings(),inbox=useNotifications()
+const footerLinks = computed(() =>
+  site.settings.value.links.flatMap((link) => {
+    try {
+      const url = new URL(link.url)
+      return url.protocol === 'https:' || url.protocol === 'http:' ? [{ ...link, host: url.host }] : []
+    } catch {
+      return []
+    }
+  }),
+)
 const identity = usePreviewIdentity()
 const auth=useAuth()
 if(import.meta.server)useResponseHeader('Cache-Control').value='private, no-store'
@@ -166,7 +176,22 @@ function resetFeed() { query.value = ''; category.value = '全部' }
       <main id="main-content" class="page-content" :aria-busy="booting || pageBusy"><NuxtPage /></main>
     </div>
 
-    <footer class="site-footer shell"><span><span class="footer-mark"><DecorativeSpark /></span> 澄之响 <span class="footer-separator">/</span> 南京工程学院视觉小说同好会</span><span><NuxtLink to="/about#join-club" class="footer-club-link">加入 QQ 群<AppIcon name="arrowUpRight" :size="12" /></NuxtLink>故事有终章，热爱有回响。<span class="footer-year">© {{ new Date().getFullYear() }}</span></span></footer>
+    <footer class="site-footer shell">
+      <nav v-if="footerLinks.length" class="footer-friends" aria-labelledby="footer-friends-title">
+        <h2 id="footer-friends-title">友情链接</h2>
+        <ul>
+          <li v-for="(link, index) in footerLinks" :key="`${link.url}:${index}`">
+            <a :href="link.url" target="_blank" rel="noopener noreferrer">
+              <span>{{ link.name }}</span>
+              <span class="footer-friend-host">{{ link.host }}</span>
+              <AppIcon name="arrowUpRight" :size="14" />
+            </a>
+          </li>
+        </ul>
+      </nav>
+      <span><span class="footer-mark"><DecorativeSpark /></span> 澄之响 <span class="footer-separator">/</span> 南京工程学院视觉小说同好会</span>
+      <span><NuxtLink to="/about#join-club" class="footer-club-link">加入 QQ 群<AppIcon name="arrowUpRight" :size="12" /></NuxtLink>故事有终章，热爱有回响。<span class="footer-year">© {{ new Date().getFullYear() }}</span></span>
+    </footer>
     <ForumDialogs />
     <OAuthResultNotice />
     <Transition name="toast"><div v-if="toast" role="status" class="toast-message"><AppIcon name="check" :size="18" />{{ toast }}</div></Transition>
@@ -174,4 +199,60 @@ function resetFeed() { query.value = ''; category.value = '全部' }
 </template>
 <style scoped>.service-notice{padding:.6rem 1rem;font-size:.65rem;text-align:center;background:var(--hero);color:var(--subtle)}.service-notice button{color:var(--orange);margin-left:.8rem}</style>
 
-<style scoped>.footer-club-link { display: inline-flex; align-items: center; gap: .3rem; color: var(--orange); }</style>
+<style scoped>
+.footer-club-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--orange);
+}
+.site-footer:has(.footer-friends) {
+  flex-wrap: wrap;
+}
+.footer-friends {
+  flex: 0 0 100%;
+  min-width: 0;
+}
+.footer-friends h2 {
+  margin: 0 0 0.25rem;
+  color: var(--subtle);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.footer-friends ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.footer-friends li {
+  max-width: 100%;
+}
+.footer-friends a {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem 0.35rem;
+  min-height: 36px;
+  padding-block: 0.2rem;
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.footer-friends a:hover {
+  color: var(--orange);
+}
+.footer-friend-host {
+  color: var(--subtle);
+  font-size: 0.6875rem;
+  font-weight: 400;
+}
+.footer-friends .app-icon {
+  flex: none;
+  color: var(--orange);
+}
+</style>

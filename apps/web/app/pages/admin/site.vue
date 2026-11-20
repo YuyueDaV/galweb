@@ -47,7 +47,7 @@ async function save() {
     const data = await auth.request<SiteSettings>('/admin/site-settings', form.value, 'PUT')
     site.settings.value = data
     form.value = clone(data)
-    success.value = '站点配置已保存，网站背景、首页与社团介绍已更新。'
+    success.value = '站点配置已保存。'
   } catch (e) {
     error.value = (e as Error).message
   } finally {
@@ -65,7 +65,7 @@ useSeoMeta({ title: '站点配置 · 澄之响', robots: 'noindex,nofollow' })
       <div>
         <p class="eyebrow">OUR LITTLE CLUB</p>
         <h1>站点配置<span>。</span></h1>
-        <p>设置网站背景、首页文案、公告和入社方式。</p>
+        <p>设置网站背景、首页文案、公告、入社方式和友情链接。</p>
       </div>
       <NuxtLink to="/admin">返回社区管理</NuxtLink>
     </header>
@@ -96,25 +96,30 @@ useSeoMeta({ title: '站点配置 · 澄之响', robots: 'noindex,nofollow' })
             maxlength="200"
             placeholder="仅填写愿意公开的社团联系方式"
         /></label>
-        <h2>友情链接</h2>
-        <div v-for="(link, index) in form.links" :key="index" class="link-edit-row">
-          <input v-model="link.name" aria-label="友链名称" required maxlength="40" placeholder="名称" /><input
-            v-model="link.url"
-            aria-label="友链地址"
-            type="url"
-            required
-            maxlength="500"
-            placeholder="https://"
-          /><button type="button" @click="form.links.splice(index, 1)">移除</button>
-        </div>
-        <button
-          type="button"
-          class="text-link"
-          :disabled="form.links.length >= 20"
-          @click="form.links.push({ name: '', url: '' })"
-        >
-          添加友情链接
-        </button>
+        <section class="site-friends-settings" aria-labelledby="site-friends-title">
+          <h2 id="site-friends-title">友情链接</h2>
+          <p class="catalog-help">保存后会在全站页脚显示友站名称和域名。</p>
+          <div v-for="(link, index) in form.links" :key="index" class="link-edit-row">
+            <input v-model="link.name" aria-label="友链名称" required maxlength="40" placeholder="名称" />
+            <input
+              v-model="link.url"
+              aria-label="友链地址"
+              type="url"
+              required
+              maxlength="500"
+              placeholder="https://"
+            />
+            <button type="button" @click="form.links.splice(index, 1)">移除</button>
+          </div>
+          <button
+            type="button"
+            class="button secondary"
+            :disabled="form.links.length >= 20"
+            @click="form.links.push({ name: '', url: '' })"
+          >
+            <AppIcon name="plus" :size="16" />添加友情链接
+          </button>
+        </section>
         <p v-if="error" class="form-error" role="alert">{{ error }}</p>
         <p v-if="success" class="form-success" role="status">{{ success }}</p>
         <button class="button primary" :disabled="busy || uploading">
@@ -128,3 +133,17 @@ useSeoMeta({ title: '站点配置 · 澄之响', robots: 'noindex,nofollow' })
     </div>
   </div>
 </template>
+
+<style scoped>
+.site-friends-settings {
+  margin-block: 1.25rem;
+  padding-block: 1rem;
+  border-block: 1px solid var(--line);
+}
+.site-friends-settings h2 {
+  margin-bottom: 0.35rem;
+}
+.site-friends-settings .button {
+  margin-top: 0.6rem;
+}
+</style>

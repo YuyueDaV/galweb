@@ -79,3 +79,68 @@ test('同好会宣传：原始素材、复制及失败提示、二维码放大�
     await promotion.screenshot({ path: `.data/visual-checks/club-promotion-${width}.png` })
   }
 })
+
+test('管理员保存和删除友情链接后，全站页脚同步更新', async ({ page, browser, baseURL }) => {
+  const origin = baseURL!
+  const original = await (await page.request.get('/api/site-settings')).json()
+  const login = await page.request.post('/api/auth/login', {
+    headers: { Origin: origin },
+    data: { username: 'browser_background_editor', password: 'Isolated editor password 123!' },
+  })
+  expect(login.ok()).toBeTruthy()
+  const { csrfToken } = await login.json()
+  const visitorContext = await browser.newContext({ baseURL: origin })
+  const name = '一个一起聊故事的友站'
+  const url = 'https://friends.example/archive?tag=club#about'
+  try {
+    await page.goto('/admin/site')
+    const settings = page.getByRole('region', { name: '友情链接', exact: true })
+    const save = page.getByRole('button', { name: '保存配置', exact: true })
+    await expect(save).toBeEnabled()
+    await page.getByLabel('公开联系方式', { exact: true }).fill('测试社团联系方式')
+    await settings.getByRole('button', { name: '添加友情链接', exact: true }).click()
+    const row = settings.locator('.link-edit-row').last()
+    await row.getByLabel('友链名称', { exact: true }).fill(name)
+    await row.getByLabel('友链地址', { exact: true }).fill(url)
+    const savedLinks = page.getByRole('contentinfo').getByRole('navigation', { name: '友情链接' })
+    await expect(savedLinks.getByRole('link', { name: new RegExp(name) })).toHaveCount(0)
+    await save.click()
+    await expect(
+      savedLinks.getByRole('link', { name: `${name} friends.example`, exact: true }),
+    ).toHaveAttribute('href', url)
+
+    const visitor = await visitorContext.newPage()
+    const response = await visitor.goto('/')
+    expect(await response!.text()).toContain(name)
+    await visitor.getByRole('contentinfo').getByRole('link', { name: '加入 QQ 群', exact: true }).click()
+    await expect(visitor).toHaveURL(/\/about#join-club$/)
+    const friendLink = visitor
+      .getByRole('contentinfo')
+      .getByRole('link', { name: `${name} friends.example`, exact: true })
+    await expect(friendLink).toBeVisible()
+    await expect(friendLink).toHaveAttribute('target', '_blank')
+    await expect(visitor.getByRole('main').getByRole('link', { name: new RegExp(name) })).toHaveCount(0)
+    await expect(visitor.getByRole('main')).toContainText('测试社团联系方式')
+    await expect(visitor.getByRole('link', { name: '看看我们的活动与相册', exact: true })).toBeVisible()
+
+    await visitor.setViewportSize({ width: 320, height: 844 })
+    await visitor.getByRole('button', { name: '切换深色模式', exact: true }).click()
+    await expect(friendLink).toBeVisible()
+    expect(await visitor.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy()
+
+    await row.getByRole('button', { name: '移除', exact: true }).click()
+    await expect(savedLinks.getByRole('link', { name: new RegExp(name) })).toHaveCount(1)
+    await save.click()
+    await expect(page.getByRole('status').filter({ hasText: '站点配置已保存' })).toBeVisible()
+    await expect(savedLinks.getByRole('link', { name: new RegExp(name) })).toHaveCount(0)
+    await visitor.reload()
+    await expect(friendLink).toHaveCount(0)
+  } finally {
+    const latest = await (await page.request.get('/api/site-settings')).json()
+    await page.request.put('/api/admin/site-settings', {
+      headers: { Origin: origin, 'X-CSRF-Token': csrfToken },
+      data: { ...original, version: latest.version },
+    })
+    await visitorContext.close()
+  }
+})
