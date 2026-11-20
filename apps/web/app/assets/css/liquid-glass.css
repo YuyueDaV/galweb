@@ -504,11 +504,15 @@ html[data-theme='dark'] .site-wrap .experience-tabs:not(.member-tabs) {
   background-color: rgb(var(--liquid-rgb) / 80%);
   color: var(--ink);
 }
+.site-wrap .award-board-toolbar {
+  container: award-toolbar / inline-size;
+}
 .site-wrap .award-tabs {
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  flex: 1 1 22rem;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  flex: 1 1 min(100%, 23rem);
   min-width: 0;
   height: auto;
   gap: 4px;
@@ -520,7 +524,10 @@ html[data-theme='dark'] .site-wrap .experience-tabs:not(.member-tabs) {
 .site-wrap .award-tabs button {
   display: inline-flex;
   align-items: center;
+  align-content: center;
   justify-content: center;
+  flex-wrap: wrap;
+  column-gap: 4px;
   min-width: 0;
   min-height: 44px;
   padding: 8px 6px;
@@ -531,6 +538,7 @@ html[data-theme='dark'] .site-wrap .experience-tabs:not(.member-tabs) {
   color: var(--subtle);
   font-size: 14px;
   line-height: 1.5;
+  white-space: normal;
 }
 .site-wrap .award-tabs button.active {
   border-color: color-mix(in srgb, var(--orange) 45%, transparent);
@@ -542,8 +550,22 @@ html[data-theme='dark'] .site-wrap .experience-tabs:not(.member-tabs) {
   display: none;
 }
 .site-wrap .award-tabs button > span {
+  margin-inline-start: 0;
   font-size: 12px;
   border-radius: 999px;
+}
+@container award-toolbar (width < 420px) {
+  .site-wrap .award-tabs:has(> button:nth-child(4)) {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-radius: var(--radius-card);
+  }
+  .site-wrap .award-tabs button {
+    padding-inline: 3px;
+  }
+  .site-wrap .award-tabs button > span {
+    padding-inline: 3px;
+  }
 }
 .site-wrap .award-candidate-copy > button.text-link,
 .site-wrap .award-my-nominations article > div:last-child > button {
@@ -609,9 +631,6 @@ html[data-theme='dark'] .site-wrap .experience-tabs:not(.member-tabs) {
   color: var(--orange);
 }
 @media (max-width: 599px) {
-  .site-wrap .award-tabs {
-    flex-basis: 100%;
-  }
   .site-wrap .award-phase-confirm button.button {
     flex-basis: 100%;
   }

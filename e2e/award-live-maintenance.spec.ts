@@ -97,12 +97,48 @@ test('实时排名每五秒更新、同分并列、失败保留数据，手机�
   await expect(ballot.locator('textarea').first()).toHaveValue('自动刷新时保留的推荐词。')
   expect(ballotWrites).toBe(0)
   await page.getByRole('button', { name: '实时排名', exact: true }).click()
-  for (const width of [390, 320]) {
+  const tabs = page.getByRole('group', { name: '活动列表' })
+  for (const width of [1440, 390, 320]) {
     await page.setViewportSize({ width, height: 900 })
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy()
     expect(await panel.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBeTruthy()
+    const layout = await tabs.evaluate((group) => {
+      const frame = group.getBoundingClientRect()
+      const rows = new Map<number, number>()
+      const contained = Array.from(group.querySelectorAll('button')).every((button) => {
+        const item = button.getBoundingClientRect()
+        const row = Math.round(item.top)
+        rows.set(row, (rows.get(row) || 0) + 1)
+        return (
+          item.left > frame.left &&
+          item.right < frame.right &&
+          item.top > frame.top &&
+          item.bottom < frame.bottom
+        )
+      })
+      return {
+        rows: [...rows.values()],
+        contained,
+        radius: parseFloat(getComputedStyle(group).borderTopLeftRadius),
+      }
+    })
+    expect(layout.rows).toEqual(width === 1440 ? [4] : [2, 2])
+    expect(layout.contained).toBeTruthy()
+    if (width < 600) {
+      expect(layout.radius).toBeLessThanOrEqual(20)
+      const search = (await page.getByRole('textbox', { name: '搜索候选作品' }).boundingBox())!
+      const frame = (await tabs.boundingBox())!
+      expect(search.y).toBeGreaterThanOrEqual(frame.y + frame.height)
+    }
   }
   await panel.screenshot({ path: test.info().outputPath('live-ranking-mobile.png') })
+  await tabs.getByRole('button', { name: '我的选票', exact: true }).click()
+  await expect(tabs.getByRole('button', { name: '我的选票', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await expect(page.getByRole('textbox', { name: '搜索候选作品' })).toHaveCount(0)
+  await tabs.screenshot({ path: test.info().outputPath('voting-tabs-mobile.png') })
 })
 
 async function choose(page: Page, label: string, name: string) {

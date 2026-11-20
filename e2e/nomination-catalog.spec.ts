@@ -163,7 +163,16 @@ test('提名使用实时书库，Bangumi 复用已有作品，手动收录记录
   const card = page.locator('.award-candidate-card').filter({ hasText: title })
   await expect(card).toBeVisible()
   await expect(card.locator('.award-candidate-cover img')).toHaveAttribute('src', coverUrl!)
-  await page.locator('.award-tabs').screenshot({ path: test.info().outputPath('nomination-tabs-mobile.png') })
+  const tabs = page.getByRole('group', { name: '活动列表' })
+  await expect(tabs.getByRole('button')).toHaveCount(3)
+  expect(
+    await tabs
+      .getByRole('button')
+      .evaluateAll(
+        (items) => new Set(items.map((item) => Math.round(item.getBoundingClientRect().top))).size,
+      ),
+  ).toBe(1)
+  await tabs.screenshot({ path: test.info().outputPath('nomination-tabs-mobile.png') })
   await card.screenshot({ path: test.info().outputPath('nominate-action-mobile.png') })
   await card.getByRole('button', { name: '我也想提名', exact: true }).click()
   await expect(dialog.getByPlaceholder('输入作品名称，也可以提名书架之外的作品')).toHaveValue(title)
