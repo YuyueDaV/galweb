@@ -32,6 +32,7 @@ async function renderAccounts(role,customFixtures){
   // behavior is separate; these assertions exercise the actual page template.
   ref:value=>vue.ref(Array.isArray(value)?fixtures:value===true?false:value),
   reactive:vue.reactive,computed:vue.computed,watch(){},onMounted(){},onBeforeUnmount(){},useSeoMeta(){},
+  usePageLoading:()=>({track:task=>task}),
   useAuth:()=>auth,usePreviewIdentity:()=>identity,useForum:()=>({loginOpen:vue.ref(false),notify(){}}),
  })
  const app=vue.createSSRApp(Accounts)
